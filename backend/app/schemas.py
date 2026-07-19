@@ -16,6 +16,11 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

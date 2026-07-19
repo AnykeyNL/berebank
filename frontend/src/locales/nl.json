@@ -21,6 +21,18 @@
     "admin": "Beheer",
     "logout": "Uitloggen"
   },
+  "password": {
+    "title": "Wachtwoord wijzigen",
+    "current": "Huidig wachtwoord",
+    "new": "Nieuw wachtwoord",
+    "confirm": "Bevestig nieuw wachtwoord",
+    "save": "Wachtwoord wijzigen",
+    "saving": "Opslaan…",
+    "changed": "Wachtwoord gewijzigd.",
+    "tooShort": "Nieuw wachtwoord moet minimaal 6 tekens zijn",
+    "mismatch": "Nieuwe wachtwoorden komen niet overeen",
+    "failed": "Wachtwoord wijzigen mislukt"
+  },
   "login": {
     "tagline": "Gesimuleerde cryptobeurs — oefen met handelen met nepgeld",
     "email": "E-mail",

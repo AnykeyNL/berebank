@@ -21,6 +21,18 @@
     "admin": "Admin",
     "logout": "Log out"
   },
+  "password": {
+    "title": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "save": "Change password",
+    "saving": "Saving…",
+    "changed": "Password changed.",
+    "tooShort": "New password must be at least 6 characters",
+    "mismatch": "New passwords do not match",
+    "failed": "Failed to change password"
+  },
   "login": {
     "tagline": "Simulated crypto exchange — practice trading with paper money",
     "email": "Email",

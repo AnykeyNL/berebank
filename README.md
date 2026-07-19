@@ -12,6 +12,7 @@ No real money or real orders are ever involved — only the market data is real.
 - Market orders (instant fill at live bid/ask, taker fee) and limit orders (filled by a background matcher when the live price crosses, maker fee)
 - Portfolio view: EUR cash, reserved funds, crypto holdings with live valuation, total account value, current fee tier
 - Role system: regular users trade; **BankManager** creates accounts, sets initial/current balances, enables/disables users, and manages the Bitvavo API configuration
+- Every user can change their own password (click your name in the top-right corner)
 - Fee tiers identical to Bitvavo Category A (0.15% maker / 0.25% taker at the base tier, decreasing with 30-day volume)
 
 ## Stack
@@ -109,6 +110,23 @@ admin password is printed at the end of the install.
 
 The script is idempotent: re-run it after pulling new code to update the
 deployment while keeping the database and generated secrets.
+
+### Updating an existing installation
+
+`deploy/update.sh` pulls the latest code from GitHub and redeploys it without
+touching any data — the PostgreSQL database, the generated secrets in
+`/etc/berebank/berebank.env`, and the nginx/SSL configuration are all left as-is:
+
+```bash
+# on the server, from the repository clone used for installation:
+cd deploy
+sudo ./update.sh
+```
+
+It fast-forwards the current branch from
+`https://github.com/AnykeyNL/berebank.git`, syncs the code to the install
+directory, updates backend/frontend dependencies, rebuilds the frontend, and
+restarts the `berebank` service (verifying it comes back up healthy).
 
 ## How the simulation works
 

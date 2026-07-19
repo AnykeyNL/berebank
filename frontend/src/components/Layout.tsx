@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import LanguageSwitcher from './LanguageSwitcher'
+import ChangePasswordDialog from './ChangePasswordDialog'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -11,6 +13,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export default function Layout() {
   const { user, logout } = useAuth()
   const { t } = useTranslation()
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
   return (
     <div className="min-h-screen">
@@ -38,14 +41,18 @@ export default function Layout() {
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <LanguageSwitcher />
-            <span className="text-slate-400">
+            <button
+              onClick={() => setShowPasswordDialog(true)}
+              title={t('password.title')}
+              className="text-slate-400 transition-colors hover:text-amber-400"
+            >
               {user?.display_name}
               {user?.role === 'bank_manager' && (
                 <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-400">
                   BankManager
                 </span>
               )}
-            </span>
+            </button>
             <button
               onClick={logout}
               className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-300 transition-colors hover:bg-slate-800"
@@ -58,6 +65,7 @@ export default function Layout() {
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />
       </main>
+      {showPasswordDialog && <ChangePasswordDialog onClose={() => setShowPasswordDialog(false)} />}
     </div>
   )
 }
