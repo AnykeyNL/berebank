@@ -23,7 +23,7 @@ def get_leaderboard(user: User = Depends(get_current_user), db: Session = Depend
     rows = db.execute(
         select(User.id, User.display_name, Account.id, Account.balance_eur)
         .join(Account, Account.user_id == User.id)
-        .where(User.is_active)
+        .where(User.is_active, User.role != "bank_manager")
     ).all()
 
     trade_counts = dict(db.execute(
