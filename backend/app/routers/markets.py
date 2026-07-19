@@ -9,7 +9,8 @@ from ..config import BITVAVO_REST_URL
 from ..models import User
 from ..schemas import MarketOut
 from ..security import get_current_user
-from ..services.bitvavo import bitvavo_service
+from ..services.market_data import market_data_service
+from ..services.twelvedata import twelvedata_service
 
 router = APIRouter(prefix="/markets", tags=["markets"])
 
@@ -35,20 +36,27 @@ def _change_pct(price: dict) -> Decimal | None:
 
 
 @router.get("", response_model=list[MarketOut])
-def list_markets(user: User = Depends(get_current_user)):
+def list_markets(
+    user: User = Depends(get_current_user),
+    asset_class: Annotated[str | None, Query(pattern="^(crypto|stock|fund)$")] = None,
+):
     out = []
-    for market, info in sorted(bitvavo_service.markets.items()):
-        price = bitvavo_service.get_price(market) or {}
+    for market, info in sorted(market_data_service.markets.items()):
+        if asset_class and info["asset_class"] != asset_class:
+            continue
+        price = market_data_service.get_price(market) or {}
         out.append(MarketOut(
             market=market,
             base=info["base"],
             quote=info["quote"],
+            asset_class=info["asset_class"],
             last=price.get("last"),
             bid=price.get("bid"),
             ask=price.get("ask"),
             open=price.get("open"),
             change_24h_pct=_change_pct(price) if price else None,
             volume_quote=price.get("volume_quote"),
+            market_open=price.get("market_open"),
         ))
     return out
 
@@ -65,27 +73,33 @@ async def get_candles(
     Ranges: 1h, 1d, 1w, 30d, 365d.
     """
     market = market.upper()
-    if market not in bitvavo_service.markets:
+    market_info = market_data_service.get_market(market)
+    if market_info is None:
         raise HTTPException(404, f"Unknown market: {market}")
 
-    params = _RANGE_PARAMS.get(range_)
-    if params is None:
+    if range_ not in _RANGE_PARAMS:
         raise HTTPException(400, f"Invalid range: {range_}. Use one of {', '.join(_RANGE_PARAMS)}")
-    interval, limit = params
 
     cache_key = f"{market}:{range_}"
     cached = _candle_cache.get(cache_key)
     if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
         return cached[1]
 
-    async with httpx.AsyncClient(base_url=BITVAVO_REST_URL, timeout=15) as client:
-        resp = await client.get(
-            f"/{market}/candles",
-            params={"interval": interval, "limit": limit},
-        )
-        if resp.status_code != 200:
-            raise HTTPException(502, "Could not fetch candles from Bitvavo")
-        candles = sorted(resp.json(), key=lambda c: c[0])
+    if market_info["asset_class"] == "crypto":
+        interval, limit = _RANGE_PARAMS[range_]
+        async with httpx.AsyncClient(base_url=BITVAVO_REST_URL, timeout=15) as client:
+            resp = await client.get(
+                f"/{market}/candles",
+                params={"interval": interval, "limit": limit},
+            )
+            if resp.status_code != 200:
+                raise HTTPException(502, "Could not fetch candles from Bitvavo")
+            candles = sorted(resp.json(), key=lambda c: c[0])
+    else:
+        try:
+            candles = await twelvedata_service.fetch_candles(market, range_)
+        except Exception as exc:
+            raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
 
     _candle_cache[cache_key] = (time.monotonic(), candles)
     return candles

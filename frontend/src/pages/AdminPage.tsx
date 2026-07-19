@@ -11,6 +11,7 @@ export default function AdminPage() {
     <div className="space-y-8">
       <UserManagement />
       <BitvavoSettings />
+      <TwelveDataSettings />
     </div>
   )
 }
@@ -359,6 +360,119 @@ function BitvavoSettings() {
           <button
             type="submit"
             className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400"
+          >
+            {t('admin.saveCredentials')}
+          </button>
+        </form>
+      </div>
+    </section>
+  )
+}
+
+function TwelveDataSettings() {
+  const { t } = useTranslation()
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [apiKey, setApiKey] = useState('')
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(() => {
+    api<Settings>('/admin/settings').then(setSettings).catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!apiKey) return
+    setMessage(null)
+    setError(null)
+    setBusy(true)
+    try {
+      const updated = await api<Settings>('/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ twelvedata_api_key: apiKey }),
+      })
+      setSettings(updated)
+      setApiKey('')
+      setMessage(t('admin.settingsSaved'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.settingsFailed'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const td = settings?.twelvedata
+  const inputClass =
+    'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-mono outline-none focus:border-amber-500'
+
+  return (
+    <section>
+      <h2 className="mb-4 text-xl font-bold">{t('admin.twelvedataConnection')}</h2>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="mb-3 font-semibold">{t('admin.connStatus')}</h3>
+          {settings && td ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.feed')}</dt>
+                <dd>
+                  {!td.configured ? (
+                    <span className="text-slate-400">● {t('admin.notConfigured')}</span>
+                  ) : td.connected ? (
+                    <span className="text-emerald-400">● {t('admin.connected')}</span>
+                  ) : (
+                    <span className="text-red-400">● {t('admin.disconnected')}</span>
+                  )}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.stockFundMarkets')}</dt>
+                <dd className="font-mono">{td.markets}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.pricesCached')}</dt>
+                <dd className="font-mono">{td.prices_cached}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.usdEurRate')}</dt>
+                <dd className="font-mono">{td.usd_eur ?? '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.apiKey')}</dt>
+                <dd className="font-mono">{settings.twelvedata_api_key_masked ?? t('admin.notSet')}</dd>
+              </div>
+              {td.error && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-400">{t('admin.lastError')}</dt>
+                  <dd className="text-right text-red-400">{td.error}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <p className="text-sm text-slate-400">{t('common.loading')}</p>
+          )}
+          <p className="mt-4 text-xs text-slate-500">{t('admin.twelvedataNote')}</p>
+        </div>
+        <form onSubmit={onSubmit} className="h-fit space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="font-semibold">{t('admin.apiCredentials')}</h3>
+          <div>
+            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">{t('admin.apiKey')}</label>
+            <input
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={t('admin.keepCurrent')}
+              className={inputClass}
+            />
+          </div>
+          {message && <p className="text-sm text-emerald-400">{message}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={busy || !apiKey}
+            className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
           >
             {t('admin.saveCredentials')}
           </button>

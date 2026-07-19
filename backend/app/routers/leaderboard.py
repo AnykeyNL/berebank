@@ -8,7 +8,7 @@ from ..database import get_db
 from ..models import Account, Holding, Order, Trade, User
 from ..schemas import LeaderboardEntry
 from ..security import get_current_user
-from ..services.bitvavo import bitvavo_service
+from ..services.market_data import market_data_service
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
@@ -41,7 +41,7 @@ def get_leaderboard(user: User = Depends(get_current_user), db: Session = Depend
     for account_id, asset, amount in db.execute(
         select(Holding.account_id, Holding.asset, Holding.amount).where(Holding.amount > 0)
     ).all():
-        price_info = bitvavo_service.get_price(f"{asset}-EUR")
+        price_info = market_data_service.get_price(f"{asset}-EUR")
         price = price_info.get("last") if price_info else None
         if price is not None:
             value = amount * price

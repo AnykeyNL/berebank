@@ -4,9 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { usePrices } from '../lib/usePrices'
 import { fmtAmount, fmtDateTime, fmtEur, fmtPct, fmtPrice } from '../lib/format'
-import type { Market, Order, Portfolio, Trade } from '../lib/types'
+import type { AssetClass, Market, Order, Portfolio, Trade } from '../lib/types'
+import AssetClassIcon from '../components/AssetClassIcon'
 import OrderForm from '../components/OrderForm'
 import PriceChart from '../components/PriceChart'
+
+type ClassFilter = 'all' | AssetClass
 
 export default function TradePage() {
   const { t } = useTranslation()
@@ -16,6 +19,7 @@ export default function TradePage() {
 
   const [markets, setMarkets] = useState<Market[]>([])
   const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState<ClassFilter>('all')
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [openOrders, setOpenOrders] = useState<Order[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
@@ -52,12 +56,15 @@ export default function TradePage() {
             : null
         return { ...m, last, change }
       })
+      .filter((m) => classFilter === 'all' || m.asset_class === classFilter)
       .filter((m) => !q || m.market.includes(q))
       .sort((a, b) => parseFloat(b.volume_quote ?? '0') - parseFloat(a.volume_quote ?? '0'))
-  }, [markets, prices, search])
+  }, [markets, prices, search, classFilter])
 
   const selectedPrice = prices[selected]
   const selectedMarket = markets.find((m) => m.market === selected)
+  const marketOpen = selectedPrice?.market_open ?? selectedMarket?.market_open ?? null
+  const marketClosed = selectedMarket ? selectedMarket.asset_class !== 'crypto' && marketOpen === false : false
   const baseAsset = selected.split('-')[0]
   const holding = portfolio?.holdings.find((h) => h.asset === baseAsset)
   const livePriceLast = selectedPrice?.last ?? selectedMarket?.last ?? null
@@ -88,6 +95,23 @@ export default function TradePage() {
             placeholder={t('trade.searchPlaceholder')}
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm outline-none focus:border-amber-500"
           />
+          <div className="mt-2 flex gap-1">
+            {(['all', 'crypto', 'stock', 'fund'] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setClassFilter(c)}
+                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  classFilter === c
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+              >
+                {c !== 'all' && <AssetClassIcon assetClass={c} className="h-3.5 w-3.5" />}
+                {t(`trade.filter.${c}`)}
+              </button>
+            ))}
+          </div>
           <p className="mt-2 text-xs text-slate-500">
             {connected ? (
               <span className="text-emerald-400">● {t('trade.live')}</span>
@@ -115,7 +139,10 @@ export default function TradePage() {
                 m.market === selected ? 'bg-amber-500/10' : ''
               }`}
             >
-              <span className="font-medium">{m.base}</span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <AssetClassIcon assetClass={m.asset_class} className="h-3.5 w-3.5 shrink-0" />
+                {m.base}
+              </span>
               <span className="text-right">
                 <span className="block font-mono text-xs">{fmtPrice(m.last)}</span>
                 <span
@@ -136,7 +163,15 @@ export default function TradePage() {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <h2 className="text-xl font-bold">{selected}</h2>
+              <h2 className="flex items-center gap-2 text-xl font-bold">
+                {selectedMarket && <AssetClassIcon assetClass={selectedMarket.asset_class} className="h-5 w-5" />}
+                {selected}
+                {marketClosed && (
+                  <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-xs font-medium text-red-400">
+                    {t('trade.marketClosed')}
+                  </span>
+                )}
+              </h2>
               <p className="text-xs text-slate-500">
                 {selectedMarket ? `${selectedMarket.base} / ${selectedMarket.quote}` : ''}
               </p>

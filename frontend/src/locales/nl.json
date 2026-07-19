@@ -125,8 +125,20 @@
     "asset": "Munt",
     "tradeLink": "Handel"
   },
+  "assetClass": {
+    "crypto": "Crypto",
+    "stock": "Aandeel",
+    "fund": "Fonds"
+  },
   "trade": {
     "searchPlaceholder": "Zoek markten…",
+    "filter": {
+      "all": "Alles",
+      "crypto": "Crypto",
+      "stock": "Aandelen",
+      "fund": "Fondsen"
+    },
+    "marketClosed": "beurs gesloten",
     "live": "live",
     "reconnecting": "opnieuw verbinden…",
     "marketsCount": "{{count}} markten",
@@ -227,6 +239,12 @@
     "keepCurrent": "leeg laten om huidige te behouden",
     "settingsSaved": "Instellingen opgeslagen",
     "settingsFailed": "Opslaan van instellingen mislukt",
-    "saveCredentials": "Inloggegevens opslaan"
+    "saveCredentials": "Inloggegevens opslaan",
+    "twelvedataConnection": "Twelve Data-verbinding (aandelen & fondsen)",
+    "notConfigured": "niet geconfigureerd",
+    "stockFundMarkets": "Aandelen-/fondsmarkten",
+    "usdEurRate": "USD/EUR-koers",
+    "lastError": "Laatste fout",
+    "twelvedataNote": "Amerikaanse en Nederlandse aandelen en fondsen krijgen hun koersen via twelvedata.com. Voer je Twelve Data API-sleutel in om de feed te activeren; koersen verversen elke minuut en USD-instrumenten worden automatisch omgerekend naar EUR."
   }
 }

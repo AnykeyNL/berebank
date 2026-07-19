@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 
 from ..config import MIN_ORDER_EUR
 from ..models import Account, Holding, Order, Trade
-from .bitvavo import BitvavoService, bitvavo_service
 from .fees import calc_fee, get_30d_volume, get_fee_rates
+from .market_data import market_data_service
 
 logger = logging.getLogger("berebank.trading")
 
@@ -90,15 +90,22 @@ def _record_trade(
 def place_order(
     db: Session, account: Account, market: str, side: str, order_type: str,
     amount: Decimal | None, amount_quote: Decimal | None, limit_price: Decimal | None,
-    bitvavo: BitvavoService = bitvavo_service,
 ) -> Order:
-    if market not in bitvavo.markets:
+    market_info = market_data_service.get_market(market)
+    if market_info is None:
         raise TradingError(f"Unknown market: {market}")
-    price_info = bitvavo.get_price(market)
+    price_info = market_data_service.get_price(market)
     if price_info is None or price_info.get("last") is None:
         raise TradingError(f"No live price available for {market} yet, try again shortly")
+    # Stock/fund exchanges are closed nights and weekends: market orders are
+    # rejected; limit orders may rest and fill when trading resumes.
+    if order_type == "market" and price_info.get("market_open") is False:
+        raise TradingError(
+            f"The exchange for {market} is currently closed. "
+            "Place a limit order instead, or try again during trading hours."
+        )
 
-    base_asset = bitvavo.markets[market]["base"]
+    base_asset = market_info["base"]
     volume_30d = get_30d_volume(db, account.id)
     maker_rate, taker_rate = get_fee_rates(volume_30d)
 
@@ -199,7 +206,7 @@ def _place_limit_order(
     return order
 
 
-def cancel_order(db: Session, account: Account, order_id: int, bitvavo: BitvavoService = bitvavo_service) -> Order:
+def cancel_order(db: Session, account: Account, order_id: int) -> Order:
     order = db.get(Order, order_id)
     if order is None or order.account_id != account.id:
         raise TradingError("Order not found")
@@ -227,6 +234,8 @@ def cancel_order(db: Session, account: Account, order_id: int, bitvavo: BitvavoS
 
 def _try_fill_limit_order(db: Session, order: Order, price_info: dict) -> bool:
     """Fill an open limit order if the market price crosses its limit price."""
+    if price_info.get("market_open") is False:
+        return False  # stock/fund exchange closed; keep the order resting
     last = price_info.get("last")
     if order.side == "buy":
         market_price = price_info.get("ask") or last

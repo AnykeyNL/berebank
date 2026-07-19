@@ -11,11 +11,13 @@ from sqlalchemy import inspect, select, text
 from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
 from .database import Base, SessionLocal, engine
 from .mcp_server import mcp
-from .models import Account, User
+from .models import Account, AppSetting, User
 from .routers import admin, auth, leaderboard, markets, oauth_login, orders, portfolio
 from .security import hash_password
 from .services.bitvavo import bitvavo_service
+from .services.market_data import market_data_service
 from .services.trading import load_open_limit_markets, match_limit_orders
+from .services.twelvedata import twelvedata_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("berebank")
@@ -71,14 +73,18 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         load_open_limit_markets(db)
+        td_key_setting = db.get(AppSetting, "twelvedata_api_key")
+        td_key = td_key_setting.value if td_key_setting else None
     finally:
         db.close()
-    bitvavo_service.add_listener(_limit_order_listener)
+    market_data_service.add_listener(_limit_order_listener)
     bitvavo_service.start()
+    twelvedata_service.start(td_key)
     # The MCP Streamable HTTP transport needs its session manager running.
     async with mcp.session_manager.run():
         yield
     await bitvavo_service.stop()
+    await twelvedata_service.stop()
 
 
 app = FastAPI(title="de BereBank", version="1.0.0", lifespan=lifespan)
@@ -111,9 +117,9 @@ def _price_payload(entry: dict) -> dict:
 async def ws_prices(websocket: WebSocket):
     """Stream live ticker updates to the frontend, throttled to ~1 batch/second."""
     await websocket.accept()
-    queue = bitvavo_service.subscribe()
+    queue = market_data_service.subscribe()
     try:
-        snapshot = [_price_payload(p) for p in bitvavo_service.prices.values()]
+        snapshot = [_price_payload(p) for p in market_data_service.snapshot()]
         await websocket.send_text(json.dumps({"type": "snapshot", "data": snapshot}))
         while True:
             pending: dict[str, dict] = {}
@@ -132,12 +138,16 @@ async def ws_prices(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
-        bitvavo_service.unsubscribe(queue)
+        market_data_service.unsubscribe(queue)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "bitvavo": bitvavo_service.status()}
+    return {
+        "status": "ok",
+        "bitvavo": bitvavo_service.status(),
+        "twelvedata": twelvedata_service.status(),
+    }
 
 
 # The MCP server (Streamable HTTP at /mcp) plus its OAuth endpoints

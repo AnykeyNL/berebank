@@ -8,10 +8,14 @@ export interface User {
   mcp_trading_enabled: boolean
 }
 
+export type AssetClass = 'crypto' | 'stock' | 'fund'
+
 export interface Market {
   market: string
   base: string
   quote: string
+  asset_class: AssetClass
+  market_open: boolean | null
   last: string | null
   bid: string | null
   ask: string | null
@@ -28,6 +32,7 @@ export interface PriceUpdate {
   open: string | null
   volume_quote: string | null
   timestamp: number
+  market_open?: boolean
 }
 
 export interface Order {
@@ -107,5 +112,15 @@ export interface Settings {
     markets: number
     prices_cached: number
     last_update: number | null
+  }
+  twelvedata_api_key_masked: string | null
+  twelvedata: {
+    configured: boolean
+    connected: boolean
+    markets: number
+    prices_cached: number
+    last_update: number | null
+    usd_eur: string | null
+    error: string | null
   }
 }

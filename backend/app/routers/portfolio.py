@@ -8,8 +8,8 @@ from ..database import get_db
 from ..models import Holding, Order, User
 from ..schemas import FeeTierOut, HoldingOut, PortfolioOut
 from ..security import get_current_user
-from ..services.bitvavo import bitvavo_service
 from ..services.fees import get_30d_volume, get_fee_rates
+from ..services.market_data import market_data_service
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -27,7 +27,7 @@ def get_portfolio(user: User = Depends(get_current_user), db: Session = Depends(
     holdings_value = Decimal("0")
     for h in sorted(holdings, key=lambda h: h.asset):
         market = f"{h.asset}-EUR"
-        price_info = bitvavo_service.get_price(market)
+        price_info = market_data_service.get_price(market)
         price = price_info.get("last") if price_info else None
         value = (h.amount * price) if price is not None else None
         if value is not None:
@@ -35,7 +35,7 @@ def get_portfolio(user: User = Depends(get_current_user), db: Session = Depends(
         holding_rows.append(HoldingOut(
             asset=h.asset,
             amount=h.amount,
-            market=market if market in bitvavo_service.markets else None,
+            market=market if market_data_service.get_market(market) else None,
             current_price=price,
             eur_value=value,
         ))

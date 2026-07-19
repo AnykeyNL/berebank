@@ -45,6 +45,8 @@ class MarketOut(BaseModel):
     market: str
     base: str
     quote: str
+    asset_class: str = "crypto"  # crypto | stock | fund
+    market_open: bool | None = None  # None for crypto (always open)
     last: Decimal | None = None
     bid: Decimal | None = None
     ask: Decimal | None = None
@@ -165,8 +167,11 @@ class SettingsOut(BaseModel):
     bitvavo_api_key_masked: str | None
     has_api_secret: bool
     connection: dict
+    twelvedata_api_key_masked: str | None = None
+    twelvedata: dict = {}
 
 
 class SettingsUpdate(BaseModel):
     bitvavo_api_key: str | None = None
     bitvavo_api_secret: str | None = None
+    twelvedata_api_key: str | None = None

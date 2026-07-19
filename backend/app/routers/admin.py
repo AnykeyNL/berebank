@@ -13,6 +13,7 @@ from ..schemas import (
 )
 from ..security import hash_password, require_bank_manager
 from ..services.bitvavo import bitvavo_service
+from ..services.twelvedata import twelvedata_service
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_bank_manager)])
 
@@ -125,14 +126,21 @@ def get_settings(db: Session = Depends(get_db)):
         bitvavo_api_key_masked=_mask(_get_setting(db, "bitvavo_api_key")),
         has_api_secret=_get_setting(db, "bitvavo_api_secret") is not None,
         connection=bitvavo_service.status(),
+        twelvedata_api_key_masked=_mask(_get_setting(db, "twelvedata_api_key")),
+        twelvedata=twelvedata_service.status(),
     )
 
 
 @router.put("/settings", response_model=SettingsOut)
-def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
+async def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
     if body.bitvavo_api_key is not None:
         _set_setting(db, "bitvavo_api_key", body.bitvavo_api_key)
     if body.bitvavo_api_secret is not None:
         _set_setting(db, "bitvavo_api_secret", body.bitvavo_api_secret)
+    if body.twelvedata_api_key is not None:
+        _set_setting(db, "twelvedata_api_key", body.twelvedata_api_key)
     db.commit()
+    if body.twelvedata_api_key is not None:
+        # Apply the new key immediately so the stock/fund feed (re)starts.
+        await twelvedata_service.restart(body.twelvedata_api_key)
     return get_settings(db)

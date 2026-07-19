@@ -125,8 +125,20 @@
     "asset": "Asset",
     "tradeLink": "Trade"
   },
+  "assetClass": {
+    "crypto": "Crypto",
+    "stock": "Stock",
+    "fund": "Fund"
+  },
   "trade": {
     "searchPlaceholder": "Search markets…",
+    "filter": {
+      "all": "All",
+      "crypto": "Crypto",
+      "stock": "Stocks",
+      "fund": "Funds"
+    },
+    "marketClosed": "market closed",
     "live": "live",
     "reconnecting": "reconnecting…",
     "marketsCount": "{{count}} markets",
@@ -227,6 +239,12 @@
     "keepCurrent": "leave empty to keep current",
     "settingsSaved": "Settings saved",
     "settingsFailed": "Failed to save settings",
-    "saveCredentials": "Save credentials"
+    "saveCredentials": "Save credentials",
+    "twelvedataConnection": "Twelve Data connection (stocks & funds)",
+    "notConfigured": "not configured",
+    "stockFundMarkets": "Stock/fund markets",
+    "usdEurRate": "USD/EUR rate",
+    "lastError": "Last error",
+    "twelvedataNote": "US and Dutch stocks and funds are priced via twelvedata.com. Enter your Twelve Data API key to enable the feed; prices refresh every minute and USD instruments are converted to EUR automatically."
   }
 }

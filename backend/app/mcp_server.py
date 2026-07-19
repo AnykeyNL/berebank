@@ -39,10 +39,12 @@ logger = logging.getLogger("berebank.mcp")
 mcp = FastMCP(
     "de BereBank",
     instructions=(
-        "de BereBank is a simulated crypto exchange: users trade with paper money in EUR "
-        "against live Bitvavo market data, with realistic maker/taker fees. Amounts and "
-        "prices are decimal numbers serialized as strings. Placing or cancelling orders "
-        "requires the user to have enabled trading via MCP in their BereBank profile."
+        "de BereBank is a simulated exchange: users trade with paper money in EUR "
+        "against live market data (crypto via Bitvavo; US and Dutch stocks and funds "
+        "via Twelve Data), with realistic maker/taker fees. Amounts and prices are "
+        "decimal numbers serialized as strings. Stock/fund market orders are rejected "
+        "while the exchange is closed. Placing or cancelling orders requires the user "
+        "to have enabled trading via MCP in their BereBank profile."
     ),
     auth_server_provider=oauth_provider,
     auth=AuthSettings(
@@ -91,16 +93,21 @@ def _parse_decimal(value: str | float | int | None, field: str) -> Decimal | Non
 
 
 @mcp.tool()
-def list_markets(filter: str | None = None) -> list[dict]:
-    """List EUR crypto markets with live prices (last/bid/ask), 24h change and volume.
+def list_markets(filter: str | None = None, asset_class: str | None = None) -> list[dict]:
+    """List EUR markets with live prices (last/bid/ask), 24h change and volume.
 
-    Optionally filter by a case-insensitive substring of the market symbol,
-    e.g. "BTC" matches BTC-EUR. Prices are EUR decimals as strings.
+    Markets cover crypto plus US/Dutch stocks and funds; each row has an
+    asset_class of "crypto", "stock" or "fund" (stocks/funds also carry a
+    market_open flag). Optionally filter by asset_class and/or by a
+    case-insensitive substring of the market symbol, e.g. "BTC" matches
+    BTC-EUR. Prices are EUR decimals as strings.
     """
+    if asset_class is not None and asset_class not in ("crypto", "stock", "fund"):
+        raise ToolError('asset_class must be "crypto", "stock" or "fund"')
     db = SessionLocal()
     try:
         user = _current_user(db)
-        rows = _list_markets(user=user)
+        rows = _list_markets(user=user, asset_class=asset_class)
     finally:
         db.close()
     if filter:
