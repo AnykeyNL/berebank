@@ -18,9 +18,22 @@
     "portfolio": "Portfolio",
     "trade": "Trade",
     "history": "Trade History",
+    "leaderboard": "Leaderboard",
     "ai": "AI / MCP",
     "admin": "Admin",
     "logout": "Log out"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "user": "Trader",
+    "trades": "Trades",
+    "cash": "Cash",
+    "assets": "Assets",
+    "total": "Total",
+    "you": "(you)",
+    "empty": "No users yet",
+    "note": "Assets are valued at the live market price. Cash includes funds reserved for open limit orders. Updates every 10 seconds.",
+    "loadFailed": "Failed to load leaderboard"
   },
   "aiPage": {
     "title": "Connect an AI assistant",

@@ -85,6 +85,15 @@ export interface Portfolio {
   fee_tier: FeeTier
 }
 
+export interface LeaderboardEntry {
+  user_id: number
+  display_name: string
+  trades: number
+  cash_eur: string
+  assets_eur: string
+  total_eur: string
+}
+
 export interface AdminUser extends User {
   balance_eur: string
   created_at: string

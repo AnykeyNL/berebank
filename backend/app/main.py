@@ -12,7 +12,7 @@ from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
 from .database import Base, SessionLocal, engine
 from .mcp_server import mcp
 from .models import Account, User
-from .routers import admin, auth, markets, oauth_login, orders, portfolio
+from .routers import admin, auth, leaderboard, markets, oauth_login, orders, portfolio
 from .security import hash_password
 from .services.bitvavo import bitvavo_service
 from .services.trading import load_open_limit_markets, match_limit_orders
@@ -95,6 +95,7 @@ app.include_router(auth.router)
 app.include_router(markets.router)
 app.include_router(orders.router)
 app.include_router(portfolio.router)
+app.include_router(leaderboard.router)
 app.include_router(admin.router)
 app.include_router(oauth_login.router)
 

@@ -127,6 +127,17 @@ class FeeTierOut(BaseModel):
     taker_pct: Decimal
 
 
+# ---- Leaderboard ----
+
+class LeaderboardEntry(BaseModel):
+    user_id: int
+    display_name: str
+    trades: int
+    cash_eur: Decimal  # balance + EUR reserved for open limit buys
+    assets_eur: Decimal  # holdings valued at the live last price
+    total_eur: Decimal
+
+
 # ---- Admin ----
 
 class AdminUserCreate(BaseModel):

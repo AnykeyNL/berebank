@@ -18,9 +18,22 @@
     "portfolio": "Portfolio",
     "trade": "Handelen",
     "history": "Handelsgeschiedenis",
+    "leaderboard": "Klassement",
     "ai": "AI / MCP",
     "admin": "Beheer",
     "logout": "Uitloggen"
+  },
+  "leaderboard": {
+    "title": "Klassement",
+    "user": "Handelaar",
+    "trades": "Trades",
+    "cash": "Contant",
+    "assets": "Bezittingen",
+    "total": "Totaal",
+    "you": "(jij)",
+    "empty": "Nog geen gebruikers",
+    "note": "Bezittingen worden gewaardeerd tegen de actuele marktprijs. Contant is inclusief gereserveerde bedragen voor open limietorders. Ververst elke 10 seconden.",
+    "loadFailed": "Klassement laden mislukt"
   },
   "aiPage": {
     "title": "Verbind een AI-assistent",
