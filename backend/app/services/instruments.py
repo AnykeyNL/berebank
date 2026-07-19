@@ -64,8 +64,8 @@ _US_STOCKS = [
     "MA", "MCD", "MDLZ", "MDT", "META", "MMM", "MO", "MRK", "MS",
     "MSFT", "NEE", "NFLX", "NKE", "NOW", "NVDA", "ORCL", "PEP", "PFE",
     "PG", "PLTR", "PM", "PYPL", "QCOM", "RTX", "SBUX", "SCHW", "SO",
-    "SPG", "TGT", "TMO", "TMUS", "TSLA", "TXN", "UNH", "UNP", "UPS",
-    "USB", "V", "VZ", "WFC", "WMT", "XOM",
+    "SPCX", "SPG", "TGT", "TMO", "TMUS", "TSLA", "TXN", "UNH", "UNP",
+    "UPS", "USB", "V", "VZ", "WFC", "WMT", "XOM",
 ]
 
 # Popular ETFs, exposed under the "fund" asset class.

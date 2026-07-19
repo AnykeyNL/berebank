@@ -27,9 +27,11 @@ export default function PortfolioPage() {
     const holdings = portfolio.holdings.map((h) => {
       const liveLast = h.market ? prices[h.market]?.last : null
       const price = liveLast ?? h.current_price
-      const value = price !== null ? parseFloat(h.amount) * parseFloat(price) : null
+      // Amounts reserved in open limit sells still count towards the value.
+      const totalAmount = parseFloat(h.amount) + parseFloat(h.reserved)
+      const value = price !== null ? totalAmount * parseFloat(price) : null
       if (value !== null) holdingsValue += value
-      return { ...h, current_price: price, live_value: value }
+      return { ...h, total_amount: totalAmount, current_price: price, live_value: value }
     })
     const cash = parseFloat(portfolio.balance_eur)
     const reserved = parseFloat(portfolio.reserved_eur)
@@ -81,7 +83,14 @@ export default function PortfolioPage() {
               {live.holdings.map((h) => (
                 <tr key={h.asset} className="border-t border-slate-800/60 hover:bg-slate-800/30">
                   <td className="px-4 py-2.5 font-medium">{h.asset}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{fmtAmount(h.amount)}</td>
+                  <td className="px-4 py-2.5 text-right font-mono">
+                    {fmtAmount(h.total_amount)}
+                    {parseFloat(h.reserved) > 0 && (
+                      <span className="block text-xs text-slate-500">
+                        {t('portfolio.inOpenOrders', { amount: fmtAmount(h.reserved) })}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-right font-mono">{fmtPrice(h.current_price)}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{fmtEur(h.live_value)}</td>
                   <td className="px-4 py-2.5 text-right">

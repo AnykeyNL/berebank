@@ -37,15 +37,26 @@ def get_leaderboard(user: User = Depends(get_current_user), db: Session = Depend
         if reserved is not None:
             reserved_by_account[account_id] = reserved_by_account.get(account_id, Decimal("0")) + reserved
 
-    holdings_by_account: dict[int, Decimal] = {}
-    for account_id, asset, amount in db.execute(
-        select(Holding.account_id, Holding.asset, Holding.amount).where(Holding.amount > 0)
-    ).all():
+    def _add_asset_value(account_id: int, asset: str, amount: Decimal) -> None:
         price_info = market_data_service.get_price(f"{asset}-EUR")
         price = price_info.get("last") if price_info else None
         if price is not None:
             value = amount * price
             holdings_by_account[account_id] = holdings_by_account.get(account_id, Decimal("0")) + value
+
+    holdings_by_account: dict[int, Decimal] = {}
+    for account_id, asset, amount in db.execute(
+        select(Holding.account_id, Holding.asset, Holding.amount).where(Holding.amount > 0)
+    ).all():
+        _add_asset_value(account_id, asset, amount)
+
+    # Assets reserved in open limit sell orders still belong to the user.
+    for account_id, market, amount in db.execute(
+        select(Order.account_id, Order.market, Order.amount).where(
+            Order.status == "open", Order.side == "sell"
+        )
+    ).all():
+        _add_asset_value(account_id, market.split("-")[0], amount)
 
     entries = []
     for user_id, display_name, account_id, balance in rows:

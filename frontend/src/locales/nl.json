@@ -121,6 +121,7 @@
     "yourCrypto": "Jouw crypto",
     "feeTierLine": "Tarief: {{maker}}% maker / {{taker}}% taker · 30d volume {{volume}}",
     "emptyHoldings": "Je hebt nog geen crypto.",
+    "inOpenOrders": "{{amount}} in open orders",
     "startTrading": "Begin met handelen",
     "asset": "Munt",
     "tradeLink": "Handel"
@@ -131,7 +132,7 @@
     "fund": "Fonds"
   },
   "trade": {
-    "searchPlaceholder": "Zoek markten…",
+    "searchPlaceholder": "Zoek op naam of ticker…",
     "filter": {
       "all": "Alles",
       "crypto": "Crypto",

@@ -44,7 +44,7 @@ export default function TradePage() {
   }, [refresh])
 
   const rows = useMemo(() => {
-    const q = search.trim().toUpperCase()
+    const q = search.trim().toLowerCase()
     return markets
       .map((m) => {
         const live = prices[m.market]
@@ -57,7 +57,11 @@ export default function TradePage() {
         return { ...m, last, change }
       })
       .filter((m) => classFilter === 'all' || m.asset_class === classFilter)
-      .filter((m) => !q || m.market.includes(q))
+      .filter((m) => {
+        if (!q) return true
+        const haystack = `${m.market} ${m.base} ${m.name ?? ''}`.toLowerCase()
+        return haystack.includes(q)
+      })
       .sort((a, b) => parseFloat(b.volume_quote ?? '0') - parseFloat(a.volume_quote ?? '0'))
   }, [markets, prices, search, classFilter])
 
@@ -172,6 +176,9 @@ export default function TradePage() {
                   </span>
                 )}
               </h2>
+              {selectedMarket?.name && (
+                <p className="text-sm text-slate-300">{selectedMarket.name}</p>
+              )}
               <p className="text-xs text-slate-500">
                 {selectedMarket ? `${selectedMarket.base} / ${selectedMarket.quote}` : ''}
               </p>

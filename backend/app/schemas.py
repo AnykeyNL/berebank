@@ -45,6 +45,7 @@ class MarketOut(BaseModel):
     market: str
     base: str
     quote: str
+    name: str | None = None  # full asset name, e.g. "Apple Inc." or "Bitcoin"
     asset_class: str = "crypto"  # crypto | stock | fund
     market_open: bool | None = None  # None for crypto (always open)
     last: Decimal | None = None
@@ -108,10 +109,11 @@ class TradePnlOut(TradeOut):
 
 class HoldingOut(BaseModel):
     asset: str
-    amount: Decimal
+    amount: Decimal  # available (not reserved) amount
+    reserved: Decimal = Decimal("0")  # amount locked in open limit sell orders
     market: str | None
     current_price: Decimal | None
-    eur_value: Decimal | None
+    eur_value: Decimal | None  # values amount + reserved at the live price
 
 
 class PortfolioOut(BaseModel):

@@ -181,6 +181,9 @@ class TwelveDataService:
                 continue
             entry = self._build_entry(inst, quote)
             if entry is not None:
+                name = quote.get("name")
+                if name:
+                    self.markets[inst.market]["name"] = name
                 self.prices[inst.market] = entry
                 updates.append(entry)
         return updates

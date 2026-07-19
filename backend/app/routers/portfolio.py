@@ -23,29 +23,40 @@ def get_portfolio(user: User = Depends(get_current_user), db: Session = Depends(
         if h.amount > 0
     ]
 
+    open_orders = db.scalars(
+        select(Order).where(Order.account_id == account.id, Order.status == "open")
+    ).all()
+    reserved = sum(
+        (o.reserved_eur or Decimal("0") for o in open_orders), Decimal("0")
+    )
+    # Base assets reserved in open limit sells were debited from the holding
+    # at placement but still belong to the user until the order fills.
+    reserved_assets: dict[str, Decimal] = {}
+    for o in open_orders:
+        if o.side == "sell":
+            asset = o.market.split("-")[0]
+            reserved_assets[asset] = reserved_assets.get(asset, Decimal("0")) + o.amount
+
+    available = {h.asset: h.amount for h in holdings}
     holding_rows: list[HoldingOut] = []
     holdings_value = Decimal("0")
-    for h in sorted(holdings, key=lambda h: h.asset):
-        market = f"{h.asset}-EUR"
+    for asset in sorted(available.keys() | reserved_assets.keys()):
+        amount = available.get(asset, Decimal("0"))
+        reserved_amount = reserved_assets.get(asset, Decimal("0"))
+        market = f"{asset}-EUR"
         price_info = market_data_service.get_price(market)
         price = price_info.get("last") if price_info else None
-        value = (h.amount * price) if price is not None else None
+        value = ((amount + reserved_amount) * price) if price is not None else None
         if value is not None:
             holdings_value += value
         holding_rows.append(HoldingOut(
-            asset=h.asset,
-            amount=h.amount,
+            asset=asset,
+            amount=amount,
+            reserved=reserved_amount,
             market=market if market_data_service.get_market(market) else None,
             current_price=price,
             eur_value=value,
         ))
-
-    reserved = sum(
-        (o.reserved_eur or Decimal("0") for o in db.scalars(
-            select(Order).where(Order.account_id == account.id, Order.status == "open")
-        ).all()),
-        Decimal("0"),
-    )
 
     volume = get_30d_volume(db, account.id)
     maker, taker = get_fee_rates(volume)

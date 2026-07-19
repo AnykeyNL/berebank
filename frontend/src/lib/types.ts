@@ -14,6 +14,7 @@ export interface Market {
   market: string
   base: string
   quote: string
+  name: string | null
   asset_class: AssetClass
   market_open: boolean | null
   last: string | null
@@ -69,10 +70,11 @@ export interface TradePnl extends Trade {
 
 export interface Holding {
   asset: string
-  amount: string
+  amount: string // available (not reserved) amount
+  reserved: string // amount locked in open limit sell orders
   market: string | null
   current_price: string | null
-  eur_value: string | null
+  eur_value: string | null // values amount + reserved at the live price
 }
 
 export interface FeeTier {

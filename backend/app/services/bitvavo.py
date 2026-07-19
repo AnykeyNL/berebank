@@ -96,15 +96,19 @@ class BitvavoService:
 
     async def _load_markets(self) -> None:
         async with httpx.AsyncClient(base_url=BITVAVO_REST_URL, timeout=15) as client:
-            resp = await client.get("/markets")
-            resp.raise_for_status()
+            markets_resp = await client.get("/markets")
+            markets_resp.raise_for_status()
+            assets_resp = await client.get("/assets")
+            assets_resp.raise_for_status()
+            names = {a["symbol"]: a["name"] for a in assets_resp.json()}
             markets = {}
-            for m in resp.json():
+            for m in markets_resp.json():
                 if m.get("quote") == "EUR" and m.get("status") == "trading":
                     markets[m["market"]] = {
                         "base": m["base"],
                         "quote": m["quote"],
                         "min_quote": _dec(m.get("minOrderInQuoteAsset")),
+                        "name": names.get(m["base"]),
                     }
             if markets:
                 self.markets = markets
