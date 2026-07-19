@@ -48,8 +48,13 @@ git() { command git -c safe.directory="$REPO_DIR" "$@"; }
     || fail "$REPO_DIR is not a git clone. Update requires a clone of $REPO_URL
 (e.g. git clone $REPO_URL and copy deploy/berebank.conf into its deploy/ directory)."
 
-if [[ -n "$(git -C "$REPO_DIR" status --porcelain)" ]]; then
-    fail "The repository at $REPO_DIR has local changes. Commit, stash or revert them first."
+# Untracked files (e.g. a hand-copied update.sh or notes) are harmless and
+# don't block a pull; only modifications to tracked files do.
+DIRTY="$(git -C "$REPO_DIR" status --porcelain --untracked-files=no)"
+if [[ -n "$DIRTY" ]]; then
+    fail "Tracked files in $REPO_DIR have local modifications:
+$DIRTY
+Revert them first (git -C $REPO_DIR checkout -- <file>), or stash them."
 fi
 
 BRANCH="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD)"
