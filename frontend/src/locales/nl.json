@@ -21,6 +21,30 @@
     "admin": "Beheer",
     "logout": "Uitloggen"
   },
+  "profile": {
+    "title": "Jouw profiel",
+    "profileSection": "Profiel",
+    "displayName": "Weergavenaam",
+    "language": "Standaardtaal",
+    "languageNote": "Wordt automatisch toegepast telkens wanneer je inlogt.",
+    "dutch": "Nederlands",
+    "english": "English",
+    "save": "Profiel opslaan",
+    "saving": "Opslaan…",
+    "saved": "Profiel opgeslagen.",
+    "saveFailed": "Opslaan van profiel mislukt"
+  },
+  "mcp": {
+    "title": "MCP-toegang",
+    "intro": "Verbind een AI-assistent (Claude, Cursor, …) met je account via het Model Context Protocol. Markt- en portefeuille-informatie is altijd leesbaar; handelen is alleen toegestaan als je dat hieronder inschakelt.",
+    "serverUrl": "MCP-server-URL",
+    "copy": "Kopieer",
+    "copied": "Gekopieerd!",
+    "tradingToggle": "Handelen via MCP toestaan",
+    "tradingNote": "Indien ingeschakeld kunnen verbonden assistenten namens jou orders plaatsen en annuleren. Uitschakelen werkt direct.",
+    "saved": "MCP-instellingen opgeslagen.",
+    "saveFailed": "Opslaan van MCP-instellingen mislukt"
+  },
   "password": {
     "title": "Wachtwoord wijzigen",
     "current": "Huidig wachtwoord",

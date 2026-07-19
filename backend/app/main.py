@@ -6,18 +6,37 @@ from decimal import Decimal
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 
 from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
 from .database import Base, SessionLocal, engine
+from .mcp_server import mcp
 from .models import Account, User
-from .routers import admin, auth, markets, orders, portfolio
+from .routers import admin, auth, markets, oauth_login, orders, portfolio
 from .security import hash_password
 from .services.bitvavo import bitvavo_service
 from .services.trading import load_open_limit_markets, match_limit_orders
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("berebank")
+
+
+def migrate_schema() -> None:
+    """Apply additive schema changes that create_all doesn't handle (new columns
+    on existing tables). Safe to run on every startup."""
+    inspector = inspect(engine)
+    user_columns = {col["name"] for col in inspector.get_columns("users")}
+    if "preferred_language" not in user_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(5)"))
+        logger.info("Migrated: added users.preferred_language")
+    if "mcp_trading_enabled" not in user_columns:
+        default = "FALSE" if engine.dialect.name == "postgresql" else "0"
+        with engine.begin() as conn:
+            conn.execute(text(
+                f"ALTER TABLE users ADD COLUMN mcp_trading_enabled BOOLEAN NOT NULL DEFAULT {default}"
+            ))
+        logger.info("Migrated: added users.mcp_trading_enabled")
 
 
 def seed_bank_manager() -> None:
@@ -47,6 +66,7 @@ async def _limit_order_listener(updates: list[dict]) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    migrate_schema()
     seed_bank_manager()
     db = SessionLocal()
     try:
@@ -55,7 +75,9 @@ async def lifespan(app: FastAPI):
         db.close()
     bitvavo_service.add_listener(_limit_order_listener)
     bitvavo_service.start()
-    yield
+    # The MCP Streamable HTTP transport needs its session manager running.
+    async with mcp.session_manager.run():
+        yield
     await bitvavo_service.stop()
 
 
@@ -74,6 +96,7 @@ app.include_router(markets.router)
 app.include_router(orders.router)
 app.include_router(portfolio.router)
 app.include_router(admin.router)
+app.include_router(oauth_login.router)
 
 
 def _price_payload(entry: dict) -> dict:
@@ -114,3 +137,10 @@ async def ws_prices(websocket: WebSocket):
 @app.get("/health")
 def health():
     return {"status": "ok", "bitvavo": bitvavo_service.status()}
+
+
+# The MCP server (Streamable HTTP at /mcp) plus its OAuth endpoints
+# (/authorize, /token, /register, /revoke and the .well-known metadata).
+# Mounted at the root as the LAST route, so it only receives requests no
+# regular route matched; its session manager is started in the lifespan above.
+app.mount("/", mcp.streamable_http_app())

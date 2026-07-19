@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import i18n from '../i18n'
 import { api, getToken, setToken } from './api'
 import type { User } from './types'
 
@@ -8,9 +9,16 @@ export interface AuthState {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateUser: (user: User) => void
 }
 
 export const AuthContext = createContext<AuthState | null>(null)
+
+function applyPreferredLanguage(user: User) {
+  if (user.preferred_language && !i18n.language.startsWith(user.preferred_language)) {
+    void i18n.changeLanguage(user.preferred_language)
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -22,7 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     api<User>('/auth/me')
-      .then(setUser)
+      .then((u) => {
+        applyPreferredLanguage(u)
+        setUser(u)
+      })
       .catch(() => setToken(null))
       .finally(() => setLoading(false))
   }, [])
@@ -33,8 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     })
     setToken(access_token)
-    setUser(await api<User>('/auth/me'))
+    const u = await api<User>('/auth/me')
+    applyPreferredLanguage(u)
+    setUser(u)
   }, [])
+
+  const updateUser = useCallback((u: User) => setUser(u), [])
 
   const logout = useCallback(() => {
     setToken(null)
@@ -42,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

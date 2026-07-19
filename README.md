@@ -12,8 +12,9 @@ No real money or real orders are ever involved — only the market data is real.
 - Market orders (instant fill at live bid/ask, taker fee) and limit orders (filled by a background matcher when the live price crosses, maker fee)
 - Portfolio view: EUR cash, reserved funds, crypto holdings with live valuation, total account value, current fee tier
 - Role system: regular users trade; **BankManager** creates accounts, sets initial/current balances, enables/disables users, and manages the Bitvavo API configuration
-- Every user can change their own password (click your name in the top-right corner)
+- Every user has a profile page (gear icon in the top-right corner) to change their password, display name, and default language
 - Fee tiers identical to Bitvavo Category A (0.15% maker / 0.25% taker at the base tier, decreasing with 30-day volume)
+- Built-in **MCP server** so AI assistants can read market data and the portfolio — and, if the user allows it in their profile, trade (see [MCP server](#mcp-server))
 
 ## Stack
 
@@ -79,6 +80,27 @@ portfolio, and role checks against the live API.
 | `BEREBANK_ADMIN_EMAIL` | `manager@berebank.nl` | Seed BankManager email |
 | `BEREBANK_ADMIN_PASSWORD` | `manager123` | Seed BankManager password |
 | `BEREBANK_CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins (not needed behind nginx) |
+| `BEREBANK_PUBLIC_URL` | `http://127.0.0.1:8000` | Public base URL, used as OAuth issuer for the MCP server (must be HTTPS in production; set automatically by `deploy/install.sh`) |
+
+## MCP server
+
+The backend exposes an [MCP](https://modelcontextprotocol.io) server over Streamable HTTP at
+`https://<your-domain>/mcp` (locally: `http://127.0.0.1:8000/mcp`), so users can connect AI
+assistants such as Claude or Cursor to their account.
+
+- **Authentication** is the standard MCP OAuth 2.1 flow: when a user adds the server to their
+  MCP client, a browser window opens with a BereBank login page. They sign in with their
+  normal email/password and click *Allow access*. No API keys to manage; access can run for
+  up to 30 days before re-login (refresh tokens), and disabling the account cuts access
+  immediately.
+- **Read access** (always available to active users): `list_markets`, `get_candles`,
+  `get_portfolio`, `list_orders`, `list_trades`, `get_trade_history`.
+- **Trading** (`place_order`, `cancel_order`) is only allowed when the user enables
+  **Allow trading via MCP** in the *MCP access* section of their profile page. The setting
+  is off by default and is checked on every call, so turning it off applies immediately.
+
+Orders placed via MCP go through exactly the same engine as the web app: same live prices,
+fees, EUR 5 minimum, and balance checks.
 
 ## Production deployment (Ubuntu Linux 24.04)
 

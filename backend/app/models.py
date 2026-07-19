@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base, Money
@@ -20,6 +20,8 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(20), default="user")  # user | bank_manager
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    preferred_language: Mapped[str | None] = mapped_column(String(5), nullable=True)  # en | nl
+    mcp_trading_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     account: Mapped["Account"] = relationship(back_populates="user", uselist=False)
@@ -87,3 +89,43 @@ class AppSetting(Base):
 
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+
+class OAuthClient(Base):
+    """Dynamically registered OAuth client (an MCP client application)."""
+
+    __tablename__ = "oauth_clients"
+
+    client_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    client_info: Mapped[str] = mapped_column(Text)  # OAuthClientInformationFull as JSON
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class OAuthAuthCode(Base):
+    """Short-lived authorization code issued after login/consent."""
+
+    __tablename__ = "oauth_auth_codes"
+
+    code: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    client_id: Mapped[str] = mapped_column(String(64), index=True)
+    scopes: Mapped[str] = mapped_column(Text, default="")  # space-separated
+    code_challenge: Mapped[str] = mapped_column(String(128))
+    redirect_uri: Mapped[str] = mapped_column(Text)
+    redirect_uri_provided_explicitly: Mapped[bool] = mapped_column(Boolean, default=True)
+    resource: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[float] = mapped_column(Float)  # epoch seconds
+
+
+class OAuthRefreshToken(Base):
+    """Opaque, revocable refresh token for the MCP OAuth flow."""
+
+    __tablename__ = "oauth_refresh_tokens"
+
+    token: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    client_id: Mapped[str] = mapped_column(String(64), index=True)
+    scopes: Mapped[str] = mapped_column(Text, default="")  # space-separated
+    expires_at: Mapped[float] = mapped_column(Float)  # epoch seconds
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

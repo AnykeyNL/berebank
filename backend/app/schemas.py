@@ -21,6 +21,12 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=6)
 
 
+class ProfileUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=100)
+    preferred_language: str | None = Field(default=None, pattern="^(en|nl)$")
+    mcp_trading_enabled: bool | None = None
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -29,6 +35,8 @@ class UserOut(BaseModel):
     display_name: str
     role: str
     is_active: bool
+    preferred_language: str | None = None
+    mcp_trading_enabled: bool = False
 
 
 # ---- Markets ----

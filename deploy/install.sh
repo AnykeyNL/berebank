@@ -126,6 +126,7 @@ BEREBANK_SECRET_KEY=$SECRET_KEY
 BEREBANK_ADMIN_EMAIL=$ADMIN_EMAIL
 BEREBANK_ADMIN_PASSWORD=$ADMIN_PASSWORD
 BEREBANK_DB_PASSWORD=$DB_PASSWORD
+BEREBANK_PUBLIC_URL=https://$DOMAIN
 EOF
 chmod 600 "$ENV_FILE"
 
@@ -189,6 +190,55 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 3600s;
+    }
+
+    # MCP server (Streamable HTTP), no prefix stripping
+    location = /mcp {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # OAuth endpoints for the MCP flow (exact paths; ACME /.well-known/acme-challenge
+    # is deliberately NOT proxied so certbot renewals keep working)
+    location /oauth/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location = /authorize {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location = /token {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location = /register {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location = /revoke {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location = /.well-known/oauth-authorization-server {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location ~ ^/\.well-known/oauth-protected-resource(/.*)?\$ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOF

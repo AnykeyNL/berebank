@@ -21,6 +21,30 @@
     "admin": "Admin",
     "logout": "Log out"
   },
+  "profile": {
+    "title": "Your profile",
+    "profileSection": "Profile",
+    "displayName": "Display name",
+    "language": "Default language",
+    "languageNote": "Applied automatically every time you log in.",
+    "dutch": "Nederlands",
+    "english": "English",
+    "save": "Save profile",
+    "saving": "Saving…",
+    "saved": "Profile saved.",
+    "saveFailed": "Failed to save profile"
+  },
+  "mcp": {
+    "title": "MCP access",
+    "intro": "Connect an AI assistant (Claude, Cursor, …) to your account via the Model Context Protocol. Market and portfolio information is always readable; trading is only allowed if you enable it below.",
+    "serverUrl": "MCP server URL",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "tradingToggle": "Allow trading via MCP",
+    "tradingNote": "When enabled, connected assistants can place and cancel orders on your behalf. Turning it off takes effect immediately.",
+    "saved": "MCP settings saved.",
+    "saveFailed": "Failed to save MCP settings"
+  },
   "password": {
     "title": "Change password",
     "current": "Current password",

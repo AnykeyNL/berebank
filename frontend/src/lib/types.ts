@@ -4,6 +4,8 @@ export interface User {
   display_name: string
   role: 'user' | 'bank_manager'
   is_active: boolean
+  preferred_language: 'en' | 'nl' | null
+  mcp_trading_enabled: boolean
 }
 
 export interface Market {

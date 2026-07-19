@@ -13,6 +13,16 @@ SECRET_KEY = os.environ.get(
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
 
+# Public base URL of this deployment, used as the OAuth issuer and to build
+# the MCP endpoint URL. Must be HTTPS in production (RFC 8414); the localhost
+# default keeps development working without configuration.
+PUBLIC_URL = os.environ.get("BEREBANK_PUBLIC_URL", "http://127.0.0.1:8000").rstrip("/")
+
+# MCP OAuth token lifetimes.
+MCP_ACCESS_TOKEN_EXPIRE_SECONDS = 3600  # 1 hour
+MCP_REFRESH_TOKEN_EXPIRE_DAYS = 30
+MCP_AUDIENCE = "berebank-mcp"  # `aud` claim separating MCP tokens from web JWTs
+
 # Seed credentials for the initial BankManager account (created only when no
 # bank manager exists yet).
 ADMIN_EMAIL = os.environ.get("BEREBANK_ADMIN_EMAIL", "manager@berebank.nl")
