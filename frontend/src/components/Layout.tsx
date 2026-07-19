@@ -30,6 +30,9 @@ export default function Layout() {
             <NavLink to="/history" className={linkClass}>
               {t('nav.history')}
             </NavLink>
+            <NavLink to="/ai" className={linkClass}>
+              {t('nav.ai')}
+            </NavLink>
             {user?.role === 'bank_manager' && (
               <NavLink to="/admin" className={linkClass}>
                 {t('nav.admin')}

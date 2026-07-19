@@ -8,6 +8,7 @@ import TradePage from './pages/TradePage'
 import TradeHistoryPage from './pages/TradeHistoryPage'
 import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
+import AiPage from './pages/AiPage'
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/trade" element={<TradePage />} />
         <Route path="/trade/:market" element={<TradePage />} />
         <Route path="/history" element={<TradeHistoryPage />} />
+        <Route path="/ai" element={<AiPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         {user.role === 'bank_manager' && <Route path="/admin" element={<AdminPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
