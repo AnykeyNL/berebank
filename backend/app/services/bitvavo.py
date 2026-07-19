@@ -109,6 +109,7 @@ class BitvavoService:
                         "quote": m["quote"],
                         "min_quote": _dec(m.get("minOrderInQuoteAsset")),
                         "name": names.get(m["base"]),
+                        "listing": "Bitvavo",
                     }
             if markets:
                 self.markets = markets

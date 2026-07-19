@@ -15,6 +15,7 @@ export interface Market {
   base: string
   quote: string
   name: string | null
+  listing: string | null
   asset_class: AssetClass
   market_open: boolean | null
   last: string | null

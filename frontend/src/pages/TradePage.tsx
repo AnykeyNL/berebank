@@ -59,7 +59,7 @@ export default function TradePage() {
       .filter((m) => classFilter === 'all' || m.asset_class === classFilter)
       .filter((m) => {
         if (!q) return true
-        const haystack = `${m.market} ${m.base} ${m.name ?? ''}`.toLowerCase()
+        const haystack = `${m.market} ${m.base} ${m.name ?? ''} ${m.listing ?? ''}`.toLowerCase()
         return haystack.includes(q)
       })
       .sort((a, b) => parseFloat(b.volume_quote ?? '0') - parseFloat(a.volume_quote ?? '0'))
@@ -143,9 +143,14 @@ export default function TradePage() {
                 m.market === selected ? 'bg-amber-500/10' : ''
               }`}
             >
-              <span className="flex items-center gap-1.5 font-medium">
-                <AssetClassIcon assetClass={m.asset_class} className="h-3.5 w-3.5 shrink-0" />
-                {m.base}
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <AssetClassIcon assetClass={m.asset_class} className="h-3.5 w-3.5 shrink-0" />
+                  {m.base}
+                </span>
+                {m.listing && (
+                  <span className="mt-0.5 block truncate text-xs text-slate-500">{m.listing}</span>
+                )}
               </span>
               <span className="text-right">
                 <span className="block font-mono text-xs">{fmtPrice(m.last)}</span>
@@ -180,7 +185,11 @@ export default function TradePage() {
                 <p className="text-sm text-slate-300">{selectedMarket.name}</p>
               )}
               <p className="text-xs text-slate-500">
-                {selectedMarket ? `${selectedMarket.base} / ${selectedMarket.quote}` : ''}
+                {selectedMarket
+                  ? [selectedMarket.listing, `${selectedMarket.base} / ${selectedMarket.quote}`]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : ''}
               </p>
             </div>
             <div className="flex gap-6 text-sm">

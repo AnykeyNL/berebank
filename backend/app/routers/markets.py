@@ -50,6 +50,7 @@ def list_markets(
             base=info["base"],
             quote=info["quote"],
             name=info.get("name"),
+            listing=info.get("listing"),
             asset_class=info["asset_class"],
             last=price.get("last"),
             bid=price.get("bid"),

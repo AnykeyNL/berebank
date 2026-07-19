@@ -37,6 +37,16 @@ def _dec(value) -> Decimal | None:
         return None
 
 
+def _listing_from_quote(quote: dict) -> str | None:
+    """Map Twelve Data quote metadata to a human-readable exchange name."""
+    exchange = quote.get("exchange")
+    if not exchange:
+        return None
+    if exchange == "Euronext" and quote.get("mic_code") == "XAMS":
+        return "Euronext Amsterdam"
+    return exchange
+
+
 class TwelveDataService:
     def __init__(self) -> None:
         # market -> {"base", "quote", "min_quote", "asset_class", "currency"}
@@ -112,6 +122,7 @@ class TwelveDataService:
                 "min_quote": None,
                 "asset_class": inst.asset_class,
                 "currency": inst.currency,
+                "listing": "Euronext Amsterdam" if inst.exchange == "Euronext" else None,
             }
         self.markets = markets
         logger.info("Loaded %d stock/fund instruments for Twelve Data", len(markets))
@@ -184,6 +195,9 @@ class TwelveDataService:
                 name = quote.get("name")
                 if name:
                     self.markets[inst.market]["name"] = name
+                listing = _listing_from_quote(quote)
+                if listing:
+                    self.markets[inst.market]["listing"] = listing
                 self.prices[inst.market] = entry
                 updates.append(entry)
         return updates
