@@ -1,0 +1,35 @@
+# de BereBank installer configuration
+#
+# Copy this file to berebank.conf (next to install.sh), edit the values,
+# then run:  sudo ./install.sh
+#
+# berebank.conf may contain secrets - keep it out of git (it is gitignored).
+
+# ---- Required ----
+
+# Public domain name for the site. DNS for this name must already point to
+# this server, otherwise the Let's Encrypt HTTP challenge will fail.
+DOMAIN="berebank.example.com"
+
+# Email address registered with Let's Encrypt (expiry notices etc.).
+LETSENCRYPT_EMAIL="you@example.com"
+
+# ---- Optional (sensible defaults / auto-generated when left empty) ----
+
+# Where the application is installed.
+INSTALL_DIR="/opt/berebank"
+
+# PostgreSQL database and role. The role password is auto-generated when
+# left empty and stored in /etc/berebank/berebank.env.
+DB_NAME="berebank"
+DB_USER="berebank"
+DB_PASSWORD=""
+
+# Seed BankManager account (created on first backend start only).
+# Leave ADMIN_PASSWORD empty to auto-generate one; it is printed at the end
+# of the installation and stored in /etc/berebank/berebank.env.
+ADMIN_EMAIL="manager@berebank.nl"
+ADMIN_PASSWORD=""
+
+# JWT signing key. Leave empty to auto-generate a random one.
+SECRET_KEY=""

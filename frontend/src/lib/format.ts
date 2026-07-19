@@ -1,0 +1,60 @@
+import i18n from '../i18n'
+
+function locale(): string {
+  return i18n.language.startsWith('nl') ? 'nl-NL' : 'en-GB'
+}
+
+export function fmtEur(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  const n = typeof value === 'string' ? parseFloat(value) : value
+  if (Number.isNaN(n)) return '—'
+  return new Intl.NumberFormat(locale(), {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n)
+}
+
+export function fmtPrice(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  const n = typeof value === 'string' ? parseFloat(value) : value
+  if (Number.isNaN(n)) return '—'
+  const digits = n >= 100 ? 2 : n >= 1 ? 4 : 8
+  return `€ ${n.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: digits })}`
+}
+
+export function fmtAmount(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  const n = typeof value === 'string' ? parseFloat(value) : value
+  if (Number.isNaN(n)) return '—'
+  return n.toLocaleString(locale(), { maximumFractionDigits: 8 })
+}
+
+export function fmtPct(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  const n = typeof value === 'string' ? parseFloat(value) : value
+  if (Number.isNaN(n)) return '—'
+  return `${n > 0 ? '+' : ''}${n.toFixed(2)}%`
+}
+
+export function fmtDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return '—'
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  const minutes = seconds / 60
+  if (minutes < 60) return `${Math.floor(minutes)}m ${Math.round(seconds % 60)}s`
+  const hours = minutes / 60
+  if (hours < 24) return `${Math.floor(hours)}h ${Math.round(minutes % 60)}m`
+  const days = hours / 24
+  return `${Math.floor(days)}d ${Math.round(hours % 24)}h`
+}
+
+export function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(locale(), {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}

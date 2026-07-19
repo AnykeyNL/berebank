@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded;
+}

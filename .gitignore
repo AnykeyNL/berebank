@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Database
+backend/*.db
+
+# Node
+node_modules/
+frontend/dist/
+
+# Editor / OS
+.vscode/
+.DS_Store
+
+# Deployment config (contains domain/credentials)
+deploy/berebank.conf

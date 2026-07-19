@@ -1,0 +1,148 @@
+from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+# ---- Auth ----
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    display_name: str
+    role: str
+    is_active: bool
+
+
+# ---- Markets ----
+
+class MarketOut(BaseModel):
+    market: str
+    base: str
+    quote: str
+    last: Decimal | None = None
+    bid: Decimal | None = None
+    ask: Decimal | None = None
+    open: Decimal | None = None
+    change_24h_pct: Decimal | None = None
+    volume_quote: Decimal | None = None
+
+
+# ---- Orders / trades ----
+
+class OrderCreate(BaseModel):
+    market: str
+    side: str = Field(pattern="^(buy|sell)$")
+    order_type: str = Field(pattern="^(market|limit)$")
+    amount: Decimal | None = Field(default=None, gt=0)
+    amount_quote: Decimal | None = Field(default=None, gt=0)  # EUR, market orders only
+    limit_price: Decimal | None = Field(default=None, gt=0)
+
+
+class OrderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    market: str
+    side: str
+    order_type: str
+    status: str
+    amount: Decimal | None
+    amount_quote: Decimal | None
+    limit_price: Decimal | None
+    fee_paid: Decimal | None
+    filled_price: Decimal | None
+    created_at: datetime
+    filled_at: datetime | None
+
+
+class TradeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    market: str
+    side: str
+    amount: Decimal
+    price: Decimal
+    eur_value: Decimal
+    fee_eur: Decimal
+    created_at: datetime
+
+
+class TradePnlOut(TradeOut):
+    """Trade enriched with FIFO profit/loss data (sell trades only)."""
+
+    pnl_eur: Decimal | None = None
+    pnl_pct: Decimal | None = None
+    held_seconds: float | None = None
+
+
+# ---- Portfolio ----
+
+class HoldingOut(BaseModel):
+    asset: str
+    amount: Decimal
+    market: str | None
+    current_price: Decimal | None
+    eur_value: Decimal | None
+
+
+class PortfolioOut(BaseModel):
+    balance_eur: Decimal
+    reserved_eur: Decimal
+    holdings: list[HoldingOut]
+    holdings_value_eur: Decimal
+    total_value_eur: Decimal
+    fee_tier: "FeeTierOut"
+
+
+class FeeTierOut(BaseModel):
+    volume_30d_eur: Decimal
+    maker_pct: Decimal
+    taker_pct: Decimal
+
+
+# ---- Admin ----
+
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6)
+    display_name: str
+    role: str = Field(default="user", pattern="^(user|bank_manager)$")
+    initial_balance_eur: Decimal = Field(default=Decimal("0"), ge=0)
+
+
+class AdminUserUpdate(BaseModel):
+    display_name: str | None = None
+    password: str | None = Field(default=None, min_length=6)
+    role: str | None = Field(default=None, pattern="^(user|bank_manager)$")
+    is_active: bool | None = None
+    balance_eur: Decimal | None = Field(default=None, ge=0)
+
+
+class AdminUserOut(UserOut):
+    balance_eur: Decimal
+    created_at: datetime
+
+
+class SettingsOut(BaseModel):
+    bitvavo_api_key_masked: str | None
+    has_api_secret: bool
+    connection: dict
+
+
+class SettingsUpdate(BaseModel):
+    bitvavo_api_key: str | None = None
+    bitvavo_api_secret: str | None = None
