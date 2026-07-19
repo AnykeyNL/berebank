@@ -111,7 +111,7 @@ def list_markets(filter: str | None = None) -> list[dict]:
 
 @mcp.tool()
 async def get_candles(market: str) -> list[list]:
-    """Get the last 24 hours of 15-minute OHLCV candles for a market (e.g. BTC-EUR).
+    """Get the last day of 15-minute OHLCV candles for a market (e.g. BTC-EUR).
 
     Returns a list of [timestamp_ms, open, high, low, close, volume], oldest first.
     """

@@ -15,6 +15,7 @@
     "tradeHistory": "Trade history"
   },
   "nav": {
+    "menu": "Menu",
     "portfolio": "Portfolio",
     "trade": "Trade",
     "history": "Trade History",
@@ -144,11 +145,22 @@
     "placed": "Placed"
   },
   "chart": {
-    "last24h": "Last 24 hours",
+    "range": "Time range",
+    "type": "Chart type",
+    "line": "Line",
+    "candle": "Candles",
+    "ranges": {
+      "1h": "1H",
+      "1d": "1D",
+      "1w": "1W",
+      "30d": "30D",
+      "365d": "1Y"
+    },
     "loadError": "Could not load price history",
     "low": "Low",
     "high": "High"
   },
+
   "orderForm": {
     "amountLabel": "Amount ({{asset}})",
     "spendEur": "Spend (EUR)",
