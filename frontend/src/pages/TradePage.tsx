@@ -86,6 +86,24 @@ export default function TradePage() {
       ? parseFloat(holding.amount) * parseFloat(livePriceLast)
       : null
 
+  const chartLimitOrders = useMemo(
+    () =>
+      openOrders
+        .filter(
+          (o) =>
+            o.market === selected &&
+            o.order_type === 'limit' &&
+            o.limit_price !== null &&
+            parseFloat(o.limit_price) > 0,
+        )
+        .map((o) => ({
+          id: o.id,
+          side: o.side,
+          price: parseFloat(o.limit_price!),
+        })),
+    [openOrders, selected],
+  )
+
   async function cancelOrder(id: number) {
     try {
       await api(`/orders/${id}`, { method: 'DELETE' })
@@ -247,7 +265,11 @@ export default function TradePage() {
           <NewsPanel market={selected} />
         ) : (
           <>
-            <PriceChart market={selected} />
+            <PriceChart
+              market={selected}
+              limitOrders={chartLimitOrders}
+              lastPrice={livePriceLast !== null ? parseFloat(livePriceLast) : null}
+            />
 
             <OrderForm
               market={selected}

@@ -191,6 +191,8 @@
       "365d": "1Y"
     },
     "loadError": "Could not load price history",
+    "limitBuy": "Limit buy",
+    "limitSell": "Limit sell",
     "low": "Low",
     "high": "High"
   },

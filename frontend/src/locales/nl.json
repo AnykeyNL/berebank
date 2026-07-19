@@ -191,6 +191,8 @@
       "365d": "1J"
     },
     "loadError": "Kon prijsgeschiedenis niet laden",
+    "limitBuy": "Limiet kopen",
+    "limitSell": "Limiet verkopen",
     "low": "Laag",
     "high": "Hoog"
   },

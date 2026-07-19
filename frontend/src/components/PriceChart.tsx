@@ -5,9 +5,11 @@ import {
   CandlestickSeries,
   ColorType,
   createChart,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
+  type AutoscaleInfo,
 } from 'lightweight-charts'
 import { api } from '../lib/api'
 import { fmtPct, fmtPrice } from '../lib/format'
@@ -24,7 +26,21 @@ const CHART_HEIGHT = 180
 const UP = '#34d399'
 const DOWN = '#f87171'
 
-export default function PriceChart({ market }: { market: string }) {
+export type LimitOrderMarker = {
+  id: number
+  side: 'buy' | 'sell'
+  price: number
+}
+
+export default function PriceChart({
+  market,
+  limitOrders = [],
+  lastPrice = null,
+}: {
+  market: string
+  limitOrders?: LimitOrderMarker[]
+  lastPrice?: number | null
+}) {
   const { t } = useTranslation()
   const [candles, setCandles] = useState<Candle[] | null>(null)
   const [error, setError] = useState(false)
@@ -34,6 +50,10 @@ export default function PriceChart({ market }: { market: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Area'> | ISeriesApi<'Candlestick'> | null>(null)
+  const limitOrdersRef = useRef(limitOrders)
+  const lastPriceRef = useRef(lastPrice)
+  limitOrdersRef.current = limitOrders
+  lastPriceRef.current = lastPrice
 
   useEffect(() => {
     let cancelled = false
@@ -72,8 +92,47 @@ export default function PriceChart({ market }: { market: string }) {
     const lastClose = closes[closes.length - 1]
     const changePct = first !== 0 ? ((lastClose - first) / first) * 100 : null
     const up = lastClose >= first
-    return { min, max, changePct, up }
+    return { min, max, changePct, up, lastClose }
   }, [candles])
+
+  const chartExtent = useMemo(() => {
+    if (!stats) return null
+    let min = stats.min
+    let max = stats.max
+    if (lastPrice !== null && Number.isFinite(lastPrice)) {
+      min = Math.min(min, lastPrice)
+      max = Math.max(max, lastPrice)
+    }
+    for (const order of limitOrders) {
+      min = Math.min(min, order.price)
+      max = Math.max(max, order.price)
+    }
+    return { ...stats, min, max }
+  }, [stats, limitOrders, lastPrice])
+
+  const autoscaleInfoProvider = useMemo(() => {
+    return (original: () => AutoscaleInfo | null) => {
+      const extraPrices = [
+        ...limitOrdersRef.current.map((o) => o.price),
+        ...(lastPriceRef.current !== null && Number.isFinite(lastPriceRef.current)
+          ? [lastPriceRef.current]
+          : []),
+      ]
+      if (extraPrices.length === 0) return original()
+      const res = original()
+      if (res === null || res.priceRange === null) {
+        const min = Math.min(...extraPrices)
+        const max = Math.max(...extraPrices)
+        return { priceRange: { minValue: min, maxValue: max } }
+      }
+      let { minValue, maxValue } = res.priceRange
+      for (const price of extraPrices) {
+        minValue = Math.min(minValue, price)
+        maxValue = Math.max(maxValue, price)
+      }
+      return { ...res, priceRange: { minValue, maxValue } }
+    }
+  }, [])
 
   // Create chart once; resize with the container.
   useEffect(() => {
@@ -152,6 +211,7 @@ export default function PriceChart({ market }: { market: string }) {
         borderDownColor: DOWN,
         wickUpColor: UP,
         wickDownColor: DOWN,
+        autoscaleInfoProvider,
       })
       series.setData(
         candles.map((c) => ({
@@ -169,6 +229,7 @@ export default function PriceChart({ market }: { market: string }) {
         topColor: `${color}40`,
         bottomColor: `${color}00`,
         lineWidth: 2,
+        autoscaleInfoProvider,
       })
       series.setData(
         candles.map((c) => ({
@@ -179,8 +240,24 @@ export default function PriceChart({ market }: { market: string }) {
       seriesRef.current = series
     }
 
+    for (const order of limitOrders) {
+      seriesRef.current.createPriceLine({
+        price: order.price,
+        color: order.side === 'buy' ? UP : DOWN,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: order.side === 'buy' ? t('chart.limitBuy') : t('chart.limitSell'),
+      })
+    }
+
     chart.timeScale().fitContent()
-  }, [candles, chartType, stats])
+  }, [candles, chartType, stats, limitOrders, autoscaleInfoProvider, t])
+
+  // Re-run autoscale when limit orders or live price move outside the candle range.
+  useEffect(() => {
+    chartRef.current?.priceScale('right').setAutoScale(true)
+  }, [limitOrders, lastPrice, candles, chartType])
 
   const btnBase =
     'rounded px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-500'
@@ -245,13 +322,13 @@ export default function PriceChart({ market }: { market: string }) {
           aria-label={`${market} ${t(`chart.ranges.${range}`)} ${t(`chart.${chartType}`)}`}
         />
       </div>
-      {stats && !error && (
+      {chartExtent && !error && (
         <div className="mt-2 flex justify-between text-xs text-slate-500">
           <span>
-            {t('chart.low')} {fmtPrice(stats.min)}
+            {t('chart.low')} {fmtPrice(chartExtent.min)}
           </span>
           <span>
-            {t('chart.high')} {fmtPrice(stats.max)}
+            {t('chart.high')} {fmtPrice(chartExtent.max)}
           </span>
         </div>
       )}
