@@ -127,13 +127,15 @@
     "cashEur": "Saldo (EUR)",
     "reserved": "Gereserveerd in open orders",
     "cryptoValue": "Cryptowaarde",
-    "yourCrypto": "Jouw crypto",
+    "yourAssets": "Jouw bezittingen",
     "feeTierLine": "Tarief: {{maker}}% maker / {{taker}}% taker · 30d volume {{volume}}",
     "emptyHoldings": "Je hebt nog geen crypto.",
     "inOpenOrders": "{{amount}} in open orders",
     "startTrading": "Begin met handelen",
     "asset": "Munt",
-    "tradeLink": "Handel"
+    "tradeLink": "Handel",
+    "openLimitOrders": "Open limietorders",
+    "noOpenLimitOrders": "Geen open limietorders"
   },
   "assetClass": {
     "crypto": "Crypto",
@@ -164,7 +166,17 @@
     "marketCol": "Markt",
     "side": "Zijde",
     "limitPrice": "Limietprijs",
-    "placed": "Geplaatst"
+    "placed": "Geplaatst",
+    "showNews": "Nieuws",
+    "showChart": "Grafiek"
+  },
+  "news": {
+    "title": "Laatste nieuws",
+    "loadError": "Nieuws laden mislukt",
+    "empty": "Geen recente persberichten voor dit instrument",
+    "readMore": "Lees meer",
+    "showLess": "Minder tonen",
+    "source": "Persberichten via Twelve Data"
   },
   "chart": {
     "range": "Periode",

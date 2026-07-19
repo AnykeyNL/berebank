@@ -288,5 +288,37 @@ class TwelveDataService:
         candles.sort(key=lambda c: c[0])
         return candles
 
+    # ---- press releases / news ----
+
+    async def fetch_press_releases(self, market: str, limit: int = 10) -> list[dict]:
+        """Recent press releases for a stock or fund market (newest first)."""
+        inst = self._instruments.get(market)
+        if inst is None:
+            raise RuntimeError(f"Unknown Twelve Data market: {market}")
+        if self.api_key is None:
+            raise RuntimeError("Twelve Data API key not configured")
+        size = max(1, min(limit, 10))
+        async with httpx.AsyncClient(base_url=TWELVEDATA_REST_URL, timeout=30) as client:
+            resp = await client.get("/press_releases", params={
+                "symbol": inst.td_symbol,
+                "outputsize": size,
+                "language": "en,en-US",
+                "apikey": self.api_key,
+            })
+            resp.raise_for_status()
+            data = resp.json()
+        if data.get("status") == "error":
+            raise RuntimeError(f"press_releases error: {data.get('message', data)}")
+        items = []
+        for row in data.get("press_releases") or []:
+            items.append({
+                "id": row.get("id", ""),
+                "datetime": row.get("datetime", ""),
+                "title": row.get("title", ""),
+                "body": row.get("body", ""),
+                "language": row.get("language") or [],
+            })
+        return items
+
 
 twelvedata_service = TwelveDataService()

@@ -157,7 +157,7 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools = {t.name for t in (await session.list_tools()).tools}
-            expected = {"list_markets", "get_candles", "get_portfolio", "list_orders",
+            expected = {"list_markets", "get_candles", "get_news", "get_portfolio", "list_orders",
                         "list_trades", "get_trade_history", "place_order", "cancel_order"}
             assert expected <= tools, f"missing tools: {expected - tools}"
             print("tools listed:", sorted(tools))
@@ -170,6 +170,10 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             r = await session.call_tool("get_candles", {"market": "BTC-EUR"})
             assert not r.isError, tool_text(r)
             print("get_candles OK")
+
+            r = await session.call_tool("get_news", {"market": "ASML-EUR", "limit": 3})
+            assert not r.isError, tool_text(r)
+            print("get_news OK")
 
             r = await session.call_tool("get_portfolio", {})
             assert not r.isError, tool_text(r)

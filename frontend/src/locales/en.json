@@ -127,13 +127,15 @@
     "cashEur": "Cash (EUR)",
     "reserved": "Reserved in open orders",
     "cryptoValue": "Crypto value",
-    "yourCrypto": "Your crypto",
+    "yourAssets": "Your assets",
     "feeTierLine": "Fee tier: {{maker}}% maker / {{taker}}% taker · 30d volume {{volume}}",
     "emptyHoldings": "You don't hold any crypto yet.",
     "inOpenOrders": "{{amount}} in open orders",
     "startTrading": "Start trading",
     "asset": "Asset",
-    "tradeLink": "Trade"
+    "tradeLink": "Trade",
+    "openLimitOrders": "Open limit orders",
+    "noOpenLimitOrders": "No open limit orders"
   },
   "assetClass": {
     "crypto": "Crypto",
@@ -164,7 +166,17 @@
     "marketCol": "Market",
     "side": "Side",
     "limitPrice": "Limit price",
-    "placed": "Placed"
+    "placed": "Placed",
+    "showNews": "News",
+    "showChart": "Chart"
+  },
+  "news": {
+    "title": "Latest news",
+    "loadError": "Could not load news",
+    "empty": "No recent press releases for this asset",
+    "readMore": "Read more",
+    "showLess": "Show less",
+    "source": "Press releases via Twelve Data"
   },
   "chart": {
     "range": "Time range",

@@ -44,6 +44,7 @@ def get_portfolio(user: User = Depends(get_current_user), db: Session = Depends(
         amount = available.get(asset, Decimal("0"))
         reserved_amount = reserved_assets.get(asset, Decimal("0"))
         market = f"{asset}-EUR"
+        market_info = market_data_service.get_market(market)
         price_info = market_data_service.get_price(market)
         price = price_info.get("last") if price_info else None
         value = ((amount + reserved_amount) * price) if price is not None else None
@@ -53,7 +54,9 @@ def get_portfolio(user: User = Depends(get_current_user), db: Session = Depends(
             asset=asset,
             amount=amount,
             reserved=reserved_amount,
-            market=market if market_data_service.get_market(market) else None,
+            market=market if market_info else None,
+            name=market_info.get("name") if market_info else None,
+            listing=market_info.get("listing") if market_info else None,
             current_price=price,
             eur_value=value,
         ))

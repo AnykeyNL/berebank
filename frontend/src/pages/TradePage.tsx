@@ -6,10 +6,12 @@ import { usePrices } from '../lib/usePrices'
 import { fmtAmount, fmtDateTime, fmtEur, fmtPct, fmtPrice } from '../lib/format'
 import type { AssetClass, Market, Order, Portfolio, Trade } from '../lib/types'
 import AssetClassIcon from '../components/AssetClassIcon'
+import NewsPanel from '../components/NewsPanel'
 import OrderForm from '../components/OrderForm'
 import PriceChart from '../components/PriceChart'
 
 type ClassFilter = 'all' | AssetClass
+type TradeView = 'trade' | 'news'
 
 export default function TradePage() {
   const { t } = useTranslation()
@@ -23,6 +25,7 @@ export default function TradePage() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [openOrders, setOpenOrders] = useState<Order[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
+  const [view, setView] = useState<TradeView>('trade')
 
   const selected = marketParam ?? 'BTC-EUR'
 
@@ -42,6 +45,10 @@ export default function TradePage() {
     const timer = setInterval(refresh, 5000)
     return () => clearInterval(timer)
   }, [refresh])
+
+  useEffect(() => {
+    setView('trade')
+  }, [selected])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -69,6 +76,7 @@ export default function TradePage() {
   const selectedMarket = markets.find((m) => m.market === selected)
   const marketOpen = selectedPrice?.market_open ?? selectedMarket?.market_open ?? null
   const marketClosed = selectedMarket ? selectedMarket.asset_class !== 'crypto' && marketOpen === false : false
+  const newsAvailable = selectedMarket ? selectedMarket.asset_class !== 'crypto' : false
   const baseAsset = selected.split('-')[0]
   const holding = portfolio?.holdings.find((h) => h.asset === baseAsset)
   const livePriceLast = selectedPrice?.last ?? selectedMarket?.last ?? null
@@ -196,6 +204,20 @@ export default function TradePage() {
               <PriceStat label={t('trade.last')} value={fmtPrice(selectedPrice?.last ?? selectedMarket?.last)} />
               <PriceStat label={t('trade.bid')} value={fmtPrice(selectedPrice?.bid ?? selectedMarket?.bid)} />
               <PriceStat label={t('trade.ask')} value={fmtPrice(selectedPrice?.ask ?? selectedMarket?.ask)} />
+              {newsAvailable && (
+                <button
+                  type="button"
+                  onClick={() => setView((v) => (v === 'trade' ? 'news' : 'trade'))}
+                  className={`self-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    view === 'news'
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : 'border border-slate-700 text-slate-300 hover:bg-slate-800'
+                  }`}
+                  aria-pressed={view === 'news'}
+                >
+                  {view === 'news' ? t('trade.showChart') : t('trade.showNews')}
+                </button>
+              )}
             </div>
           </div>
           <div className="mt-4 flex flex-wrap items-end gap-x-10 gap-y-3 border-t border-slate-800 pt-3">
@@ -221,14 +243,20 @@ export default function TradePage() {
           </div>
         </div>
 
-        <PriceChart market={selected} />
+        {view === 'news' && newsAvailable ? (
+          <NewsPanel market={selected} />
+        ) : (
+          <>
+            <PriceChart market={selected} />
 
-        <OrderForm
-          market={selected}
-          lastPrice={selectedPrice?.last ?? selectedMarket?.last ?? null}
-          holdingAmount={holding?.amount ?? null}
-          onPlaced={refresh}
-        />
+            <OrderForm
+              market={selected}
+              lastPrice={selectedPrice?.last ?? selectedMarket?.last ?? null}
+              holdingAmount={holding?.amount ?? null}
+              onPlaced={refresh}
+            />
+          </>
+        )}
 
         {/* Open orders */}
         <div className="rounded-xl border border-slate-800 bg-slate-900/60">

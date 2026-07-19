@@ -57,6 +57,14 @@ class MarketOut(BaseModel):
     volume_quote: Decimal | None = None
 
 
+class NewsItemOut(BaseModel):
+    id: str
+    datetime: str
+    title: str
+    body: str
+    language: list[str] = []
+
+
 # ---- Orders / trades ----
 
 class OrderCreate(BaseModel):
@@ -113,6 +121,8 @@ class HoldingOut(BaseModel):
     amount: Decimal  # available (not reserved) amount
     reserved: Decimal = Decimal("0")  # amount locked in open limit sell orders
     market: str | None
+    name: str | None = None
+    listing: str | None = None
     current_price: Decimal | None
     eur_value: Decimal | None  # values amount + reserved at the live price
 

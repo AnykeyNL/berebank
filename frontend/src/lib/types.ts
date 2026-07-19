@@ -26,6 +26,14 @@ export interface Market {
   volume_quote: string | null
 }
 
+export interface NewsItem {
+  id: string
+  datetime: string
+  title: string
+  body: string
+  language: string[]
+}
+
 export interface PriceUpdate {
   market: string
   last: string | null
@@ -74,6 +82,8 @@ export interface Holding {
   amount: string // available (not reserved) amount
   reserved: string // amount locked in open limit sell orders
   market: string | null
+  name: string | null
+  listing: string | null
   current_price: string | null
   eur_value: string | null // values amount + reserved at the live price
 }

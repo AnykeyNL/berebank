@@ -25,6 +25,7 @@ from .database import SessionLocal
 from .models import User
 from .oauth import oauth_provider
 from .routers.markets import get_candles as _get_candles
+from .routers.markets import get_news as _get_news
 from .routers.markets import list_markets as _list_markets
 from .routers.orders import list_orders as _list_orders
 from .routers.orders import list_trades as _list_trades
@@ -131,6 +132,27 @@ async def get_candles(market: str) -> list[list]:
         return await _get_candles(market, user=user)
     except Exception as exc:
         raise ToolError(_http_detail(exc))
+
+
+@mcp.tool()
+async def get_news(market: str, limit: int = 10) -> list[dict]:
+    """Recent press releases for a stock or fund market (e.g. ASML-EUR, AAPL-EUR).
+
+    Returns a list of items with id, datetime, title, body (HTML), and language
+    codes, newest first. Crypto markets are not supported. Limit is 1–10.
+    """
+    if limit < 1 or limit > 10:
+        raise ToolError("limit must be between 1 and 10")
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+    finally:
+        db.close()
+    try:
+        rows = await _get_news(market, user=user, limit=limit)
+    except Exception as exc:
+        raise ToolError(_http_detail(exc))
+    return [r.model_dump(mode="json") if hasattr(r, "model_dump") else r for r in rows]
 
 
 @mcp.tool()

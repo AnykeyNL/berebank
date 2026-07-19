@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..config import BITVAVO_REST_URL
 from ..models import User
-from ..schemas import MarketOut
+from ..schemas import MarketOut, NewsItemOut
 from ..security import get_current_user
 from ..services.market_data import market_data_service
 from ..services.twelvedata import twelvedata_service
@@ -16,7 +16,9 @@ router = APIRouter(prefix="/markets", tags=["markets"])
 
 # Cache briefly to avoid hammering Bitvavo when users flip markets/ranges.
 _candle_cache: dict[str, tuple[float, list]] = {}
+_news_cache: dict[str, tuple[float, list]] = {}
 _CANDLE_TTL = 60  # seconds
+_NEWS_TTL = 300  # seconds; press releases change infrequently
 
 # UI range → Bitvavo (interval, limit)
 _RANGE_PARAMS: dict[str, tuple[str, int]] = {
@@ -105,3 +107,34 @@ async def get_candles(
 
     _candle_cache[cache_key] = (time.monotonic(), candles)
     return candles
+
+
+@router.get("/{market}/news", response_model=list[NewsItemOut])
+async def get_news(
+    market: str,
+    user: User = Depends(get_current_user),
+    limit: Annotated[int, Query(ge=1, le=10)] = 10,
+):
+    """Recent press releases for a stock or fund market (newest first).
+
+    Sourced from Twelve Data. Crypto markets are not supported.
+    """
+    market = market.upper()
+    market_info = market_data_service.get_market(market)
+    if market_info is None:
+        raise HTTPException(404, f"Unknown market: {market}")
+    if market_info["asset_class"] == "crypto":
+        raise HTTPException(404, "News is not available for crypto markets")
+
+    cache_key = f"{market}:{limit}"
+    cached = _news_cache.get(cache_key)
+    if cached and time.monotonic() - cached[0] < _NEWS_TTL:
+        return cached[1]
+
+    try:
+        items = await twelvedata_service.fetch_press_releases(market, limit)
+    except Exception as exc:
+        raise HTTPException(502, f"Could not fetch news from Twelve Data: {exc}")
+
+    _news_cache[cache_key] = (time.monotonic(), items)
+    return items
