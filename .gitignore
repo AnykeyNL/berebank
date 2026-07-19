@@ -9,6 +9,7 @@ backend/*.db
 # Node
 node_modules/
 frontend/dist/
+frontend/public/AGENTS.md
 
 # Editor / OS
 .vscode/

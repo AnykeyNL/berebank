@@ -15,25 +15,24 @@ function StepList({ keys }: { keys: string[] }) {
   )
 }
 
-function ServerUrl() {
+function CopyableUrl({ labelKey, url }: { labelKey: string; url: string }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
-  const mcpUrl = `${window.location.origin}/mcp`
 
   async function copyUrl() {
-    await navigator.clipboard.writeText(mcpUrl)
+    await navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   return (
     <div>
-      <span className="mb-1 block text-sm font-medium text-slate-300">{t('aiPage.serverUrl')}</span>
+      <span className="mb-1 block text-sm font-medium text-slate-300">{t(labelKey)}</span>
       <div className="flex max-w-md gap-2">
         <input
           type="text"
           readOnly
-          value={mcpUrl}
+          value={url}
           className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm outline-none focus:border-amber-500"
         />
         <button
@@ -48,8 +47,14 @@ function ServerUrl() {
   )
 }
 
+function ServerUrl() {
+  const mcpUrl = `${window.location.origin}/mcp`
+  return <CopyableUrl labelKey="aiPage.serverUrl" url={mcpUrl} />
+}
+
 export default function AiPage() {
   const { t } = useTranslation()
+  const agentsUrl = `${window.location.origin}/AGENTS.md`
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -59,6 +64,24 @@ export default function AiPage() {
         <p className="mb-4 text-sm leading-relaxed text-slate-300">{t('aiPage.intro1')}</p>
         <p className="mb-6 text-sm leading-relaxed text-slate-400">{t('aiPage.intro2')}</p>
         <ServerUrl />
+      </section>
+
+      <section className={cardClass}>
+        <h2 className="mb-3 text-lg font-semibold text-white">{t('aiPage.agentsGuideTitle')}</h2>
+        <p className="mb-4 text-sm leading-relaxed text-slate-300">{t('aiPage.agentsGuideIntro')}</p>
+        <CopyableUrl labelKey="aiPage.agentsGuideUrl" url={agentsUrl} />
+        <a
+          href={agentsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block text-sm font-medium text-amber-400 hover:text-amber-300"
+        >
+          {t('aiPage.agentsGuideOpen')} →
+        </a>
+        <h3 className="mb-2 mt-6 text-sm font-semibold text-white">{t('aiPage.agentsGuideHowTitle')}</h3>
+        <StepList
+          keys={[1, 2, 3, 4].map((n) => `aiPage.agentsGuideStep${n}`)}
+        />
       </section>
 
       <section className={cardClass}>

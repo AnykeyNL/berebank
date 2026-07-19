@@ -1,11 +1,26 @@
+import fs from 'fs'
+import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+/** Serve repo-root AGENTS.md at /AGENTS.md (single source of truth). */
+function copyAgentsMd() {
+  return {
+    name: 'copy-agents-md',
+    buildStart() {
+      fs.copyFileSync(
+        path.resolve(__dirname, '../AGENTS.md'),
+        path.resolve(__dirname, 'public/AGENTS.md'),
+      )
+    },
+  }
+}
+
 // API and WebSocket calls are proxied to the FastAPI backend, so the frontend
 // only ever talks to its own origin (same pattern as nginx in production).
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [copyAgentsMd(), react(), tailwindcss()],
   server: {
     // Listen on all interfaces so other devices on the LAN can reach the dev server
     host: true,
