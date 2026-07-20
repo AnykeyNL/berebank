@@ -44,8 +44,10 @@ mcp = FastMCP(
         "against live market data (crypto via Bitvavo; US stocks and funds "
         "via Twelve Data), with realistic maker/taker fees. Amounts and prices are "
         "decimal numbers serialized as strings. Stock/fund market orders are rejected "
-        "while the exchange is closed. Placing or cancelling orders requires the user "
-        "to have enabled trading via MCP in their BereBank profile."
+        "while the exchange is closed. Besides market and limit orders, stop-loss "
+        "sell orders are supported: they trigger when the price falls to the trigger "
+        "price and then sell at the live bid. Placing or cancelling orders requires "
+        "the user to have enabled trading via MCP in their BereBank profile."
     ),
     auth_server_provider=oauth_provider,
     auth=AuthSettings(
@@ -218,26 +220,34 @@ async def place_order(
     amount: str | None = None,
     amount_quote: str | None = None,
     limit_price: str | None = None,
+    trigger_price: str | None = None,
 ) -> dict:
     """Place an order. Requires trading via MCP to be enabled in the user's profile.
 
     Args:
         market: Market symbol, e.g. "BTC-EUR".
         side: "buy" or "sell".
-        order_type: "market" (fills immediately at live price, taker fee) or
-            "limit" (fills when the price crosses limit_price, maker fee).
+        order_type: "market" (fills immediately at live price, taker fee),
+            "limit" (fills when the price crosses limit_price, maker fee), or
+            "stop_loss" (sell only: rests until the live bid drops to
+            trigger_price, then sells at the live bid, taker fee; the fill can
+            be below the trigger on a price gap).
         amount: Amount of the base asset (crypto), as a decimal string.
         amount_quote: EUR amount to spend/receive; market orders only.
             Market orders take exactly one of amount or amount_quote.
         limit_price: Limit price in EUR; required for limit orders (together
             with amount).
+        trigger_price: Stop price in EUR; required for stop_loss orders
+            (together with amount) and must be below the current price. The
+            asset amount is reserved while the stop-loss rests; cancel via
+            cancel_order to release it.
 
     Fees are charged in EUR. Minimum order value is EUR 5.
     """
     if side not in ("buy", "sell"):
         raise ToolError('side must be "buy" or "sell"')
-    if order_type not in ("market", "limit"):
-        raise ToolError('order_type must be "market" or "limit"')
+    if order_type not in ("market", "limit", "stop_loss"):
+        raise ToolError('order_type must be "market", "limit" or "stop_loss"')
     db = SessionLocal()
     try:
         user = _current_user(db)
@@ -253,6 +263,7 @@ async def place_order(
                     _parse_decimal(amount, "amount"),
                     _parse_decimal(amount_quote, "amount_quote"),
                     _parse_decimal(limit_price, "limit_price"),
+                    _parse_decimal(trigger_price, "trigger_price"),
                 )
             except TradingError as exc:
                 db.rollback()

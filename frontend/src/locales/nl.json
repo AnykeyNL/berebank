@@ -5,6 +5,7 @@
     "sell": "verkoop",
     "market": "markt",
     "limit": "limiet",
+    "stop_loss": "stop-loss",
     "cancel": "Annuleren",
     "amount": "Aantal",
     "price": "Koers",
@@ -135,8 +136,8 @@
     "startTrading": "Begin met handelen",
     "asset": "Munt",
     "tradeLink": "Handel",
-    "openLimitOrders": "Open limietorders",
-    "noOpenLimitOrders": "Geen open limietorders"
+    "openLimitOrders": "Open limiet- & stop-loss-orders",
+    "noOpenLimitOrders": "Geen open limiet- of stop-loss-orders"
   },
   "assetClass": {
     "crypto": "Crypto",
@@ -166,7 +167,9 @@
     "noOpenOrders": "Geen open orders",
     "marketCol": "Markt",
     "side": "Zijde",
+    "typeCol": "Type",
     "limitPrice": "Limietprijs",
+    "priceCol": "Limiet- / triggerprijs",
     "placed": "Geplaatst",
     "showNews": "Nieuws",
     "showChart": "Grafiek"
@@ -271,6 +274,9 @@
     "loadError": "Kon prijsgeschiedenis niet laden",
     "limitBuy": "Limiet kopen",
     "limitSell": "Limiet verkopen",
+    "stopLoss": "Stop-loss",
+    "tradeBuy": "Kopen",
+    "tradeSell": "Verkopen",
     "low": "Laag",
     "high": "Hoog"
   },
@@ -284,12 +290,27 @@
     "limitPctTitle": "{{offset}}% van de huidige koers",
     "amountPlaceholder": "bijv. 0,005",
     "eurPlaceholder": "bijv. 100",
+    "allReserved": "Al je {{asset}} is gereserveerd in open orders — annuleer een order om te verkopen",
     "filled": "Order uitgevoerd tegen {{price}} (kosten € {{fee}})",
     "limitPlaced": "Limietorder geplaatst",
     "failed": "Order mislukt",
     "placing": "Plaatsen…",
     "buyButton": "Koop {{asset}}",
     "sellButton": "Verkoop {{asset}}"
+  },
+  "stopLoss": {
+    "title": "Stop-loss voor {{asset}}",
+    "description": "Bescherm je positie: zakt de koers tot de triggerprijs, dan wordt het aantal automatisch verkocht tegen de actuele biedprijs (taker-kosten). Het aantal is gereserveerd zolang de stop-loss actief is.",
+    "triggerAt": "verkoop als de koers zakt tot",
+    "fromCurrent": "vanaf huidige koers",
+    "triggerPriceLabel": "Triggerprijs (EUR)",
+    "triggerPctTitle": "{{pct}}% onder de huidige koers",
+    "amountLabel": "Aantal ({{asset}})",
+    "protectPctTitle": "Bescherm {{pct}}% van je beschikbare aantal",
+    "estProceeds": "Geschatte opbrengst bij trigger: {{value}} (excl. kosten)",
+    "placeButton": "Stop-loss instellen voor {{asset}}",
+    "placed": "Stop-loss geplaatst",
+    "failed": "Stop-loss plaatsen mislukt"
   },
   "history": {
     "loading": "Handelsgeschiedenis laden…",

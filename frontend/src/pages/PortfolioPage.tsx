@@ -16,7 +16,9 @@ export default function PortfolioPage() {
   const refresh = () => {
     api<Portfolio>('/portfolio').then(setPortfolio).catch((e) => setError(e.message))
     api<Order[]>('/orders?status=open')
-      .then((orders) => setOpenOrders(orders.filter((o) => o.order_type === 'limit')))
+      .then((orders) =>
+        setOpenOrders(orders.filter((o) => o.order_type === 'limit' || o.order_type === 'stop_loss')),
+      )
       .catch(() => {})
   }
 
@@ -75,8 +77,9 @@ export default function PortfolioPage() {
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2">{t('trade.marketCol')}</th>
                 <th className="px-4 py-2">{t('trade.side')}</th>
+                <th className="px-4 py-2">{t('trade.typeCol')}</th>
                 <th className="px-4 py-2 text-right">{t('common.amount')}</th>
-                <th className="px-4 py-2 text-right">{t('trade.limitPrice')}</th>
+                <th className="px-4 py-2 text-right">{t('trade.priceCol')}</th>
                 <th className="px-4 py-2">{t('trade.placed')}</th>
                 <th className="px-4 py-2"></th>
               </tr>
@@ -92,8 +95,13 @@ export default function PortfolioPage() {
                   <td className={`px-4 py-2 font-medium ${o.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
                     {t(`common.${o.side}`)}
                   </td>
+                  <td className={`px-4 py-2 ${o.order_type === 'stop_loss' ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {t(`common.${o.order_type}`)}
+                  </td>
                   <td className="px-4 py-2 text-right font-mono">{fmtAmount(o.amount)}</td>
-                  <td className="px-4 py-2 text-right font-mono">{fmtPrice(o.limit_price)}</td>
+                  <td className="px-4 py-2 text-right font-mono">
+                    {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
+                  </td>
                   <td className="px-4 py-2 text-slate-400">{fmtDateTime(o.created_at)}</td>
                   <td className="px-4 py-2 text-right">
                     <button

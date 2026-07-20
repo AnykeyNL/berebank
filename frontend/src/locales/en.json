@@ -5,6 +5,7 @@
     "sell": "sell",
     "market": "market",
     "limit": "limit",
+    "stop_loss": "stop-loss",
     "cancel": "Cancel",
     "amount": "Amount",
     "price": "Price",
@@ -135,8 +136,8 @@
     "startTrading": "Start trading",
     "asset": "Asset",
     "tradeLink": "Trade",
-    "openLimitOrders": "Open limit orders",
-    "noOpenLimitOrders": "No open limit orders"
+    "openLimitOrders": "Open limit & stop-loss orders",
+    "noOpenLimitOrders": "No open limit or stop-loss orders"
   },
   "assetClass": {
     "crypto": "Crypto",
@@ -166,7 +167,9 @@
     "noOpenOrders": "No open orders",
     "marketCol": "Market",
     "side": "Side",
+    "typeCol": "Type",
     "limitPrice": "Limit price",
+    "priceCol": "Limit / trigger price",
     "placed": "Placed",
     "showNews": "News",
     "showChart": "Chart"
@@ -271,6 +274,9 @@
     "loadError": "Could not load price history",
     "limitBuy": "Limit buy",
     "limitSell": "Limit sell",
+    "stopLoss": "Stop-loss",
+    "tradeBuy": "Buy",
+    "tradeSell": "Sell",
     "low": "Low",
     "high": "High"
   },
@@ -284,12 +290,27 @@
     "limitPctTitle": "{{offset}}% of the current price",
     "amountPlaceholder": "e.g. 0.005",
     "eurPlaceholder": "e.g. 100",
+    "allReserved": "All your {{asset}} is reserved in open orders — cancel an order to sell",
     "filled": "Order filled at {{price}} (fee € {{fee}})",
     "limitPlaced": "Limit order placed",
     "failed": "Order failed",
     "placing": "Placing…",
     "buyButton": "Buy {{asset}}",
     "sellButton": "Sell {{asset}}"
+  },
+  "stopLoss": {
+    "title": "Stop-loss for {{asset}}",
+    "description": "Protect your position: when the price drops to the trigger price, the amount is sold automatically at the live bid price (taker fee). The amount is reserved while the stop-loss is active.",
+    "triggerAt": "sell when price drops to",
+    "fromCurrent": "from current price",
+    "triggerPriceLabel": "Trigger price (EUR)",
+    "triggerPctTitle": "{{pct}}% below the current price",
+    "amountLabel": "Amount ({{asset}})",
+    "protectPctTitle": "Protect {{pct}}% of your available amount",
+    "estProceeds": "Estimated proceeds at trigger: {{value}} (excl. fee)",
+    "placeButton": "Set stop-loss for {{asset}}",
+    "placed": "Stop-loss placed",
+    "failed": "Failed to place stop-loss"
   },
   "history": {
     "loading": "Loading trade history…",

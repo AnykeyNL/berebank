@@ -8,6 +8,7 @@ interface Props {
   market: string
   lastPrice: string | null
   holdingAmount: string | null
+  reservedAmount?: string | null
   onPlaced: () => void
 }
 
@@ -15,7 +16,7 @@ function trimZeros(value: string): string {
   return value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
 }
 
-export default function OrderForm({ market, lastPrice, holdingAmount, onPlaced }: Props) {
+export default function OrderForm({ market, lastPrice, holdingAmount, reservedAmount, onPlaced }: Props) {
   const { t } = useTranslation()
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market')
@@ -31,6 +32,7 @@ export default function OrderForm({ market, lastPrice, holdingAmount, onPlaced }
 
   const baseAsset = market.split('-')[0]
   const owned = holdingAmount ? parseFloat(holdingAmount) : 0
+  const reserved = reservedAmount ? parseFloat(reservedAmount) : 0
 
   function priceBasis(limit: string = limitPrice): number | null {
     const p = orderType === 'limit' && limit ? parseFloat(limit) : lastPrice ? parseFloat(lastPrice) : null
@@ -164,14 +166,16 @@ export default function OrderForm({ market, lastPrice, holdingAmount, onPlaced }
             <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
               {t('orderForm.amountLabel', { asset: baseAsset })}
             </label>
-            {side === 'sell' && owned > 0 && (
+            {side === 'sell' && (owned > 0 || reserved > 0) && (
               <span className="flex gap-1">
                 {[25, 50, 75, 100].map((pct) => (
                   <button
                     key={pct}
                     type="button"
+                    disabled={owned <= 0}
                     onClick={() => fillPercent(pct)}
-                    className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400"
+                    title={owned <= 0 ? t('orderForm.allReserved', { asset: baseAsset }) : undefined}
+                    className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 transition-colors enabled:hover:border-amber-500 enabled:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {pct}%
                   </button>

@@ -57,11 +57,12 @@ class Order(Base):
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), index=True)
     market: Mapped[str] = mapped_column(String(20), index=True)  # e.g. BTC-EUR
     side: Mapped[str] = mapped_column(String(4))  # buy | sell
-    order_type: Mapped[str] = mapped_column(String(6))  # market | limit
+    order_type: Mapped[str] = mapped_column(String(10))  # market | limit | stop_loss
     status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open | filled | cancelled
     amount: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # base asset amount
     amount_quote: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # EUR amount (market orders)
     limit_price: Mapped[Decimal | None] = mapped_column(Money, nullable=True)
+    trigger_price: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # stop-loss trigger
     reserved_eur: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # for open limit buys
     fee_paid: Mapped[Decimal | None] = mapped_column(Money, nullable=True)
     filled_price: Mapped[Decimal | None] = mapped_column(Money, nullable=True)

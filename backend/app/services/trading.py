@@ -7,6 +7,9 @@ Reservation model:
   difference is refunded. On cancel the full reservation is refunded.
 - Open limit SELL: the base asset amount is deducted from the holding up
   front. On cancel it is returned.
+- Open STOP-LOSS (always a sell): reserved like a limit sell. When the live
+  bid drops to or below the trigger price the order fills at the live bid and
+  pays the taker fee (the fill can be below the trigger on a price gap).
 """
 import asyncio
 import logging
@@ -28,9 +31,11 @@ AMOUNT_QUANT = Decimal("0.00000001")
 # Serializes all order placement/cancellation/matching so balances stay consistent.
 trade_lock = asyncio.Lock()
 
-# Markets that currently have open limit orders, so the matcher can skip the
-# database for the (many) markets without any.
+# Markets that currently have open resting orders (limit or stop-loss), so
+# the matcher can skip the database for the (many) markets without any.
 _open_limit_markets: set[str] = set()
+
+RESTING_ORDER_TYPES = ("limit", "stop_loss")
 
 
 class TradingError(Exception):
@@ -41,7 +46,9 @@ class TradingError(Exception):
 
 def load_open_limit_markets(db: Session) -> None:
     markets = db.scalars(
-        select(Order.market).where(Order.status == "open", Order.order_type == "limit").distinct()
+        select(Order.market)
+        .where(Order.status == "open", Order.order_type.in_(RESTING_ORDER_TYPES))
+        .distinct()
     ).all()
     _open_limit_markets.clear()
     _open_limit_markets.update(markets)
@@ -90,6 +97,7 @@ def _record_trade(
 def place_order(
     db: Session, account: Account, market: str, side: str, order_type: str,
     amount: Decimal | None, amount_quote: Decimal | None, limit_price: Decimal | None,
+    trigger_price: Decimal | None = None,
 ) -> Order:
     market_info = market_data_service.get_market(market)
     if market_info is None:
@@ -113,11 +121,19 @@ def place_order(
         return _execute_market_order(
             db, account, market, side, base_asset, amount, amount_quote, price_info, taker_rate
         )
+    if amount_quote is not None:
+        raise TradingError("amount_quote is only supported for market orders")
+    if order_type == "stop_loss":
+        if side != "sell":
+            raise TradingError("Stop-loss orders can only be sell orders")
+        if amount is None or trigger_price is None:
+            raise TradingError("Stop-loss orders require both amount and trigger_price")
+        return _place_stop_loss_order(
+            db, account, market, base_asset, amount, trigger_price, price_info
+        )
     # limit order
     if amount is None or limit_price is None:
         raise TradingError("Limit orders require both amount and limit_price")
-    if amount_quote is not None:
-        raise TradingError("amount_quote is only supported for market orders")
     return _place_limit_order(
         db, account, market, side, base_asset, amount, limit_price, maker_rate, price_info
     )
@@ -206,6 +222,32 @@ def _place_limit_order(
     return order
 
 
+def _place_stop_loss_order(
+    db: Session, account: Account, market: str, base_asset: str,
+    amount: Decimal, trigger_price: Decimal, price_info: dict,
+) -> Order:
+    eur_value = amount * trigger_price
+    if eur_value < MIN_ORDER_EUR:
+        raise TradingError(f"Minimum order value is EUR {MIN_ORDER_EUR}")
+
+    current = price_info.get("bid") or price_info.get("last")
+    if current is not None and trigger_price >= current:
+        raise TradingError(
+            f"Stop-loss trigger price must be below the current price ({current})"
+        )
+
+    order = Order(
+        account_id=account.id, market=market, side="sell", order_type="stop_loss",
+        amount=amount, trigger_price=trigger_price,
+    )
+    _debit_holding(db, account.id, base_asset, amount)
+
+    db.add(order)
+    db.commit()
+    _open_limit_markets.add(market)
+    return order
+
+
 def cancel_order(db: Session, account: Account, order_id: int) -> Order:
     order = db.get(Order, order_id)
     if order is None or order.account_id != account.id:
@@ -224,7 +266,9 @@ def cancel_order(db: Session, account: Account, order_id: int) -> Order:
 
     still_open = db.scalar(
         select(Order.id).where(
-            Order.status == "open", Order.order_type == "limit", Order.market == order.market
+            Order.status == "open",
+            Order.order_type.in_(RESTING_ORDER_TYPES),
+            Order.market == order.market,
         ).limit(1)
     )
     if still_open is None:
@@ -270,8 +314,42 @@ def _try_fill_limit_order(db: Session, order: Order, price_info: dict) -> bool:
     return True
 
 
+def _try_fill_stop_loss(db: Session, order: Order, price_info: dict) -> bool:
+    """Execute a stop-loss if the market price has dropped to its trigger.
+
+    Fills at the live bid (taker fee), which can be below the trigger price
+    when the market gaps down.
+    """
+    if price_info.get("market_open") is False:
+        return False  # stock/fund exchange closed; keep the order resting
+    price = price_info.get("bid") or price_info.get("last")
+    if price is None or price > order.trigger_price:
+        return False
+
+    account = db.get(Account, order.account_id)
+    eur_value = order.amount * price
+    volume_30d = get_30d_volume(db, account.id)
+    _, taker_rate = get_fee_rates(volume_30d)
+    fee = calc_fee(eur_value, taker_rate)
+
+    account.balance_eur = account.balance_eur + (eur_value - fee)
+    _record_trade(db, order, account, order.amount, price, eur_value, fee)
+    logger.info(
+        "Filled stop-loss order %d: sell %s %s @ %s (trigger %s)",
+        order.id, order.amount, order.market, price, order.trigger_price,
+    )
+    return True
+
+
+def _try_fill_resting_order(db: Session, order: Order, price_info: dict) -> bool:
+    if order.order_type == "stop_loss":
+        return _try_fill_stop_loss(db, order, price_info)
+    return _try_fill_limit_order(db, order, price_info)
+
+
 async def match_limit_orders(updates: list[dict], session_factory) -> None:
-    """Price listener: fill open limit orders crossed by incoming ticker updates."""
+    """Price listener: fill open resting orders (limit and stop-loss) crossed
+    by incoming ticker updates."""
     relevant = [u for u in updates if u["market"] in _open_limit_markets]
     if not relevant:
         return
@@ -283,13 +361,13 @@ async def match_limit_orders(updates: list[dict], session_factory) -> None:
                 orders = db.scalars(
                     select(Order).where(
                         Order.status == "open",
-                        Order.order_type == "limit",
+                        Order.order_type.in_(RESTING_ORDER_TYPES),
                         Order.market == market,
                     )
                 ).all()
                 any_open_left = False
                 for order in orders:
-                    if not _try_fill_limit_order(db, order, update):
+                    if not _try_fill_resting_order(db, order, update):
                         any_open_left = True
                 db.commit()
                 if not any_open_left:

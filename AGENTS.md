@@ -44,6 +44,7 @@ Understanding these rules helps you give accurate advice and place valid orders:
 
 - **Market orders** — fill immediately at live bid (sell) or ask (buy); pay the **taker** fee
 - **Limit orders** — rest until the live price crosses the limit; pay the **maker** fee when filled. Buy limits reserve EUR (including fee) upfront; sell limits lock the asset amount
+- **Stop-loss orders** — sell only: rest until the live bid drops to the trigger price, then sell at the live bid (the fill can be below the trigger on a price gap); pay the **taker** fee. The trigger price must be below the current price at placement; the asset amount is locked while the order rests
 - **Fees** — Bitvavo Category A maker/taker tiers based on trailing **30-day executed volume** (base tier: 0.15% maker / 0.25% taker). Fees are charged in EUR
 - **Minimum order** — EUR 5 (same as Bitvavo)
 - **Amounts and prices** — decimal numbers; API and MCP responses serialize them as **strings** (e.g. `"1234.56"`)
@@ -82,12 +83,13 @@ Trading tools require the user to enable **"Allow trading via MCP"** in their pr
 ### `place_order` parameters
 
 ```
-market       — e.g. "BTC-EUR", "AAPL-EUR", "SPY-EUR"
-side         — "buy" or "sell"
-order_type   — "market" or "limit"
-amount       — base asset quantity (decimal string)
-amount_quote — EUR amount; market orders only (use exactly one of amount or amount_quote)
-limit_price  — required for limit orders (together with amount)
+market        — e.g. "BTC-EUR", "AAPL-EUR", "SPY-EUR"
+side          — "buy" or "sell"
+order_type    — "market", "limit" or "stop_loss"
+amount        — base asset quantity (decimal string)
+amount_quote  — EUR amount; market orders only (use exactly one of amount or amount_quote)
+limit_price   — required for limit orders (together with amount)
+trigger_price — required for stop_loss orders (together with amount); must be below the current price
 ```
 
 ## Suggested workflow for strategy development

@@ -25,7 +25,7 @@ async def create_order(
         try:
             order = trading.place_order(
                 db, user.account, body.market.upper(), body.side, body.order_type,
-                body.amount, body.amount_quote, body.limit_price,
+                body.amount, body.amount_quote, body.limit_price, body.trigger_price,
             )
         except TradingError as exc:
             db.rollback()

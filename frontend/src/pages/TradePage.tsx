@@ -10,6 +10,7 @@ import FundInfoButton from '../components/FundInfoButton'
 import NewsPanel from '../components/NewsPanel'
 import OrderForm from '../components/OrderForm'
 import PriceChart from '../components/PriceChart'
+import StopLossPanel from '../components/StopLossPanel'
 
 type ClassFilter = 'all' | AssetClass
 type TradeView = 'trade' | 'news'
@@ -81,28 +82,54 @@ export default function TradePage() {
   const baseAsset = selected.split('-')[0]
   const holding = portfolio?.holdings.find((h) => h.asset === baseAsset)
   const livePriceLast = selectedPrice?.last ?? selectedMarket?.last ?? null
+  // holding.amount is only the available part; the rest is reserved in open
+  // sell orders (limit sells and stop-losses) but still owned by the user.
+  const ownedAvailable = holding ? parseFloat(holding.amount) : 0
+  const ownedReserved = holding?.reserved ? parseFloat(holding.reserved) : 0
+  const ownedTotal = ownedAvailable + ownedReserved
   const holdingValue = !holding
     ? 0
     : livePriceLast !== null
-      ? parseFloat(holding.amount) * parseFloat(livePriceLast)
+      ? ownedTotal * parseFloat(livePriceLast)
       : null
 
   const chartLimitOrders = useMemo(
     () =>
       openOrders
-        .filter(
-          (o) =>
-            o.market === selected &&
-            o.order_type === 'limit' &&
-            o.limit_price !== null &&
-            parseFloat(o.limit_price) > 0,
-        )
+        .filter((o) => {
+          if (o.market !== selected) return false
+          const price = o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price
+          return (
+            (o.order_type === 'limit' || o.order_type === 'stop_loss') &&
+            price !== null &&
+            parseFloat(price) > 0
+          )
+        })
         .map((o) => ({
           id: o.id,
           side: o.side,
-          price: parseFloat(o.limit_price!),
+          price: parseFloat((o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)!),
+          kind: o.order_type as 'limit' | 'stop_loss',
         })),
     [openOrders, selected],
+  )
+
+  const stopLossOrders = useMemo(
+    () => openOrders.filter((o) => o.market === selected && o.order_type === 'stop_loss'),
+    [openOrders, selected],
+  )
+
+  const chartTrades = useMemo(
+    () =>
+      trades
+        .filter((tr) => tr.market === selected)
+        .map((tr) => ({
+          id: tr.id,
+          side: tr.side,
+          price: parseFloat(tr.price),
+          created_at: tr.created_at,
+        })),
+    [trades, selected],
   )
 
   async function cancelOrder(id: number) {
@@ -252,9 +279,14 @@ export default function TradePage() {
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500">{t('trade.youOwn')}</p>
               <p className="mt-0.5 text-xl font-bold">
-                {fmtAmount(holding?.amount ?? '0')} <span className="text-slate-400">{baseAsset}</span>
+                {fmtAmount(ownedTotal)} <span className="text-slate-400">{baseAsset}</span>
                 <span className="ml-3 text-amber-400">{fmtEur(holdingValue)}</span>
               </p>
+              {ownedReserved > 0 && (
+                <p className="text-xs text-slate-500">
+                  {t('portfolio.inOpenOrders', { amount: fmtAmount(ownedReserved) })}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500">{t('trade.cash')}</p>
@@ -278,6 +310,7 @@ export default function TradePage() {
             <PriceChart
               market={selected}
               limitOrders={chartLimitOrders}
+              trades={chartTrades}
               lastPrice={livePriceLast !== null ? parseFloat(livePriceLast) : null}
             />
 
@@ -285,8 +318,20 @@ export default function TradePage() {
               market={selected}
               lastPrice={selectedPrice?.last ?? selectedMarket?.last ?? null}
               holdingAmount={holding?.amount ?? null}
+              reservedAmount={holding?.reserved ?? null}
               onPlaced={refresh}
             />
+
+            {(holding || stopLossOrders.length > 0) && (
+              <StopLossPanel
+                market={selected}
+                lastPrice={selectedPrice?.last ?? selectedMarket?.last ?? null}
+                holdingAmount={holding?.amount ?? null}
+                reservedAmount={holding?.reserved ?? null}
+                stopLossOrders={stopLossOrders}
+                onChanged={refresh}
+              />
+            )}
           </>
         )}
 
@@ -301,8 +346,9 @@ export default function TradePage() {
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2">{t('trade.marketCol')}</th>
                   <th className="px-4 py-2">{t('trade.side')}</th>
+                  <th className="px-4 py-2">{t('trade.typeCol')}</th>
                   <th className="px-4 py-2 text-right">{t('common.amount')}</th>
-                  <th className="px-4 py-2 text-right">{t('trade.limitPrice')}</th>
+                  <th className="px-4 py-2 text-right">{t('trade.priceCol')}</th>
                   <th className="px-4 py-2">{t('trade.placed')}</th>
                   <th className="px-4 py-2"></th>
                 </tr>
@@ -314,8 +360,13 @@ export default function TradePage() {
                     <td className={`px-4 py-2 font-medium ${o.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
                       {t(`common.${o.side}`)}
                     </td>
+                    <td className={`px-4 py-2 ${o.order_type === 'stop_loss' ? 'text-amber-400' : 'text-slate-400'}`}>
+                      {t(`common.${o.order_type}`)}
+                    </td>
                     <td className="px-4 py-2 text-right font-mono">{fmtAmount(o.amount)}</td>
-                    <td className="px-4 py-2 text-right font-mono">{fmtPrice(o.limit_price)}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
+                    </td>
                     <td className="px-4 py-2 text-slate-400">{fmtDateTime(o.created_at)}</td>
                     <td className="px-4 py-2 text-right">
                       <button

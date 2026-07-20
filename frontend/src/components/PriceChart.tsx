@@ -5,11 +5,15 @@ import {
   CandlestickSeries,
   ColorType,
   createChart,
+  createSeriesMarkers,
   LineStyle,
+  type AutoscaleInfo,
   type IChartApi,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
+  type SeriesMarker,
+  type Time,
   type UTCTimestamp,
-  type AutoscaleInfo,
 } from 'lightweight-charts'
 import { api } from '../lib/api'
 import { chartPriceFormat, fmtPct, fmtPrice } from '../lib/format'
@@ -30,15 +34,70 @@ export type LimitOrderMarker = {
   id: number
   side: 'buy' | 'sell'
   price: number
+  kind?: 'limit' | 'stop_loss'
+}
+
+export type TradeMarker = {
+  id: number
+  side: 'buy' | 'sell'
+  price: number
+  created_at: string
+}
+
+function snapTradeTime(tradeSec: number, candleTimesSec: number[]): UTCTimestamp | null {
+  if (candleTimesSec.length === 0) return null
+
+  const first = candleTimesSec[0]
+  const last = candleTimesSec[candleTimesSec.length - 1]
+  const interval =
+    candleTimesSec.length >= 2 ? candleTimesSec[candleTimesSec.length - 1] - candleTimesSec[candleTimesSec.length - 2] : 60
+
+  if (tradeSec < first || tradeSec > last + interval) return null
+
+  let snapped = first
+  for (const t of candleTimesSec) {
+    if (t <= tradeSec) snapped = t
+    else break
+  }
+  return snapped as UTCTimestamp
+}
+
+function tradesToMarkers(
+  trades: TradeMarker[],
+  candles: Candle[],
+  labels: { buy: string; sell: string },
+): SeriesMarker<UTCTimestamp>[] {
+  const candleTimesSec = candles.map((c) => Math.floor(c[0] / 1000))
+  const markers: SeriesMarker<UTCTimestamp>[] = []
+
+  for (const trade of trades) {
+    const tradeSec = Math.floor(new Date(trade.created_at).getTime() / 1000)
+    const time = snapTradeTime(tradeSec, candleTimesSec)
+    if (time === null) continue
+
+    const isBuy = trade.side === 'buy'
+    markers.push({
+      time,
+      position: isBuy ? 'atPriceBottom' : 'atPriceTop',
+      price: trade.price,
+      color: isBuy ? UP : DOWN,
+      shape: isBuy ? 'arrowUp' : 'arrowDown',
+      text: isBuy ? labels.buy : labels.sell,
+    })
+  }
+
+  return markers
 }
 
 export default function PriceChart({
   market,
   limitOrders = [],
+  trades = [],
   lastPrice = null,
 }: {
   market: string
   limitOrders?: LimitOrderMarker[]
+  trades?: TradeMarker[]
   lastPrice?: number | null
 }) {
   const { t } = useTranslation()
@@ -50,9 +109,12 @@ export default function PriceChart({
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Area'> | ISeriesApi<'Candlestick'> | null>(null)
+  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
   const limitOrdersRef = useRef(limitOrders)
+  const tradesRef = useRef(trades)
   const lastPriceRef = useRef(lastPrice)
   limitOrdersRef.current = limitOrders
+  tradesRef.current = trades
   lastPriceRef.current = lastPrice
 
   useEffect(() => {
@@ -81,6 +143,14 @@ export default function PriceChart({
     }
   }, [market, range])
 
+  const tradeMarkers = useMemo(() => {
+    if (!candles || candles.length < 2) return []
+    return tradesToMarkers(trades, candles, {
+      buy: t('chart.tradeBuy'),
+      sell: t('chart.tradeSell'),
+    })
+  }, [candles, trades, t])
+
   const stats = useMemo(() => {
     if (!candles || candles.length < 2) return null
     const closes = candles.map((c) => parseFloat(c[4]))
@@ -107,13 +177,18 @@ export default function PriceChart({
       min = Math.min(min, order.price)
       max = Math.max(max, order.price)
     }
+    for (const trade of trades) {
+      min = Math.min(min, trade.price)
+      max = Math.max(max, trade.price)
+    }
     return { ...stats, min, max }
-  }, [stats, limitOrders, lastPrice])
+  }, [stats, limitOrders, trades, lastPrice])
 
   const autoscaleInfoProvider = useMemo(() => {
     return (original: () => AutoscaleInfo | null) => {
       const extraPrices = [
         ...limitOrdersRef.current.map((o) => o.price),
+        ...tradesRef.current.map((tr) => tr.price),
         ...(lastPriceRef.current !== null && Number.isFinite(lastPriceRef.current)
           ? [lastPriceRef.current]
           : []),
@@ -176,6 +251,7 @@ export default function PriceChart({
       chart.remove()
       chartRef.current = null
       seriesRef.current = null
+      markersRef.current = null
     }
   }, [])
 
@@ -194,6 +270,10 @@ export default function PriceChart({
     const chart = chartRef.current
     if (!chart) return
 
+    if (markersRef.current) {
+      markersRef.current.setMarkers([])
+      markersRef.current = null
+    }
     if (seriesRef.current) {
       chart.removeSeries(seriesRef.current)
       seriesRef.current = null
@@ -244,18 +324,27 @@ export default function PriceChart({
     }
 
     for (const order of limitOrders) {
+      const isStopLoss = order.kind === 'stop_loss'
       seriesRef.current.createPriceLine({
         price: order.price,
-        color: order.side === 'buy' ? UP : DOWN,
+        color: isStopLoss ? '#fbbf24' : order.side === 'buy' ? UP : DOWN,
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: order.side === 'buy' ? t('chart.limitBuy') : t('chart.limitSell'),
+        title: isStopLoss
+          ? t('chart.stopLoss')
+          : order.side === 'buy'
+            ? t('chart.limitBuy')
+            : t('chart.limitSell'),
       })
     }
 
+    if (tradeMarkers.length > 0 && seriesRef.current) {
+      markersRef.current = createSeriesMarkers(seriesRef.current, tradeMarkers)
+    }
+
     chart.timeScale().fitContent()
-  }, [candles, chartType, stats, limitOrders, autoscaleInfoProvider, lastPrice, t])
+  }, [candles, chartType, stats, limitOrders, tradeMarkers, autoscaleInfoProvider, lastPrice, t])
 
   // Keep axis precision in sync when the live price crosses a formatting tier.
   useEffect(() => {
@@ -264,15 +353,17 @@ export default function PriceChart({
     seriesRef.current.applyOptions({ priceFormat: chartPriceFormat(ref) })
   }, [lastPrice, stats?.lastClose])
 
-  // Re-run autoscale when limit orders or live price move outside the candle range.
+  // Re-run autoscale when limit orders, trades, or live price move outside the candle range.
   useEffect(() => {
     chartRef.current?.priceScale('right').setAutoScale(true)
-  }, [limitOrders, lastPrice, candles, chartType])
+  }, [limitOrders, trades, lastPrice, candles, chartType])
 
   const btnBase =
     'rounded px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-500'
   const btnActive = 'bg-slate-700 text-slate-100'
   const btnIdle = 'text-slate-400 hover:text-slate-200'
+
+  const hasTradeLegend = trades.length > 0 && tradeMarkers.length > 0
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -333,10 +424,16 @@ export default function PriceChart({
         />
       </div>
       {chartExtent && !error && (
-        <div className="mt-2 flex justify-between text-xs text-slate-500">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
           <span>
             {t('chart.low')} {fmtPrice(chartExtent.min)}
           </span>
+          {hasTradeLegend && (
+            <span className="flex items-center gap-3">
+              <span className="text-emerald-400">▲ {t('chart.tradeBuy')}</span>
+              <span className="text-red-400">▼ {t('chart.tradeSell')}</span>
+            </span>
+          )}
           <span>
             {t('chart.high')} {fmtPrice(chartExtent.max)}
           </span>

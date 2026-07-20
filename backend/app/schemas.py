@@ -81,10 +81,11 @@ class NewsPageOut(BaseModel):
 class OrderCreate(BaseModel):
     market: str
     side: str = Field(pattern="^(buy|sell)$")
-    order_type: str = Field(pattern="^(market|limit)$")
+    order_type: str = Field(pattern="^(market|limit|stop_loss)$")
     amount: Decimal | None = Field(default=None, gt=0)
     amount_quote: Decimal | None = Field(default=None, gt=0)  # EUR, market orders only
     limit_price: Decimal | None = Field(default=None, gt=0)
+    trigger_price: Decimal | None = Field(default=None, gt=0)  # stop-loss orders only
 
 
 class OrderOut(BaseModel):
@@ -98,6 +99,7 @@ class OrderOut(BaseModel):
     amount: Decimal | None
     amount_quote: Decimal | None
     limit_price: Decimal | None
+    trigger_price: Decimal | None
     fee_paid: Decimal | None
     filled_price: Decimal | None
     created_at: datetime

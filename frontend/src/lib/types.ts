@@ -60,11 +60,12 @@ export interface Order {
   id: number
   market: string
   side: 'buy' | 'sell'
-  order_type: 'market' | 'limit'
+  order_type: 'market' | 'limit' | 'stop_loss'
   status: 'open' | 'filled' | 'cancelled'
   amount: string | null
   amount_quote: string | null
   limit_price: string | null
+  trigger_price: string | null
   fee_paid: string | null
   filled_price: string | null
   created_at: string
