@@ -108,7 +108,7 @@ def list_markets(filter: str | None = None, asset_class: str | None = None) -> l
     db = SessionLocal()
     try:
         user = _current_user(db)
-        rows = _list_markets(user=user, asset_class=asset_class)
+        rows = _list_markets(user=user, db=db, asset_class=asset_class)
     finally:
         db.close()
     if filter:
@@ -147,12 +147,12 @@ async def get_news(market: str, limit: int = 10) -> list[dict]:
     db = SessionLocal()
     try:
         user = _current_user(db)
+        try:
+            rows = await _get_news(market, user=user, db=db, limit=limit)
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
     finally:
         db.close()
-    try:
-        rows = await _get_news(market, user=user, limit=limit)
-    except Exception as exc:
-        raise ToolError(_http_detail(exc))
     return [r.model_dump(mode="json") if hasattr(r, "model_dump") else r for r in rows]
 
 
