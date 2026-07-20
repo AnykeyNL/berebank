@@ -6,6 +6,7 @@ import { usePrices } from '../lib/usePrices'
 import { fmtAmount, fmtDateTime, fmtEur, fmtPct, fmtPrice } from '../lib/format'
 import type { AssetClass, Market, Order, Portfolio, Trade } from '../lib/types'
 import AssetClassIcon from '../components/AssetClassIcon'
+import FundInfoButton from '../components/FundInfoButton'
 import NewsPanel from '../components/NewsPanel'
 import OrderForm from '../components/OrderForm'
 import PriceChart from '../components/PriceChart'
@@ -159,36 +160,42 @@ export default function TradePage() {
           }`}
         >
           {rows.map((m) => (
-            <button
+            <div
               key={m.market}
-              onClick={() => {
-                setSearch('')
-                navigate(`/trade/${m.market}`)
-              }}
-              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-800/50 ${
+              className={`flex items-center gap-1 px-3 py-2 transition-colors hover:bg-slate-800/50 ${
                 m.market === selected ? 'bg-amber-500/10' : ''
               }`}
             >
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <AssetClassIcon assetClass={m.asset_class} className="h-3.5 w-3.5 shrink-0" />
-                  {m.base}
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  navigate(`/trade/${m.market}`)
+                }}
+                className="flex min-w-0 flex-1 items-center justify-between text-left text-sm"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <AssetClassIcon assetClass={m.asset_class} className="h-3.5 w-3.5 shrink-0" />
+                    {m.base}
+                  </span>
+                  {m.listing && (
+                    <span className="mt-0.5 block truncate text-xs text-slate-500">{m.listing}</span>
+                  )}
                 </span>
-                {m.listing && (
-                  <span className="mt-0.5 block truncate text-xs text-slate-500">{m.listing}</span>
-                )}
-              </span>
-              <span className="text-right">
-                <span className="block font-mono text-xs">{fmtPrice(m.last)}</span>
-                <span
-                  className={`block text-xs ${
-                    m.change === null ? 'text-slate-500' : m.change >= 0 ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {fmtPct(m.change)}
+                <span className="text-right">
+                  <span className="block font-mono text-xs">{fmtPrice(m.last)}</span>
+                  <span
+                    className={`block text-xs ${
+                      m.change === null ? 'text-slate-500' : m.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {fmtPct(m.change)}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+              {m.asset_class === 'fund' && <FundInfoButton ticker={m.base} />}
+            </div>
           ))}
         </div>
       </div>
@@ -201,6 +208,9 @@ export default function TradePage() {
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 {selectedMarket && <AssetClassIcon assetClass={selectedMarket.asset_class} className="h-5 w-5" />}
                 {selected}
+                {selectedMarket?.asset_class === 'fund' && (
+                  <FundInfoButton ticker={selectedMarket.base} className="h-6 w-6 text-xs" />
+                )}
                 {marketClosed && (
                   <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-xs font-medium text-red-400">
                     {t('trade.marketClosed')}

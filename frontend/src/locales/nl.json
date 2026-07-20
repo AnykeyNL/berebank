@@ -171,6 +171,78 @@
     "showNews": "Nieuws",
     "showChart": "Grafiek"
   },
+  "funds": {
+    "infoButton": "Info over {{name}}",
+    "close": "Sluiten",
+    "SPY": {
+      "name": "SPDR S&P 500 ETF",
+      "description": "Volgt de S&P 500-index — 500 van de grootste Amerikaanse bedrijven. Een van 's werelds meest verhandelde ETF's en een veelgebruikte benchmark voor US large-cap rendement."
+    },
+    "QQQ": {
+      "name": "Invesco QQQ Trust",
+      "description": "Volgt de Nasdaq-100: de 100 grootste niet-financiële bedrijven op Nasdaq. Zwaar gewogen in technologie en groeiaandelen zoals Apple, Microsoft en Nvidia."
+    },
+    "VOO": {
+      "name": "Vanguard S&P 500 ETF",
+      "description": "Een goedkope ETF die de S&P 500 volgt. Vergelijkbaar met SPY maar met lagere kosten — populair voor langetermijn buy-and-hold."
+    },
+    "VTI": {
+      "name": "Vanguard Total Stock Market ETF",
+      "description": "Dekt vrijwel de hele Amerikaanse aandelenmarkt — van large tot small cap. Breder dan alleen de S&P 500 en vaak gebruikt als enkelvoudige US-portefeuille."
+    },
+    "IWM": {
+      "name": "iShares Russell 2000 ETF",
+      "description": "Volgt de Russell 2000-index van Amerikaanse small-cap bedrijven. Volatieler dan large-cap fondsen, maar kan sterk presteren in opwaartse conjunctuur."
+    },
+    "VEA": {
+      "name": "Vanguard FTSE Developed Markets ETF",
+      "description": "Belegt in large- en mid-cap aandelen in ontwikkelde markten buiten de VS (Europa, Japan, Canada, enz.). Voegt internationale spreiding toe."
+    },
+    "VWO": {
+      "name": "Vanguard FTSE Emerging Markets ETF",
+      "description": "Dekt opkomende markten zoals China, India en Brazilië. Meer groeipotentieel maar ook hogere volatiliteit en politiek/valutarisico."
+    },
+    "BND": {
+      "name": "Vanguard Total Bond Market ETF",
+      "description": "Een brede mand van Amerikaanse investment-grade obligaties (overheid en corporate). Meestal minder volatiel dan aandelen en gebruikt om portefeuillerisico te verlagen."
+    },
+    "TLT": {
+      "name": "iShares 20+ Year Treasury Bond ETF",
+      "description": "Bevat langlopende Amerikaanse staatsobligaties. Koers beweegt omgekeerd aan rente — nuttig als hedge bij dalende rente, maar gevoelig voor rentestijgingen."
+    },
+    "SCHD": {
+      "name": "Schwab US Dividend Equity ETF",
+      "description": "Richt zich op kwalitatieve Amerikaanse dividendbetalers met een solide track record. Populair bij beleggers die inkomen zoeken."
+    },
+    "XLK": {
+      "name": "Technology Select Sector SPDR",
+      "description": "Volgt de technologiesector van de S&P 500 — hardware, software, halfgeleiders en IT-diensten. Een pure sectorweddenschap op US tech."
+    },
+    "VGT": {
+      "name": "Vanguard Information Technology ETF",
+      "description": "Een brede US tech-ETF met bedrijven als Apple, Nvidia en Microsoft. Iets andere indexweging dan XLK."
+    },
+    "SOXX": {
+      "name": "iShares Semiconductor ETF",
+      "description": "Belegt in bedrijven die halfgeleiders ontwerpen, produceren en distribueren. Sterk cyclisch en gekoppeld aan de mondiale chipindustrie."
+    },
+    "IGV": {
+      "name": "iShares Expanded Tech-Software ETF",
+      "description": "Focus op software- en IT-dienstverleners — SaaS, cloudplatforms en enterprise software. Minder hardware-zwaar dan SOXX of XLK."
+    },
+    "ARKK": {
+      "name": "ARK Innovation ETF",
+      "description": "Actief beheerd fonds gericht op disruptieve innovatie: AI, genomics, fintech en next-gen internet. Volatieler dan passieve index-ETF's."
+    },
+    "IBIT": {
+      "name": "iShares Bitcoin Trust",
+      "description": "Een spot Bitcoin-ETF die BTC direct aanhoudt. Gereguleerde beursgenoteerde Bitcoin-exposure zonder zelf een crypto-wallet te beheren."
+    },
+    "GLD": {
+      "name": "SPDR Gold Shares",
+      "description": "Volgt de goudprijs. Vaak gebruikt als hedge tegen inflatie of marktstress, met lage correlatie tot aandelen."
+    }
+  },
   "news": {
     "pageTitle": "Nieuws",
     "title": "Laatste nieuws",
@@ -275,7 +347,7 @@
     "stockFundMarkets": "Aandelen-/fondsmarkten",
     "usdEurRate": "USD/EUR-koers",
     "lastError": "Laatste fout",
-    "twelvedataNote": "Amerikaanse en Nederlandse aandelen en fondsen krijgen hun koersen via twelvedata.com. Voer je Twelve Data API-sleutel in om de feed te activeren; koersen verversen elke minuut en USD-instrumenten worden automatisch omgerekend naar EUR.",
+    "twelvedataNote": "Amerikaanse aandelen en fondsen krijgen hun koersen via twelvedata.com. Voer je Twelve Data API-sleutel in om de feed te activeren; koersen verversen elke minuut en USD-instrumenten worden automatisch omgerekend naar EUR.",
     "rssFeeds": "RSS-nieuwsfeeds",
     "rssFeedCount": "Geconfigureerde feeds",
     "rssEnabledFeeds": "Actieve feeds",

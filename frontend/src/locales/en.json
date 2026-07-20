@@ -171,6 +171,78 @@
     "showNews": "News",
     "showChart": "Chart"
   },
+  "funds": {
+    "infoButton": "About {{name}}",
+    "close": "Close",
+    "SPY": {
+      "name": "SPDR S&P 500 ETF",
+      "description": "Tracks the S&P 500 index — 500 of the largest US companies. One of the most traded ETFs worldwide and a common benchmark for US large-cap returns."
+    },
+    "QQQ": {
+      "name": "Invesco QQQ Trust",
+      "description": "Tracks the Nasdaq-100: the 100 largest non-financial companies listed on Nasdaq. Heavily weighted toward technology and growth stocks such as Apple, Microsoft, and Nvidia."
+    },
+    "VOO": {
+      "name": "Vanguard S&P 500 ETF",
+      "description": "A low-cost ETF that mirrors the S&P 500. Very similar to SPY but with a lower expense ratio — popular for long-term buy-and-hold strategies."
+    },
+    "VTI": {
+      "name": "Vanguard Total Stock Market ETF",
+      "description": "Covers virtually the entire US equity market — from large caps to small caps. Broader than the S&P 500 alone and often used as a single-fund US portfolio."
+    },
+    "IWM": {
+      "name": "iShares Russell 2000 ETF",
+      "description": "Tracks the Russell 2000 index of US small-cap companies. More volatile than large-cap funds but can outperform in strong economic upswings."
+    },
+    "VEA": {
+      "name": "Vanguard FTSE Developed Markets ETF",
+      "description": "Invests in large- and mid-cap stocks across developed markets outside the US (Europe, Japan, Canada, etc.). Adds international diversification."
+    },
+    "VWO": {
+      "name": "Vanguard FTSE Emerging Markets ETF",
+      "description": "Covers emerging-market countries such as China, India, and Brazil. Higher growth potential but also higher volatility and political/currency risk."
+    },
+    "BND": {
+      "name": "Vanguard Total Bond Market ETF",
+      "description": "A broad basket of US investment-grade bonds (government and corporate). Typically less volatile than stocks and used to reduce portfolio risk."
+    },
+    "TLT": {
+      "name": "iShares 20+ Year Treasury Bond ETF",
+      "description": "Holds long-dated US Treasury bonds. Prices move inversely to interest rates — useful as a hedge when rates fall, but sensitive to rate hikes."
+    },
+    "SCHD": {
+      "name": "Schwab US Dividend Equity ETF",
+      "description": "Focuses on high-quality US companies with a strong track record of paying dividends. Popular with income-oriented investors."
+    },
+    "XLK": {
+      "name": "Technology Select Sector SPDR",
+      "description": "Tracks the S&P 500 technology sector — hardware, software, semiconductors, and IT services. A pure sector bet on US tech."
+    },
+    "VGT": {
+      "name": "Vanguard Information Technology ETF",
+      "description": "Another broad US technology ETF, holding companies like Apple, Nvidia, and Microsoft. Slightly different index weighting than XLK."
+    },
+    "SOXX": {
+      "name": "iShares Semiconductor ETF",
+      "description": "Invests in companies that design, manufacture, and distribute semiconductors. Highly cyclical and tied to the global chip industry."
+    },
+    "IGV": {
+      "name": "iShares Expanded Tech-Software ETF",
+      "description": "Focuses on software and IT services companies — SaaS, cloud platforms, and enterprise software. Less hardware-heavy than SOXX or XLK."
+    },
+    "ARKK": {
+      "name": "ARK Innovation ETF",
+      "description": "An actively managed fund targeting disruptive innovation: AI, genomics, fintech, and next-gen internet. More volatile than passive index ETFs."
+    },
+    "IBIT": {
+      "name": "iShares Bitcoin Trust",
+      "description": "A spot Bitcoin ETF that holds BTC directly. Offers regulated exchange-traded exposure to Bitcoin without managing a crypto wallet."
+    },
+    "GLD": {
+      "name": "SPDR Gold Shares",
+      "description": "Tracks the price of gold bullion. Often used as a hedge against inflation or market stress, with low correlation to stocks."
+    }
+  },
   "news": {
     "pageTitle": "News",
     "title": "Latest news",
@@ -275,7 +347,7 @@
     "stockFundMarkets": "Stock/fund markets",
     "usdEurRate": "USD/EUR rate",
     "lastError": "Last error",
-    "twelvedataNote": "US and Dutch stocks and funds are priced via twelvedata.com. Enter your Twelve Data API key to enable the feed; prices refresh every minute and USD instruments are converted to EUR automatically.",
+    "twelvedataNote": "US stocks and funds are priced via twelvedata.com. Enter your Twelve Data API key to enable the feed; prices refresh every minute and USD instruments are converted to EUR automatically.",
     "rssFeeds": "RSS news feeds",
     "rssFeedCount": "Configured feeds",
     "rssEnabledFeeds": "Enabled feeds",

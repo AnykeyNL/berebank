@@ -33,8 +33,8 @@ All instruments are quoted in **EUR** (`{TICKER}-EUR`):
 | Asset class | Source | Trading hours |
 | --- | --- | --- |
 | **Crypto** (~430 markets) | Bitvavo live WebSocket | 24/7 |
-| **Stocks** | AEX (Euronext Amsterdam) + S&P 100 | Exchange hours only |
-| **Funds** (ETFs) | Popular NL/US ETFs | Exchange hours only |
+| **Stocks** | S&P 100 | Exchange hours only |
+| **Funds** (ETFs) | Popular US ETFs | Exchange hours only |
 
 **Stocks and funds:** market orders are rejected while the exchange is closed (evenings, weekends). Limit orders can be placed anytime and may fill when trading resumes. Crypto has no market-hours restriction.
 
@@ -82,7 +82,7 @@ Trading tools require the user to enable **"Allow trading via MCP"** in their pr
 ### `place_order` parameters
 
 ```
-market       — e.g. "BTC-EUR", "AAPL-EUR", "ASML-EUR"
+market       — e.g. "BTC-EUR", "AAPL-EUR", "SPY-EUR"
 side         — "buy" or "sell"
 order_type   — "market" or "limit"
 amount       — base asset quantity (decimal string)
@@ -108,7 +108,7 @@ When helping a user compete on the leaderboard:
 - *"Show my trade history with profit/loss — what was my best and worst trade?"*
 - *"I'm overweight in Bitcoin. Suggest a rebalancing plan across crypto and ETFs."*
 - *"Place a limit buy for 0.01 BTC at €95,000"* (requires MCP trading enabled)
-- *"Compare my strategy to a simple buy-and-hold in IWDA-EUR using candle data."*
+- *"Compare my strategy to a simple buy-and-hold in SPY-EUR using candle data."*
 
 ## Important constraints
 

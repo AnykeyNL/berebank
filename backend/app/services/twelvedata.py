@@ -42,8 +42,6 @@ def _listing_from_quote(quote: dict) -> str | None:
     exchange = quote.get("exchange")
     if not exchange:
         return None
-    if exchange == "Euronext" and quote.get("mic_code") == "XAMS":
-        return "Euronext Amsterdam"
     return exchange
 
 
@@ -122,7 +120,7 @@ class TwelveDataService:
                 "min_quote": None,
                 "asset_class": inst.asset_class,
                 "currency": inst.currency,
-                "listing": "Euronext Amsterdam" if inst.exchange == "Euronext" else None,
+                "listing": None,
             }
         self.markets = markets
         logger.info("Loaded %d stock/fund instruments for Twelve Data", len(markets))

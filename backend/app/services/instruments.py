@@ -1,7 +1,7 @@
 """Curated list of stock and fund instruments served via Twelve Data.
 
-Universe: the AEX (Euronext Amsterdam) constituents, the S&P 100, and a
-handful of popular ETFs ("funds"). Every instrument is exposed as a
+Universe: the S&P 100 and a handful of popular ETFs ("funds"). Every
+instrument is exposed as a
 ``{TICKER}-EUR`` market so the rest of the app (portfolio, leaderboard,
 orders) can treat the ticker exactly like a crypto base asset. USD-priced
 instruments are converted to EUR with the live USD/EUR rate.
@@ -35,21 +35,9 @@ class Instrument:
         return f"{self.base}-EUR"
 
 
-def _nl(symbol: str, asset_class: str = "stock") -> Instrument:
-    return Instrument(symbol, asset_class, "EUR", "Euronext")
-
-
 def _us(symbol: str, asset_class: str = "stock") -> Instrument:
     return Instrument(symbol, asset_class, "USD")
 
-
-# AEX constituents (Euronext Amsterdam, quoted in EUR). "SHELL" collides
-# with a Bitvavo crypto asset, so Shell trades under its global ticker SHEL.
-_DUTCH_STOCKS = [
-    "ABN", "AD", "ADYEN", "AGN", "AKZA", "ASM", "ASML", "ASRNL", "BESI",
-    "DSFIR", "EXO", "HEIA", "IMCD", "INGA", "KPN", "MT", "NN",
-    "PHIA", "PRX", "RAND", "REN", "UMG", "UNA", "WKL",
-]
 
 # S&P 100 (class-share duplicates and dotted tickers omitted). C, CAT, CVX,
 # F, MET and T are excluded: those tickers are crypto assets on Bitvavo and
@@ -68,15 +56,24 @@ _US_STOCKS = [
     "UPS", "USB", "V", "VZ", "WFC", "WMT", "XOM",
 ]
 
-# Popular ETFs, exposed under the "fund" asset class.
-_FUNDS_NL = ["IWDA", "VWRL", "VUSA", "EMIM"]
-_FUNDS_US = ["SPY", "QQQ"]
+# Popular US ETFs, exposed under the "fund" asset class.
+_FUNDS_US = [
+    # Broad US
+    "SPY", "QQQ", "VOO", "VTI", "IWM",
+    # International
+    "VEA", "VWO",
+    # Bonds
+    "BND", "TLT",
+    # Dividend
+    "SCHD",
+    # Tech
+    "XLK", "VGT", "SOXX", "IGV", "ARKK",
+    # Bitcoin & commodities
+    "IBIT", "GLD",
+]
 
 INSTRUMENTS: list[Instrument] = (
-    [_nl(s) for s in _DUTCH_STOCKS]
-    + [Instrument("SHELL", "stock", "EUR", "Euronext", alias="SHEL")]
-    + [_us(s) for s in _US_STOCKS]
-    + [_nl(s, "fund") for s in _FUNDS_NL]
+    [_us(s) for s in _US_STOCKS]
     + [_us(s, "fund") for s in _FUNDS_US]
 )
 

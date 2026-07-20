@@ -41,7 +41,7 @@ mcp = FastMCP(
     "de BereBank",
     instructions=(
         "de BereBank is a simulated exchange: users trade with paper money in EUR "
-        "against live market data (crypto via Bitvavo; US and Dutch stocks and funds "
+        "against live market data (crypto via Bitvavo; US stocks and funds "
         "via Twelve Data), with realistic maker/taker fees. Amounts and prices are "
         "decimal numbers serialized as strings. Stock/fund market orders are rejected "
         "while the exchange is closed. Placing or cancelling orders requires the user "
@@ -97,7 +97,7 @@ def _parse_decimal(value: str | float | int | None, field: str) -> Decimal | Non
 def list_markets(filter: str | None = None, asset_class: str | None = None) -> list[dict]:
     """List EUR markets with live prices (last/bid/ask), 24h change and volume.
 
-    Markets cover crypto plus US/Dutch stocks and funds; each row has an
+    Markets cover crypto plus US stocks and funds; each row has an
     asset_class of "crypto", "stock" or "fund" (stocks/funds also carry a
     market_open flag). Optionally filter by asset_class and/or by a
     case-insensitive substring of the market symbol, e.g. "BTC" matches
@@ -136,7 +136,7 @@ async def get_candles(market: str) -> list[list]:
 
 @mcp.tool()
 async def get_news(market: str, limit: int = 10) -> list[dict]:
-    """Recent news for a market (e.g. BTC-EUR, ASML-EUR, AAPL-EUR).
+    """Recent news for a market (e.g. BTC-EUR, AAPL-EUR, SPY-EUR).
 
     Returns a list of items with id, datetime, title, body, language codes,
     and optional url/source fields, newest first. Combines RSS-matched articles

@@ -171,7 +171,7 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             assert not r.isError, tool_text(r)
             print("get_candles OK")
 
-            r = await session.call_tool("get_news", {"market": "ASML-EUR", "limit": 3})
+            r = await session.call_tool("get_news", {"market": "AAPL-EUR", "limit": 3})
             assert not r.isError, tool_text(r)
             print("get_news OK")
 
