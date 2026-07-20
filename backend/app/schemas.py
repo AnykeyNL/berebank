@@ -68,6 +68,14 @@ class NewsItemOut(BaseModel):
     source: str | None = None
 
 
+class NewsPageOut(BaseModel):
+    items: list[NewsItemOut]
+    page: int
+    page_size: int
+    total_pages: int
+    total_count: int
+
+
 # ---- Orders / trades ----
 
 class OrderCreate(BaseModel):

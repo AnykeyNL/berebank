@@ -20,6 +20,7 @@
     "trade": "Trade",
     "history": "Trade History",
     "leaderboard": "Leaderboard",
+    "news": "News",
     "ai": "AI / MCP",
     "admin": "Admin",
     "logout": "Log out"
@@ -171,12 +172,17 @@
     "showChart": "Chart"
   },
   "news": {
+    "pageTitle": "News",
     "title": "Latest news",
     "loadError": "Could not load news",
     "empty": "No recent news for this asset",
+    "emptyGlobal": "No recent news articles",
     "readMore": "Read more",
     "showLess": "Show less",
-    "source": "News from RSS feeds and press releases"
+    "source": "News from RSS feeds and press releases",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pagination": "News pagination"
   },
   "chart": {
     "range": "Time range",

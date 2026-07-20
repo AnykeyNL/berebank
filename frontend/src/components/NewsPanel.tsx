@@ -1,20 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
-import { fmtDateTime } from '../lib/format'
+import { fmtDateTime, stripHtml } from '../lib/format'
 import type { NewsItem } from '../lib/types'
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 export default function NewsPanel({ market }: { market: string }) {
   const { t } = useTranslation()

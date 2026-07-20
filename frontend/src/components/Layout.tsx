@@ -50,6 +50,9 @@ export default function Layout() {
       <NavLink to="/leaderboard" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
         {t('nav.leaderboard')}
       </NavLink>
+      <NavLink to="/news" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
+        {t('nav.news')}
+      </NavLink>
       <NavLink to="/ai" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
         {t('nav.ai')}
       </NavLink>

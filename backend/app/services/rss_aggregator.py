@@ -141,6 +141,37 @@ def fetch_articles_for_market(db: Session, market: str, limit: int = 50) -> list
     return [article_to_news_item(a) for a in articles]
 
 
+def fetch_recent_rss_articles(db: Session, limit: int = 100) -> list[dict]:
+    articles = db.scalars(
+        select(NewsArticle)
+        .order_by(NewsArticle.published_at.desc())
+        .limit(limit)
+    ).all()
+    return [article_to_news_item(a) for a in articles]
+
+
+def merge_news_items(items: list[dict], limit: int) -> list[dict]:
+    seen_urls: set[str] = set()
+    seen_titles: set[str] = set()
+    merged: list[dict] = []
+    for item in sorted(items, key=lambda x: x.get("datetime", ""), reverse=True):
+        url = item.get("url")
+        url_key = canonical_url(url) if url else None
+        title_key = (item.get("title") or "").lower().strip()
+        if url_key and url_key in seen_urls:
+            continue
+        if title_key and title_key in seen_titles:
+            continue
+        if url_key:
+            seen_urls.add(url_key)
+        if title_key:
+            seen_titles.add(title_key)
+        merged.append(item)
+        if len(merged) >= limit:
+            break
+    return merged
+
+
 class RssAggregatorService:
     def __init__(self) -> None:
         self.last_poll: datetime | None = None

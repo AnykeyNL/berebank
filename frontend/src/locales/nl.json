@@ -20,6 +20,7 @@
     "trade": "Handelen",
     "history": "Handelsgeschiedenis",
     "leaderboard": "Klassement",
+    "news": "Nieuws",
     "ai": "AI / MCP",
     "admin": "Beheer",
     "logout": "Uitloggen"
@@ -171,12 +172,17 @@
     "showChart": "Grafiek"
   },
   "news": {
+    "pageTitle": "Nieuws",
     "title": "Laatste nieuws",
     "loadError": "Nieuws laden mislukt",
     "empty": "Geen recent nieuws voor dit instrument",
+    "emptyGlobal": "Geen recente nieuwsartikelen",
     "readMore": "Lees meer",
     "showLess": "Minder tonen",
-    "source": "Nieuws uit RSS-feeds en persberichten"
+    "source": "Nieuws uit RSS-feeds en persberichten",
+    "prevPage": "Vorige",
+    "nextPage": "Volgende",
+    "pagination": "Nieuws paginering"
   },
   "chart": {
     "range": "Periode",

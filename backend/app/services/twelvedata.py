@@ -290,7 +290,55 @@ class TwelveDataService:
 
     # ---- press releases / news ----
 
-    async def fetch_press_releases(self, market: str, limit: int = 10) -> list[dict]:
+    async def fetch_recent_press_releases(
+        self,
+        limit_per_market: int = 2,
+        *,
+        max_markets: int = 25,
+        timeout: float = 12,
+    ) -> list[dict]:
+        """Recent press releases from a capped set of stock/fund markets."""
+        if self.api_key is None or not self._instruments:
+            return []
+
+        markets = list(self._instruments.keys())[:max_markets]
+        sem = asyncio.Semaphore(5)
+
+        async def fetch_one(
+            market: str,
+            client: httpx.AsyncClient,
+        ) -> list[dict]:
+            async with sem:
+                try:
+                    items = await self.fetch_press_releases(
+                        market, limit_per_market, client=client
+                    )
+                except Exception:
+                    return []
+                return [
+                    {**item, "source": "Twelve Data", "url": None}
+                    for item in items
+                ]
+
+        async def run() -> list[dict]:
+            async with httpx.AsyncClient(
+                base_url=TWELVEDATA_REST_URL,
+                timeout=5,
+            ) as client:
+                batches = await asyncio.gather(
+                    *(fetch_one(m, client) for m in markets)
+                )
+            return [item for batch in batches for item in batch]
+
+        return await asyncio.wait_for(run(), timeout=timeout)
+
+    async def fetch_press_releases(
+        self,
+        market: str,
+        limit: int = 10,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> list[dict]:
         """Recent press releases for a stock or fund market (newest first)."""
         inst = self._instruments.get(market)
         if inst is None:
@@ -298,15 +346,19 @@ class TwelveDataService:
         if self.api_key is None:
             raise RuntimeError("Twelve Data API key not configured")
         size = max(1, min(limit, 10))
-        async with httpx.AsyncClient(base_url=TWELVEDATA_REST_URL, timeout=30) as client:
-            resp = await client.get("/press_releases", params={
-                "symbol": inst.td_symbol,
-                "outputsize": size,
-                "language": "en,en-US",
-                "apikey": self.api_key,
-            })
-            resp.raise_for_status()
-            data = resp.json()
+        params = {
+            "symbol": inst.td_symbol,
+            "outputsize": size,
+            "language": "en,en-US",
+            "apikey": self.api_key,
+        }
+        if client is not None:
+            resp = await client.get("/press_releases", params=params)
+        else:
+            async with httpx.AsyncClient(base_url=TWELVEDATA_REST_URL, timeout=30) as own:
+                resp = await own.get("/press_releases", params=params)
+        resp.raise_for_status()
+        data = resp.json()
         if data.get("status") == "error":
             raise RuntimeError(f"press_releases error: {data.get('message', data)}")
         items = []

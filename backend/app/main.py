@@ -12,7 +12,7 @@ from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
 from .database import Base, SessionLocal, engine
 from .mcp_server import mcp
 from .models import Account, AppSetting, User
-from .routers import admin, auth, leaderboard, markets, oauth_login, orders, portfolio
+from .routers import admin, auth, leaderboard, markets, news, oauth_login, orders, portfolio
 from .security import hash_password
 from .services.bitvavo import bitvavo_service
 from .services.market_data import market_data_service
@@ -102,6 +102,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(markets.router)
+app.include_router(news.router)
 app.include_router(orders.router)
 app.include_router(portfolio.router)
 app.include_router(leaderboard.router)

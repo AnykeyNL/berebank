@@ -12,7 +12,7 @@ from ..models import User
 from ..schemas import MarketOut, NewsItemOut
 from ..security import get_current_user
 from ..services.market_data import market_data_service
-from ..services.rss_aggregator import canonical_url, fetch_articles_for_market, get_markets_with_articles
+from ..services.rss_aggregator import fetch_articles_for_market, get_markets_with_articles, merge_news_items
 from ..services.twelvedata import twelvedata_service
 
 router = APIRouter(prefix="/markets", tags=["markets"])
@@ -38,28 +38,6 @@ def _change_pct(price: dict) -> Decimal | None:
     if last is None or not open_:
         return None
     return ((last - open_) / open_ * 100).quantize(Decimal("0.01"))
-
-
-def _merge_news_items(items: list[dict], limit: int) -> list[dict]:
-    seen_urls: set[str] = set()
-    seen_titles: set[str] = set()
-    merged: list[dict] = []
-    for item in sorted(items, key=lambda x: x.get("datetime", ""), reverse=True):
-        url = item.get("url")
-        url_key = canonical_url(url) if url else None
-        title_key = (item.get("title") or "").lower().strip()
-        if url_key and url_key in seen_urls:
-            continue
-        if title_key and title_key in seen_titles:
-            continue
-        if url_key:
-            seen_urls.add(url_key)
-        if title_key:
-            seen_titles.add(title_key)
-        merged.append(item)
-        if len(merged) >= limit:
-            break
-    return merged
 
 
 @router.get("", response_model=list[MarketOut])
@@ -179,6 +157,6 @@ async def get_news(
             if not items:
                 raise HTTPException(502, f"Could not fetch news: {exc}")
 
-    merged = _merge_news_items(items, limit)
+    merged = merge_news_items(items, limit)
     _news_cache[cache_key] = (time.monotonic(), merged)
     return merged

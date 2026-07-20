@@ -37,6 +37,14 @@ export interface NewsItem {
   source?: string | null
 }
 
+export interface NewsPage {
+  items: NewsItem[]
+  page: number
+  page_size: number
+  total_pages: number
+  total_count: number
+}
+
 export interface PriceUpdate {
   market: string
   last: string | null
