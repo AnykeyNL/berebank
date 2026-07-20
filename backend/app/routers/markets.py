@@ -4,12 +4,15 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
 from ..config import BITVAVO_REST_URL
+from ..database import get_db
 from ..models import User
 from ..schemas import MarketOut, NewsItemOut
 from ..security import get_current_user
 from ..services.market_data import market_data_service
+from ..services.rss_aggregator import canonical_url, fetch_articles_for_market, get_markets_with_articles
 from ..services.twelvedata import twelvedata_service
 
 router = APIRouter(prefix="/markets", tags=["markets"])
@@ -37,16 +40,46 @@ def _change_pct(price: dict) -> Decimal | None:
     return ((last - open_) / open_ * 100).quantize(Decimal("0.01"))
 
 
+def _merge_news_items(items: list[dict], limit: int) -> list[dict]:
+    seen_urls: set[str] = set()
+    seen_titles: set[str] = set()
+    merged: list[dict] = []
+    for item in sorted(items, key=lambda x: x.get("datetime", ""), reverse=True):
+        url = item.get("url")
+        url_key = canonical_url(url) if url else None
+        title_key = (item.get("title") or "").lower().strip()
+        if url_key and url_key in seen_urls:
+            continue
+        if title_key and title_key in seen_titles:
+            continue
+        if url_key:
+            seen_urls.add(url_key)
+        if title_key:
+            seen_titles.add(title_key)
+        merged.append(item)
+        if len(merged) >= limit:
+            break
+    return merged
+
+
 @router.get("", response_model=list[MarketOut])
 def list_markets(
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
     asset_class: Annotated[str | None, Query(pattern="^(crypto|stock|fund)$")] = None,
 ):
+    article_counts = get_markets_with_articles(db)
+    td_configured = twelvedata_service.api_key is not None
     out = []
     for market, info in sorted(market_data_service.markets.items()):
         if asset_class and info["asset_class"] != asset_class:
             continue
         price = market_data_service.get_price(market) or {}
+        rss_count = article_counts.get(market, 0)
+        if info["asset_class"] == "crypto":
+            has_news = rss_count > 0
+        else:
+            has_news = rss_count > 0 or td_configured
         out.append(MarketOut(
             market=market,
             base=info["base"],
@@ -61,6 +94,7 @@ def list_markets(
             change_24h_pct=_change_pct(price) if price else None,
             volume_quote=price.get("volume_quote"),
             market_open=price.get("market_open"),
+            has_news=has_news,
         ))
     return out
 
@@ -113,28 +147,38 @@ async def get_candles(
 async def get_news(
     market: str,
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
     limit: Annotated[int, Query(ge=1, le=10)] = 10,
 ):
-    """Recent press releases for a stock or fund market (newest first).
+    """Recent news for a market (newest first).
 
-    Sourced from Twelve Data. Crypto markets are not supported.
+    Combines RSS-matched articles with Twelve Data press releases for stocks/funds.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
     if market_info is None:
         raise HTTPException(404, f"Unknown market: {market}")
-    if market_info["asset_class"] == "crypto":
-        raise HTTPException(404, "News is not available for crypto markets")
 
     cache_key = f"{market}:{limit}"
     cached = _news_cache.get(cache_key)
     if cached and time.monotonic() - cached[0] < _NEWS_TTL:
         return cached[1]
 
-    try:
-        items = await twelvedata_service.fetch_press_releases(market, limit)
-    except Exception as exc:
-        raise HTTPException(502, f"Could not fetch news from Twelve Data: {exc}")
+    items: list[dict] = fetch_articles_for_market(db, market, limit=limit)
 
-    _news_cache[cache_key] = (time.monotonic(), items)
-    return items
+    if market_info["asset_class"] != "crypto":
+        try:
+            td_items = await twelvedata_service.fetch_press_releases(market, limit)
+            for row in td_items:
+                items.append({
+                    **row,
+                    "source": "Twelve Data",
+                    "url": None,
+                })
+        except Exception as exc:
+            if not items:
+                raise HTTPException(502, f"Could not fetch news: {exc}")
+
+    merged = _merge_news_items(items, limit)
+    _news_cache[cache_key] = (time.monotonic(), merged)
+    return merged

@@ -64,7 +64,7 @@ de BereBank exposes an [MCP](https://modelcontextprotocol.io) server so assistan
 | --- | --- |
 | `list_markets` | Browse all markets with live last/bid/ask, 24h change, volume. Filter by `asset_class` (`crypto`, `stock`, `fund`) or symbol substring (e.g. `filter="BTC"`) |
 | `get_candles` | Last 24 hours of 15-minute OHLCV candles for charting and technical analysis |
-| `get_news` | Recent press releases for a stock or fund market (Twelve Data; not available for crypto). Optional `limit` 1–10 |
+| `get_news` | Recent news for any market: RSS-matched articles (crypto and all assets) plus Twelve Data press releases for stocks/funds. Optional `limit` 1–10 |
 | `get_portfolio` | Cash, reserved funds, holdings with live valuation, total account value, current fee tier |
 | `list_orders` | Open, filled, or cancelled orders (newest first, max 200) |
 | `list_trades` | Executed trades (newest first, max 200) |

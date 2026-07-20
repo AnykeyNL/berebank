@@ -129,3 +129,48 @@ class OAuthRefreshToken(Base):
     expires_at: Mapped[float] = mapped_column(Float)  # epoch seconds
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RssFeed(Base):
+    __tablename__ = "rss_feeds"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(String(500), unique=True)
+    name: Mapped[str] = mapped_column(String(100))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    articles: Mapped[list["NewsArticle"]] = relationship(back_populates="feed")
+
+
+class NewsArticle(Base):
+    __tablename__ = "news_articles"
+    __table_args__ = (UniqueConstraint("feed_id", "external_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    feed_id: Mapped[int] = mapped_column(ForeignKey("rss_feeds.id"), index=True)
+    external_id: Mapped[str] = mapped_column(String(500))
+    title: Mapped[str] = mapped_column(String(500))
+    body: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(String(1000))
+    source_name: Mapped[str] = mapped_column(String(100))
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    feed: Mapped[RssFeed] = relationship(back_populates="articles")
+    markets: Mapped[list["NewsArticleMarket"]] = relationship(
+        back_populates="article", cascade="all, delete-orphan"
+    )
+
+
+class NewsArticleMarket(Base):
+    __tablename__ = "news_article_markets"
+    __table_args__ = (UniqueConstraint("article_id", "market"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("news_articles.id", ondelete="CASCADE"), index=True)
+    market: Mapped[str] = mapped_column(String(20), index=True)
+
+    article: Mapped[NewsArticle] = relationship(back_populates="markets")

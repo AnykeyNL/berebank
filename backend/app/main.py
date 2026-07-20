@@ -16,6 +16,7 @@ from .routers import admin, auth, leaderboard, markets, oauth_login, orders, por
 from .security import hash_password
 from .services.bitvavo import bitvavo_service
 from .services.market_data import market_data_service
+from .services.rss_aggregator import rss_aggregator_service
 from .services.trading import load_open_limit_markets, match_limit_orders
 from .services.twelvedata import twelvedata_service
 
@@ -80,11 +81,13 @@ async def lifespan(app: FastAPI):
     market_data_service.add_listener(_limit_order_listener)
     bitvavo_service.start()
     twelvedata_service.start(td_key)
+    rss_aggregator_service.start()
     # The MCP Streamable HTTP transport needs its session manager running.
     async with mcp.session_manager.run():
         yield
     await bitvavo_service.stop()
     await twelvedata_service.stop()
+    await rss_aggregator_service.stop()
 
 
 app = FastAPI(title="de BereBank", version="1.0.0", lifespan=lifespan)
@@ -147,6 +150,7 @@ def health():
         "status": "ok",
         "bitvavo": bitvavo_service.status(),
         "twelvedata": twelvedata_service.status(),
+        "rss": rss_aggregator_service.status(),
     }
 
 

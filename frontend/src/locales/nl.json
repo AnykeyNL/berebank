@@ -173,10 +173,10 @@
   "news": {
     "title": "Laatste nieuws",
     "loadError": "Nieuws laden mislukt",
-    "empty": "Geen recente persberichten voor dit instrument",
+    "empty": "Geen recent nieuws voor dit instrument",
     "readMore": "Lees meer",
     "showLess": "Minder tonen",
-    "source": "Persberichten via Twelve Data"
+    "source": "Nieuws uit RSS-feeds en persberichten"
   },
   "chart": {
     "range": "Periode",
@@ -269,6 +269,25 @@
     "stockFundMarkets": "Aandelen-/fondsmarkten",
     "usdEurRate": "USD/EUR-koers",
     "lastError": "Laatste fout",
-    "twelvedataNote": "Amerikaanse en Nederlandse aandelen en fondsen krijgen hun koersen via twelvedata.com. Voer je Twelve Data API-sleutel in om de feed te activeren; koersen verversen elke minuut en USD-instrumenten worden automatisch omgerekend naar EUR."
+    "twelvedataNote": "Amerikaanse en Nederlandse aandelen en fondsen krijgen hun koersen via twelvedata.com. Voer je Twelve Data API-sleutel in om de feed te activeren; koersen verversen elke minuut en USD-instrumenten worden automatisch omgerekend naar EUR.",
+    "rssFeeds": "RSS-nieuwsfeeds",
+    "rssFeedCount": "Geconfigureerde feeds",
+    "rssEnabledFeeds": "Actieve feeds",
+    "rssArticles": "Opgeslagen artikelen",
+    "rssLastPoll": "Laatste poll",
+    "rssNote": "RSS-feeds worden elk uur opgehaald. Artikelen die een tickernaam of volledige naam bevatten worden opgeslagen en getoond op de handels pagina.",
+    "rssAddFeed": "Feed toevoegen",
+    "rssFeedUrl": "Feed-URL",
+    "rssFeedName": "Naam",
+    "rssFeedNameOptional": "optionele weergavenaam",
+    "rssAddFeedButton": "Feed toevoegen",
+    "rssFeedList": "Geconfigureerde feeds",
+    "rssLastFetched": "Laatst opgehaald",
+    "rssFetchNow": "Nu ophalen",
+    "rssFeedAdded": "RSS-feed toegevoegd",
+    "rssFeedAddFailed": "RSS-feed toevoegen mislukt",
+    "rssFeedFetched": "Feed opgehaald",
+    "rssFeedFetchFailed": "Feed ophalen mislukt",
+    "rssFeedDeleteConfirm": "Deze RSS-feed verwijderen? Opgeslagen artikelen van deze feed worden ook verwijderd."
   }
 }

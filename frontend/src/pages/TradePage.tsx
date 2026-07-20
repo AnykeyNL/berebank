@@ -76,7 +76,7 @@ export default function TradePage() {
   const selectedMarket = markets.find((m) => m.market === selected)
   const marketOpen = selectedPrice?.market_open ?? selectedMarket?.market_open ?? null
   const marketClosed = selectedMarket ? selectedMarket.asset_class !== 'crypto' && marketOpen === false : false
-  const newsAvailable = selectedMarket ? selectedMarket.asset_class !== 'crypto' : false
+  const newsAvailable = selectedMarket?.has_news ?? false
   const baseAsset = selected.split('-')[0]
   const holding = portfolio?.holdings.find((h) => h.asset === baseAsset)
   const livePriceLast = selectedPrice?.last ?? selectedMarket?.last ?? null

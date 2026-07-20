@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { fmtDateTime, fmtEur } from '../lib/format'
-import type { AdminUser, Settings } from '../lib/types'
+import type { AdminUser, RssFeedStatus, Settings } from '../lib/types'
 
 export default function AdminPage() {
   return (
@@ -12,6 +12,7 @@ export default function AdminPage() {
       <UserManagement />
       <BitvavoSettings />
       <TwelveDataSettings />
+      <RssFeedSettings />
     </div>
   )
 }
@@ -478,6 +479,201 @@ function TwelveDataSettings() {
           </button>
         </form>
       </div>
+    </section>
+  )
+}
+
+function RssFeedSettings() {
+  const { t } = useTranslation()
+  const [data, setData] = useState<RssFeedStatus | null>(null)
+  const [url, setUrl] = useState('')
+  const [name, setName] = useState('')
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<number | null>(null)
+
+  const load = useCallback(() => {
+    api<RssFeedStatus>('/admin/rss-feeds').then(setData).catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!url.trim()) return
+    setMessage(null)
+    setError(null)
+    try {
+      await api('/admin/rss-feeds', {
+        method: 'POST',
+        body: JSON.stringify({ url: url.trim(), name: name.trim() || undefined }),
+      })
+      setUrl('')
+      setName('')
+      setMessage(t('admin.rssFeedAdded'))
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.rssFeedAddFailed'))
+    }
+  }
+
+  async function toggleEnabled(feedId: number, enabled: boolean) {
+    await api(`/admin/rss-feeds/${feedId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: !enabled }),
+    })
+    load()
+  }
+
+  async function deleteFeed(feedId: number) {
+    if (!confirm(t('admin.rssFeedDeleteConfirm'))) return
+    await api(`/admin/rss-feeds/${feedId}`, { method: 'DELETE' })
+    load()
+  }
+
+  async function fetchNow(feedId: number) {
+    setBusy(feedId)
+    setError(null)
+    try {
+      await api(`/admin/rss-feeds/${feedId}/fetch`, { method: 'POST' })
+      setMessage(t('admin.rssFeedFetched'))
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.rssFeedFetchFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const agg = data?.aggregator
+  const inputClass =
+    'w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-amber-500'
+
+  return (
+    <section>
+      <h2 className="mb-4 text-xl font-bold">{t('admin.rssFeeds')}</h2>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="mb-3 font-semibold">{t('admin.connStatus')}</h3>
+          {data && agg ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.rssFeedCount')}</dt>
+                <dd className="font-mono">{agg.feeds}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.rssEnabledFeeds')}</dt>
+                <dd className="font-mono">{agg.enabled_feeds}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.rssArticles')}</dt>
+                <dd className="font-mono">{agg.articles}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.rssLastPoll')}</dt>
+                <dd className="font-mono text-right">
+                  {agg.last_poll ? fmtDateTime(agg.last_poll) : '—'}
+                </dd>
+              </div>
+              {agg.last_error && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-400">{t('admin.lastError')}</dt>
+                  <dd className="text-right text-red-400">{agg.last_error}</dd>
+                </div>
+              )}
+            </dl>
+          ) : (
+            <p className="text-sm text-slate-400">{t('common.loading')}</p>
+          )}
+          <p className="mt-4 text-xs text-slate-500">{t('admin.rssNote')}</p>
+        </div>
+        <form onSubmit={onSubmit} className="h-fit space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="font-semibold">{t('admin.rssAddFeed')}</h3>
+          <div>
+            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">{t('admin.rssFeedUrl')}</label>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com/rss"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">{t('admin.rssFeedName')}</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('admin.rssFeedNameOptional')}
+              className={inputClass}
+            />
+          </div>
+          {message && <p className="text-sm text-emerald-400">{message}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={!url.trim()}
+            className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+          >
+            {t('admin.rssAddFeedButton')}
+          </button>
+        </form>
+      </div>
+      {data && data.feeds.length > 0 && (
+        <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/60">
+          <h3 className="border-b border-slate-800 px-4 py-3 font-semibold">{t('admin.rssFeedList')}</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-2">{t('admin.rssFeedName')}</th>
+                <th className="px-4 py-2">URL</th>
+                <th className="px-4 py-2">{t('admin.status')}</th>
+                <th className="px-4 py-2">{t('admin.rssLastFetched')}</th>
+                <th className="px-4 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.feeds.map((feed) => (
+                <tr key={feed.id} className="border-t border-slate-800">
+                  <td className="px-4 py-2 font-medium">{feed.name}</td>
+                  <td className="max-w-xs truncate px-4 py-2 font-mono text-xs text-slate-400">{feed.url}</td>
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleEnabled(feed.id, feed.enabled)}
+                      className={feed.enabled ? 'text-emerald-400' : 'text-slate-500'}
+                    >
+                      {feed.enabled ? t('admin.active') : t('admin.disabled')}
+                    </button>
+                  </td>
+                  <td className="px-4 py-2 text-xs text-slate-400">
+                    {feed.last_fetched_at ? fmtDateTime(feed.last_fetched_at) : '—'}
+                    {feed.last_error && (
+                      <p className="mt-1 text-red-400">{feed.last_error}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => fetchNow(feed.id)}
+                      disabled={busy === feed.id}
+                      className="mr-2 text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                    >
+                      {t('admin.rssFetchNow')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteFeed(feed.id)}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      {t('admin.delete')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   )
 }

@@ -24,6 +24,7 @@ export interface Market {
   open: string | null
   change_24h_pct: string | null
   volume_quote: string | null
+  has_news: boolean
 }
 
 export interface NewsItem {
@@ -32,6 +33,8 @@ export interface NewsItem {
   title: string
   body: string
   language: string[]
+  url?: string | null
+  source?: string | null
 }
 
 export interface PriceUpdate {
@@ -135,5 +138,26 @@ export interface Settings {
     last_update: number | null
     usd_eur: string | null
     error: string | null
+  }
+}
+
+export interface RssFeed {
+  id: number
+  url: string
+  name: string
+  enabled: boolean
+  last_fetched_at: string | null
+  last_error: string | null
+  created_at: string
+}
+
+export interface RssFeedStatus {
+  feeds: RssFeed[]
+  aggregator: {
+    feeds: number
+    enabled_feeds: number
+    articles: number
+    last_poll: string | null
+    last_error: string | null
   }
 }

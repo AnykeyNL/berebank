@@ -173,10 +173,10 @@
   "news": {
     "title": "Latest news",
     "loadError": "Could not load news",
-    "empty": "No recent press releases for this asset",
+    "empty": "No recent news for this asset",
     "readMore": "Read more",
     "showLess": "Show less",
-    "source": "Press releases via Twelve Data"
+    "source": "News from RSS feeds and press releases"
   },
   "chart": {
     "range": "Time range",
@@ -269,6 +269,25 @@
     "stockFundMarkets": "Stock/fund markets",
     "usdEurRate": "USD/EUR rate",
     "lastError": "Last error",
-    "twelvedataNote": "US and Dutch stocks and funds are priced via twelvedata.com. Enter your Twelve Data API key to enable the feed; prices refresh every minute and USD instruments are converted to EUR automatically."
+    "twelvedataNote": "US and Dutch stocks and funds are priced via twelvedata.com. Enter your Twelve Data API key to enable the feed; prices refresh every minute and USD instruments are converted to EUR automatically.",
+    "rssFeeds": "RSS news feeds",
+    "rssFeedCount": "Configured feeds",
+    "rssEnabledFeeds": "Enabled feeds",
+    "rssArticles": "Saved articles",
+    "rssLastPoll": "Last poll",
+    "rssNote": "RSS feeds are polled every hour. Articles matching an asset ticker or name are saved and shown on the trade page.",
+    "rssAddFeed": "Add feed",
+    "rssFeedUrl": "Feed URL",
+    "rssFeedName": "Name",
+    "rssFeedNameOptional": "optional display name",
+    "rssAddFeedButton": "Add feed",
+    "rssFeedList": "Configured feeds",
+    "rssLastFetched": "Last fetched",
+    "rssFetchNow": "Fetch now",
+    "rssFeedAdded": "RSS feed added",
+    "rssFeedAddFailed": "Failed to add RSS feed",
+    "rssFeedFetched": "Feed fetched",
+    "rssFeedFetchFailed": "Feed fetch failed",
+    "rssFeedDeleteConfirm": "Remove this RSS feed? Saved articles from this feed will also be deleted."
   }
 }

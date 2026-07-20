@@ -89,10 +89,25 @@ export default function NewsPanel({ market }: { market: string }) {
                   className="mt-1 w-full text-left"
                   onClick={() => setExpandedId(expanded ? null : item.id)}
                 >
-                  <p className="font-medium text-slate-100">{item.title}</p>
+                  {item.url ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-slate-100 hover:text-amber-400"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {item.title}
+                    </a>
+                  ) : (
+                    <p className="font-medium text-slate-100">{item.title}</p>
+                  )}
                   <p className={`mt-1 text-sm text-slate-400 ${expanded ? '' : 'line-clamp-2'}`}>
                     {preview}
                   </p>
+                  {item.source && (
+                    <p className="mt-1 text-xs text-slate-500">{item.source}</p>
+                  )}
                   {preview.length > 120 && (
                     <span className="mt-1 inline-block text-xs text-amber-400">
                       {expanded ? t('news.showLess') : t('news.readMore')}

@@ -3,16 +3,21 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Account, AppSetting, Holding, Order, Trade, User
+from ..models import Account, AppSetting, Holding, Order, RssFeed, Trade, User
 from ..schemas import (
     AdminUserCreate,
     AdminUserOut,
     AdminUserUpdate,
+    RssFeedCreate,
+    RssFeedOut,
+    RssFeedStatusOut,
+    RssFeedUpdate,
     SettingsOut,
     SettingsUpdate,
 )
 from ..security import hash_password, require_bank_manager
 from ..services.bitvavo import bitvavo_service
+from ..services.rss_aggregator import rss_aggregator_service
 from ..services.twelvedata import twelvedata_service
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_bank_manager)])
@@ -144,3 +149,62 @@ async def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
         # Apply the new key immediately so the stock/fund feed (re)starts.
         await twelvedata_service.restart(body.twelvedata_api_key)
     return get_settings(db)
+
+
+@router.get("/rss-feeds", response_model=RssFeedStatusOut)
+def list_rss_feeds(db: Session = Depends(get_db)):
+    feeds = db.scalars(select(RssFeed).order_by(RssFeed.id)).all()
+    return RssFeedStatusOut(
+        feeds=[RssFeedOut.model_validate(f) for f in feeds],
+        aggregator=rss_aggregator_service.status(),
+    )
+
+
+@router.post("/rss-feeds", response_model=RssFeedOut, status_code=status.HTTP_201_CREATED)
+def create_rss_feed(body: RssFeedCreate, db: Session = Depends(get_db)):
+    url = body.url.strip()
+    if db.scalar(select(RssFeed).where(RssFeed.url == url)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "A feed with this URL already exists")
+    name = (body.name or "").strip() or url
+    feed = RssFeed(url=url, name=name, enabled=True)
+    db.add(feed)
+    db.commit()
+    db.refresh(feed)
+    return RssFeedOut.model_validate(feed)
+
+
+@router.patch("/rss-feeds/{feed_id}", response_model=RssFeedOut)
+def update_rss_feed(feed_id: int, body: RssFeedUpdate, db: Session = Depends(get_db)):
+    feed = db.get(RssFeed, feed_id)
+    if feed is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "RSS feed not found")
+    if body.name is not None:
+        feed.name = body.name
+    if body.enabled is not None:
+        feed.enabled = body.enabled
+    db.commit()
+    db.refresh(feed)
+    return RssFeedOut.model_validate(feed)
+
+
+@router.delete("/rss-feeds/{feed_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_rss_feed(feed_id: int, db: Session = Depends(get_db)):
+    feed = db.get(RssFeed, feed_id)
+    if feed is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "RSS feed not found")
+    db.delete(feed)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/rss-feeds/{feed_id}/fetch", response_model=RssFeedOut)
+async def fetch_rss_feed(feed_id: int, db: Session = Depends(get_db)):
+    feed = db.get(RssFeed, feed_id)
+    if feed is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "RSS feed not found")
+    try:
+        await rss_aggregator_service.poll_feed_by_id(feed_id)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Feed fetch failed: {exc}")
+    db.refresh(feed)
+    return RssFeedOut.model_validate(feed)

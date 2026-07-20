@@ -55,6 +55,7 @@ class MarketOut(BaseModel):
     open: Decimal | None = None
     change_24h_pct: Decimal | None = None
     volume_quote: Decimal | None = None
+    has_news: bool = False
 
 
 class NewsItemOut(BaseModel):
@@ -63,6 +64,8 @@ class NewsItemOut(BaseModel):
     title: str
     body: str
     language: list[str] = []
+    url: str | None = None
+    source: str | None = None
 
 
 # ---- Orders / trades ----
@@ -188,3 +191,30 @@ class SettingsUpdate(BaseModel):
     bitvavo_api_key: str | None = None
     bitvavo_api_secret: str | None = None
     twelvedata_api_key: str | None = None
+
+
+class RssFeedOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    url: str
+    name: str
+    enabled: bool
+    last_fetched_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+
+
+class RssFeedCreate(BaseModel):
+    url: str = Field(min_length=1, max_length=500)
+    name: str | None = Field(default=None, max_length=100)
+
+
+class RssFeedUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    enabled: bool | None = None
+
+
+class RssFeedStatusOut(BaseModel):
+    feeds: list[RssFeedOut]
+    aggregator: dict

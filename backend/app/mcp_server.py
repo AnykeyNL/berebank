@@ -136,10 +136,11 @@ async def get_candles(market: str) -> list[list]:
 
 @mcp.tool()
 async def get_news(market: str, limit: int = 10) -> list[dict]:
-    """Recent press releases for a stock or fund market (e.g. ASML-EUR, AAPL-EUR).
+    """Recent news for a market (e.g. BTC-EUR, ASML-EUR, AAPL-EUR).
 
-    Returns a list of items with id, datetime, title, body (HTML), and language
-    codes, newest first. Crypto markets are not supported. Limit is 1–10.
+    Returns a list of items with id, datetime, title, body, language codes,
+    and optional url/source fields, newest first. Combines RSS-matched articles
+    with Twelve Data press releases for stocks and funds. Limit is 1–10.
     """
     if limit < 1 or limit > 10:
         raise ToolError("limit must be between 1 and 10")
