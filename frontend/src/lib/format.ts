@@ -20,8 +20,21 @@ export function fmtPrice(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '—'
   const n = typeof value === 'string' ? parseFloat(value) : value
   if (Number.isNaN(n)) return '—'
-  const digits = n >= 100 ? 2 : n >= 1 ? 4 : 8
-  return `€ ${n.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: digits })}`
+  // Low-priced assets (typical crypto alts) need extra precision on the trade page.
+  const minDigits = n >= 5 ? 2 : 4
+  const maxDigits = n >= 100 ? 2 : n >= 5 ? 4 : 8
+  return `€ ${n.toLocaleString(locale(), { minimumFractionDigits: minDigits, maximumFractionDigits: maxDigits })}`
+}
+
+/** Decimal precision for lightweight-charts axis labels (matches fmtPrice tiers). */
+export function chartPriceFormat(referencePrice: number): {
+  type: 'price'
+  precision: number
+  minMove: number
+} {
+  const precision = referencePrice >= 100 ? 2 : referencePrice >= 1 ? 4 : 8
+  const minMove = precision === 2 ? 0.01 : precision === 4 ? 0.0001 : 0.00000001
+  return { type: 'price', precision, minMove }
 }
 
 export function fmtAmount(value: string | number | null | undefined): string {

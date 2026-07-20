@@ -12,7 +12,7 @@ import {
   type AutoscaleInfo,
 } from 'lightweight-charts'
 import { api } from '../lib/api'
-import { fmtPct, fmtPrice } from '../lib/format'
+import { chartPriceFormat, fmtPct, fmtPrice } from '../lib/format'
 
 // Bitvavo candle: [timestamp_ms, open, high, low, close, volume]
 type Candle = [number, string, string, string, string, string]
@@ -202,6 +202,7 @@ export default function PriceChart({
     if (!candles || candles.length < 2 || !stats) return
 
     const color = stats.up ? UP : DOWN
+    const priceFormat = chartPriceFormat(lastPrice ?? stats.lastClose)
 
     if (chartType === 'candle') {
       const series = chart.addSeries(CandlestickSeries, {
@@ -212,6 +213,7 @@ export default function PriceChart({
         wickUpColor: UP,
         wickDownColor: DOWN,
         autoscaleInfoProvider,
+        priceFormat,
       })
       series.setData(
         candles.map((c) => ({
@@ -230,6 +232,7 @@ export default function PriceChart({
         bottomColor: `${color}00`,
         lineWidth: 2,
         autoscaleInfoProvider,
+        priceFormat,
       })
       series.setData(
         candles.map((c) => ({
@@ -252,7 +255,14 @@ export default function PriceChart({
     }
 
     chart.timeScale().fitContent()
-  }, [candles, chartType, stats, limitOrders, autoscaleInfoProvider, t])
+  }, [candles, chartType, stats, limitOrders, autoscaleInfoProvider, lastPrice, t])
+
+  // Keep axis precision in sync when the live price crosses a formatting tier.
+  useEffect(() => {
+    const ref = lastPrice ?? stats?.lastClose
+    if (!seriesRef.current || ref === null || ref === undefined || !Number.isFinite(ref)) return
+    seriesRef.current.applyOptions({ priceFormat: chartPriceFormat(ref) })
+  }, [lastPrice, stats?.lastClose])
 
   // Re-run autoscale when limit orders or live price move outside the candle range.
   useEffect(() => {
