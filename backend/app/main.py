@@ -45,6 +45,18 @@ def migrate_schema() -> None:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE orders ADD COLUMN trigger_price VARCHAR"))
         logger.info("Migrated: added orders.trigger_price")
+    if engine.dialect.name == "postgresql":
+        # order_type was originally VARCHAR(6); PostgreSQL enforces the limit,
+        # so "stop_loss" (9 chars) needs a wider column. SQLite ignores VARCHAR
+        # lengths and needs no change.
+        order_type_col = next(
+            col for col in inspector.get_columns("orders") if col["name"] == "order_type"
+        )
+        length = getattr(order_type_col["type"], "length", None)
+        if length is not None and length < 10:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE orders ALTER COLUMN order_type TYPE VARCHAR(10)"))
+            logger.info("Migrated: widened orders.order_type to VARCHAR(10)")
 
 
 def seed_bank_manager() -> None:
