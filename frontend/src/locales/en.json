@@ -118,7 +118,7 @@
     "failed": "Failed to change password"
   },
   "login": {
-    "tagline": "Simulated crypto exchange — practice trading with paper money",
+    "tagline": "Simulated exchange — practice trading with paper money",
     "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
@@ -131,10 +131,10 @@
     "totalValue": "Total value",
     "cashEur": "Cash (EUR)",
     "reserved": "Reserved in open orders",
-    "cryptoValue": "Crypto value",
+    "assetsValue": "Asset value",
     "yourAssets": "Your assets",
     "feeTierLine": "Fee tier: {{maker}}% maker / {{taker}}% taker · 30d volume {{volume}}",
-    "emptyHoldings": "You don't hold any crypto yet.",
+    "emptyHoldings": "You don't hold any assets yet.",
     "inOpenOrders": "{{amount}} in open orders",
     "startTrading": "Start trading",
     "asset": "Asset",

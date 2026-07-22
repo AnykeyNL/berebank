@@ -83,7 +83,7 @@ export default function PortfolioPage() {
         <StatCard label={t('portfolio.totalValue')} value={fmtEur(live.total)} accent />
         <StatCard label={t('portfolio.cashEur')} value={fmtEur(live.cash)} />
         <StatCard label={t('portfolio.reserved')} value={fmtEur(live.reserved)} />
-        <StatCard label={t('portfolio.cryptoValue')} value={fmtEur(live.holdingsValue)} />
+        <StatCard label={t('portfolio.assetsValue')} value={fmtEur(live.holdingsValue)} />
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60">

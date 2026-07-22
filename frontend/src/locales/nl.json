@@ -118,7 +118,7 @@
     "failed": "Wachtwoord wijzigen mislukt"
   },
   "login": {
-    "tagline": "Gesimuleerde cryptobeurs — oefen met handelen met nepgeld",
+    "tagline": "Gesimuleerde beurs — oefen met handelen met nepgeld",
     "email": "E-mail",
     "password": "Wachtwoord",
     "signIn": "Inloggen",
@@ -131,10 +131,10 @@
     "totalValue": "Totale waarde",
     "cashEur": "Saldo (EUR)",
     "reserved": "Gereserveerd in open orders",
-    "cryptoValue": "Cryptowaarde",
+    "assetsValue": "Waarde bezittingen",
     "yourAssets": "Jouw bezittingen",
     "feeTierLine": "Tarief: {{maker}}% maker / {{taker}}% taker · 30d volume {{volume}}",
-    "emptyHoldings": "Je hebt nog geen crypto.",
+    "emptyHoldings": "Je hebt nog geen bezittingen.",
     "inOpenOrders": "{{amount}} in open orders",
     "startTrading": "Begin met handelen",
     "asset": "Munt",
