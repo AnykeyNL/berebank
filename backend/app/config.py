@@ -31,6 +31,16 @@ ADMIN_PASSWORD = os.environ.get("BEREBANK_ADMIN_PASSWORD", "manager123")
 BITVAVO_REST_URL = "https://api.bitvavo.com/v2"
 BITVAVO_WS_URL = "wss://ws.bitvavo.com/v2/"
 
+# GitHub webhook for automatic deployments. The endpoint at /webhook/github is
+# disabled unless a secret is configured (deploy/install.sh generates one).
+GITHUB_WEBHOOK_SECRET = os.environ.get("BEREBANK_GITHUB_WEBHOOK_SECRET", "")
+GITHUB_WEBHOOK_BRANCH = os.environ.get("BEREBANK_GITHUB_WEBHOOK_BRANCH", "main")
+# Flag file touched by the webhook; watched by the berebank-update.path
+# systemd unit which then runs deploy/update.sh as root.
+UPDATE_FLAG_FILE = os.environ.get(
+    "BEREBANK_UPDATE_FLAG_FILE", "/run/berebank/update-requested"
+)
+
 # Comma-separated list of allowed CORS origins (frontend dev server by default).
 CORS_ORIGINS = os.environ.get(
     "BEREBANK_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"

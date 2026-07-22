@@ -12,7 +12,7 @@ from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
 from .database import Base, SessionLocal, engine
 from .mcp_server import mcp
 from .models import Account, AppSetting, User
-from .routers import admin, auth, leaderboard, markets, news, oauth_login, orders, portfolio
+from .routers import admin, auth, leaderboard, markets, news, oauth_login, orders, portfolio, webhook
 from .security import hash_password
 from .services.bitvavo import bitvavo_service
 from .services.market_data import market_data_service
@@ -125,6 +125,7 @@ app.include_router(portfolio.router)
 app.include_router(leaderboard.router)
 app.include_router(admin.router)
 app.include_router(oauth_login.router)
+app.include_router(webhook.router)
 
 
 def _price_payload(entry: dict) -> dict:

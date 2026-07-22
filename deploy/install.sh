@@ -52,7 +52,7 @@ log "Installing system packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -qy python3 python3-venv python3-pip postgresql \
-    nginx certbot python3-certbot-nginx rsync curl ca-certificates
+    nginx certbot python3-certbot-nginx rsync curl ca-certificates git
 
 # Ubuntu 24.04 ships Node 18, which is too old for the frontend build.
 if ! command -v node >/dev/null || [[ "$(node -v | cut -dv -f2 | cut -d. -f1)" -lt 20 ]]; then
@@ -111,8 +111,12 @@ log "Writing backend environment file ($ENV_FILE)"
 if [[ -f "$ENV_FILE" ]]; then
     SECRET_KEY="${SECRET_KEY:-$(grep -oP '(?<=^BEREBANK_SECRET_KEY=).*' "$ENV_FILE" || true)}"
     ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(grep -oP '(?<=^BEREBANK_ADMIN_PASSWORD=).*' "$ENV_FILE" || true)}"
+    GITHUB_WEBHOOK_SECRET="${GITHUB_WEBHOOK_SECRET:-$(grep -oP '(?<=^BEREBANK_GITHUB_WEBHOOK_SECRET=).*' "$ENV_FILE" || true)}"
 fi
 SECRET_KEY="${SECRET_KEY:-$(openssl rand -hex 32)}"
+GITHUB_WEBHOOK_SECRET="${GITHUB_WEBHOOK_SECRET:-$(openssl rand -hex 32)}"
+# The webhook only reacts to pushes on the branch the server was installed from.
+WEBHOOK_BRANCH="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
 GENERATED_ADMIN_PASSWORD=""
 if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
     ADMIN_PASSWORD="$(openssl rand -base64 12)"
@@ -127,6 +131,8 @@ BEREBANK_ADMIN_EMAIL=$ADMIN_EMAIL
 BEREBANK_ADMIN_PASSWORD=$ADMIN_PASSWORD
 BEREBANK_DB_PASSWORD=$DB_PASSWORD
 BEREBANK_PUBLIC_URL=https://$DOMAIN
+BEREBANK_GITHUB_WEBHOOK_SECRET=$GITHUB_WEBHOOK_SECRET
+BEREBANK_GITHUB_WEBHOOK_BRANCH=$WEBHOOK_BRANCH
 EOF
 chmod 600 "$ENV_FILE"
 
@@ -149,6 +155,8 @@ EnvironmentFile=$ENV_FILE
 ExecStart=$INSTALL_DIR/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3
+# Writable /run/berebank for the GitHub-webhook update flag file.
+RuntimeDirectory=berebank
 
 [Install]
 WantedBy=multi-user.target
@@ -157,6 +165,37 @@ EOF
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
+
+# ---------------------------------------------------------------------------
+log "Installing auto-update units (GitHub webhook)"
+# ---------------------------------------------------------------------------
+# The webhook route in the backend touches /run/berebank/update-requested;
+# this path unit notices instantly (inotify) and runs update.sh as root from
+# the repository clone used for this installation.
+cat > "/etc/systemd/system/$SERVICE_NAME-update.service" <<EOF
+[Unit]
+Description=de BereBank auto-update (triggered by GitHub webhook)
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f /run/berebank/update-requested
+ExecStart=$REPO_DIR/deploy/update.sh
+TimeoutStartSec=30min
+EOF
+
+cat > "/etc/systemd/system/$SERVICE_NAME-update.path" <<EOF
+[Unit]
+Description=Watch for de BereBank update requests
+
+[Path]
+PathExists=/run/berebank/update-requested
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now "$SERVICE_NAME-update.path"
 
 # ---------------------------------------------------------------------------
 log "Configuring nginx for $DOMAIN"
@@ -175,8 +214,10 @@ server {
         try_files \$uri /index.html;
     }
 
-    # REST API (strip the /api prefix, same as the Vite dev proxy)
+    # REST API (strip the /api prefix, same as the Vite dev proxy).
+    # GitHub webhook push payloads can exceed nginx's 1m default body limit.
     location /api/ {
+        client_max_body_size 5m;
         proxy_pass http://127.0.0.1:8000/;
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -276,3 +317,10 @@ else
 fi
 echo "    Secrets and DB credentials: $ENV_FILE"
 echo "    Certificate renewal is automatic (systemd timer 'certbot.timer')."
+echo
+log "Auto-update via GitHub webhook is enabled (branch: $WEBHOOK_BRANCH)."
+echo "    Configure the webhook in GitHub (repo Settings -> Webhooks -> Add webhook):"
+echo "      Payload URL:  https://$DOMAIN/api/webhook/github"
+echo "      Content type: application/json"
+echo "      Secret:       $GITHUB_WEBHOOK_SECRET"
+echo "      Events:       Just the push event"
