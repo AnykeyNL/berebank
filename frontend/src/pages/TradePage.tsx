@@ -119,17 +119,26 @@ export default function TradePage() {
     [openOrders, selected],
   )
 
+  // The open-orders and trade-history panels only show the selected market.
+  const marketOrders = useMemo(
+    () => openOrders.filter((o) => o.market === selected),
+    [openOrders, selected],
+  )
+  const marketTrades = useMemo(
+    () => trades.filter((tr) => tr.market === selected),
+    [trades, selected],
+  )
+
   const chartTrades = useMemo(
     () =>
-      trades
-        .filter((tr) => tr.market === selected)
+      marketTrades
         .map((tr) => ({
           id: tr.id,
           side: tr.side,
           price: parseFloat(tr.price),
           created_at: tr.created_at,
         })),
-    [trades, selected],
+    [marketTrades],
   )
 
   async function cancelOrder(id: number) {
@@ -345,13 +354,13 @@ export default function TradePage() {
         {/* Open orders */}
         <div className="rounded-xl border border-slate-800 bg-slate-900/60">
           <h3 className="border-b border-slate-800 px-4 py-3 font-semibold">{t('trade.openOrders')}</h3>
-          {openOrders.length === 0 ? (
+          {marketOrders.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-500">{t('trade.noOpenOrders')}</p>
           ) : (
             <>
             {/* Card list on phones, table on md+ */}
             <div className="divide-y divide-slate-800/60 md:hidden">
-              {openOrders.map((o) => (
+              {marketOrders.map((o) => (
                 <div key={o.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-baseline gap-2">
@@ -399,7 +408,7 @@ export default function TradePage() {
                 </tr>
               </thead>
               <tbody>
-                {openOrders.map((o) => (
+                {marketOrders.map((o) => (
                   <tr key={o.id} className="border-t border-slate-800/60">
                     <td className="px-4 py-2">{o.market}</td>
                     <td className={`px-4 py-2 font-medium ${o.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -432,13 +441,13 @@ export default function TradePage() {
         {/* Trade history */}
         <div className="rounded-xl border border-slate-800 bg-slate-900/60">
           <h3 className="border-b border-slate-800 px-4 py-3 font-semibold">{t('common.tradeHistory')}</h3>
-          {trades.length === 0 ? (
+          {marketTrades.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-500">{t('common.noTradesYet')}</p>
           ) : (
             <div className="max-h-80 overflow-y-auto">
               {/* Card list on phones, table on md+ */}
               <div className="divide-y divide-slate-800/60 md:hidden">
-                {trades.map((tr) => (
+                {marketTrades.map((tr) => (
                   <div key={tr.id} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-baseline gap-2">
@@ -482,7 +491,7 @@ export default function TradePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {trades.map((tr) => (
+                  {marketTrades.map((tr) => (
                     <tr key={tr.id} className="border-t border-slate-800/60">
                       <td className="px-4 py-2 text-slate-400">{fmtDateTime(tr.created_at)}</td>
                       <td className="px-4 py-2">{tr.market}</td>

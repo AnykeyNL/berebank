@@ -140,7 +140,8 @@
     "asset": "Munt",
     "tradeLink": "Handel",
     "openLimitOrders": "Open limiet- & stop-loss-orders",
-    "noOpenLimitOrders": "Geen open limiet- of stop-loss-orders"
+    "noOpenLimitOrders": "Geen open limiet- of stop-loss-orders",
+    "currentPrice": "Huidige koers"
   },
   "assetClass": {
     "crypto": "Crypto",

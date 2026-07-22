@@ -51,6 +51,20 @@ export default function PortfolioPage() {
     return { holdings, holdingsValue, cash, reserved, total: cash + reserved + holdingsValue }
   }, [portfolio, prices])
 
+  // Live price and 24h change for the asset of an open order.
+  function orderMarketInfo(market: string) {
+    const p = prices[market]
+    const last = p?.last ? parseFloat(p.last) : null
+    const open = p?.open ? parseFloat(p.open) : null
+    const change24hPct = last !== null && open !== null && open !== 0 ? ((last - open) / open) * 100 : null
+    return { last, change24hPct }
+  }
+
+  function changeClassFor(change: number | null) {
+    if (change === null) return 'text-slate-500'
+    return change >= 0 ? 'text-emerald-400' : 'text-red-400'
+  }
+
   async function cancelOrder(id: number) {
     try {
       await api(`/orders/${id}`, { method: 'DELETE' })
@@ -80,7 +94,9 @@ export default function PortfolioPage() {
           <>
           {/* Card list on phones, table on md+ */}
           <div className="divide-y divide-slate-800/60 md:hidden">
-            {openOrders.map((o) => (
+            {openOrders.map((o) => {
+              const info = orderMarketInfo(o.market)
+              return (
               <div key={o.id} className="px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-baseline gap-2">
@@ -113,10 +129,19 @@ export default function PortfolioPage() {
                       {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
                     </p>
                   </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('portfolio.currentPrice')}</p>
+                    <p className="font-mono">{fmtPrice(info.last)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.change24h')}</p>
+                    <p className={`font-mono ${changeClassFor(info.change24hPct)}`}>{fmtPct(info.change24hPct)}</p>
+                  </div>
                 </div>
                 <p className="mt-1.5 text-xs text-slate-500">{fmtDateTime(o.created_at)}</p>
               </div>
-            ))}
+              )
+            })}
           </div>
           <table className="hidden w-full text-sm md:table">
             <thead>
@@ -126,12 +151,16 @@ export default function PortfolioPage() {
                 <th className="px-4 py-2">{t('trade.typeCol')}</th>
                 <th className="px-4 py-2 text-right">{t('common.amount')}</th>
                 <th className="px-4 py-2 text-right">{t('trade.priceCol')}</th>
+                <th className="px-4 py-2 text-right">{t('portfolio.currentPrice')}</th>
+                <th className="px-4 py-2 text-right">{t('common.change24h')}</th>
                 <th className="px-4 py-2">{t('trade.placed')}</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {openOrders.map((o) => (
+              {openOrders.map((o) => {
+                const info = orderMarketInfo(o.market)
+                return (
                 <tr key={o.id} className="border-t border-slate-800/60 hover:bg-slate-800/30">
                   <td className="px-4 py-2">
                     <Link to={`/trade/${o.market}`} className="text-amber-400 hover:underline">
@@ -148,6 +177,10 @@ export default function PortfolioPage() {
                   <td className="px-4 py-2 text-right font-mono">
                     {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
                   </td>
+                  <td className="px-4 py-2 text-right font-mono">{fmtPrice(info.last)}</td>
+                  <td className={`px-4 py-2 text-right font-mono ${changeClassFor(info.change24hPct)}`}>
+                    {fmtPct(info.change24hPct)}
+                  </td>
                   <td className="px-4 py-2 text-slate-400">{fmtDateTime(o.created_at)}</td>
                   <td className="px-4 py-2 text-right">
                     <button
@@ -159,7 +192,8 @@ export default function PortfolioPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
           </>

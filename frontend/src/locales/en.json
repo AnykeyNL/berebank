@@ -140,7 +140,8 @@
     "asset": "Asset",
     "tradeLink": "Trade",
     "openLimitOrders": "Open limit & stop-loss orders",
-    "noOpenLimitOrders": "No open limit or stop-loss orders"
+    "noOpenLimitOrders": "No open limit or stop-loss orders",
+    "currentPrice": "Current price"
   },
   "assetClass": {
     "crypto": "Crypto",
