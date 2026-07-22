@@ -24,6 +24,7 @@ from .config import PUBLIC_URL
 from .database import SessionLocal
 from .models import User
 from .oauth import oauth_provider
+from .routers.markets import get_analysis as _get_analysis
 from .routers.markets import get_candles as _get_candles
 from .routers.markets import get_news as _get_news
 from .routers.markets import list_markets as _list_markets
@@ -120,10 +121,14 @@ def list_markets(filter: str | None = None, asset_class: str | None = None) -> l
 
 
 @mcp.tool()
-async def get_candles(market: str) -> list[list]:
-    """Get the last day of 15-minute OHLCV candles for a market (e.g. BTC-EUR).
+async def get_candles(market: str, range: str = "1d") -> list[list]:
+    """Get OHLCV candles for a market (e.g. BTC-EUR) over a past range.
 
-    Returns a list of [timestamp_ms, open, high, low, close, volume], oldest first.
+    Returns a list of [timestamp_ms, open, high, low, close, volume], oldest
+    first. Range is one of "1h", "1d", "1w", "30d", "90d", "180d" or "365d"
+    (default "1d"); the bar interval scales with the range, from 1-minute
+    bars for "1h" up to daily bars for "90d" and longer. Stocks and funds
+    only have bars during exchange hours.
     """
     db = SessionLocal()
     try:
@@ -131,7 +136,40 @@ async def get_candles(market: str) -> list[list]:
     finally:
         db.close()
     try:
-        return await _get_candles(market, user=user)
+        return await _get_candles(market, user=user, range_=range)
+    except Exception as exc:
+        raise ToolError(_http_detail(exc))
+
+
+@mcp.tool()
+async def analyze_market(market: str, range: str = "30d") -> dict:
+    """Run technical analysis on a market (e.g. BTC-EUR) over a past range.
+
+    Range is one of "1d", "1w", "30d", "90d", "180d" or "365d" (default
+    "30d"). Five strategies are computed from OHLCV candles, identically to
+    the web app's Analyze page:
+
+    - trend: SMA-20/50 and EMA-12/26 moving averages, golden/death crosses
+    - rsi: RSI-14 overbought/oversold momentum
+    - macd: MACD (12, 26, 9) signal-line crossovers and histogram
+    - volatility: Bollinger Bands (20, 2 sigma) and ATR-14 (includes a
+      suggested stop-loss price two ATRs below the current price)
+    - levels_volume: clustered support/resistance levels plus volume trend
+
+    Each strategy returns a signal ("bullish", "bearish", "neutral", or
+    "none" when there is not enough data), a structured reason, an
+    explanation of how the strategy works, key values (decimal strings) and
+    indicator series. The response also includes the candles of the display
+    window. Signals are educational indications from a paper-money
+    simulation, not financial advice.
+    """
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+    finally:
+        db.close()
+    try:
+        return await _get_analysis(market, user=user, range_=range)
     except Exception as exc:
         raise ToolError(_http_detail(exc))
 

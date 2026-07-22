@@ -272,6 +272,8 @@
       "1d": "1D",
       "1w": "1W",
       "30d": "30D",
+      "90d": "90D",
+      "180d": "180D",
       "365d": "1J"
     },
     "loadError": "Kon prijsgeschiedenis niet laden",
@@ -284,6 +286,97 @@
     "high": "Hoog"
   },
 
+  "analyze": {
+    "analyzeButton": "Analyseren",
+    "pageTitle": "Analyseer {{market}}",
+    "backToTrade": "Terug naar handelen",
+    "range": "Periode",
+    "overlaysLabel": "Grafiekoverlays",
+    "overlays": {
+      "sma": "SMA",
+      "ema": "EMA",
+      "bollinger": "Bollinger",
+      "levels": "Niveaus"
+    },
+    "loadError": "Kon analyse niet laden",
+    "updated": "Bijgewerkt {{time}} · ververst elke minuut",
+    "howItWorks": "Hoe werkt dit?",
+    "hideExplanation": "Uitleg verbergen",
+    "disclaimer": "Deze signalen worden berekend uit historische koersen, voor educatieve doeleinden in deze simulatie. Het zijn indicaties, geen voorspellingen of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen.",
+    "signals": {
+      "bullish": "Bullish",
+      "bearish": "Bearish",
+      "neutral": "Neutraal",
+      "none": "Geen data"
+    },
+    "direction": {
+      "rising": "stijgend",
+      "falling": "dalend"
+    },
+    "volumeState": {
+      "above_average": "boven gemiddeld",
+      "below_average": "onder gemiddeld",
+      "average": "gemiddeld",
+      "unknown": "onbekend"
+    },
+    "stats": {
+      "direction": "Richting",
+      "signalLine": "Signaallijn",
+      "histogram": "Histogram",
+      "bbUpper": "Bovenste band",
+      "bbLower": "Onderste band",
+      "suggestedStop": "Suggestie stop-loss",
+      "support": "Steun",
+      "resistance": "Weerstand",
+      "volume": "Volume"
+    },
+    "strategies": {
+      "trend": {
+        "title": "Trend (voortschrijdende gemiddelden)",
+        "explanation": "Voortschrijdende gemiddelden vlakken de koers af zodat de onderliggende richting zichtbaar wordt. De SMA-20 (gemiddelde van de laatste 20 candles) reageert sneller dan de SMA-50; staan het snelle gemiddelde en de koers boven het trage gemiddelde, dan wijst de trend omhoog. Het moment waarop het snelle gemiddelde boven het trage kruist heet een golden cross (bullish); eronder kruisen is een death cross (bearish). De EMA-varianten wegen recente koersen zwaarder en reageren eerder."
+      },
+      "rsi": {
+        "title": "Momentum (RSI)",
+        "explanation": "De Relative Strength Index vergelijkt recente winsten met recente verliezen op een schaal van 0–100. Boven 70 geldt een asset als overbought: de stijging kan oververhit zijn en een terugval wordt waarschijnlijker. Onder 30 is hij oversold en wordt een opleving waarschijnlijker. Daartussen laat de RSI simpelweg zien welke kant de overhand heeft. Extremen kunnen tijdens sterke trends lang aanhouden, dus RSI werkt het best in combinatie met het trendsignaal."
+      },
+      "macd": {
+        "title": "Momentum (MACD)",
+        "explanation": "MACD meet het verschil tussen een snel (12 candles) en traag (26 candles) exponentieel gemiddelde. Kruist dat verschil — de MACD-lijn — boven zijn eigen 9-candle gemiddelde (de signaallijn), dan bouwt opwaarts momentum op; eronder kruisen betekent dat het momentum omslaat. Het histogram toont de afstand tussen beide lijnen: groeiende balken betekenen versnelling, krimpende balken afzwakking."
+      },
+      "volatility": {
+        "title": "Volatiliteit (Bollinger Bands & ATR)",
+        "explanation": "Bollinger Bands vormen een envelop van twee standaarddeviaties rond een 20-candle gemiddelde: ongeveer 95% van de koersbeweging blijft erbinnen. Raakt de koers een band, dan is hij uitgerekt en koelt hij vaak af; ongewoon smalle banden (een squeeze) betekenen samengeperste volatiliteit en daar volgt vaak een uitbraak op. De Average True Range (ATR) meet de typische beweging per candle — handig om een stop-loss ver genoeg weg te zetten zodat normale ruis hem niet raakt (een gangbare regel is twee ATR's onder de koers)."
+      },
+      "levels_volume": {
+        "title": "Steun / weerstand & volume",
+        "explanation": "Steun en weerstand zijn prijszones waar de markt herhaaldelijk omkeerde: bodems clusteren tot steun (kopers stappen in), toppen tot weerstand (verkopers stappen in). Nadert de koers steun, dan veert hij vaak op; bij weerstand stokt de stijging vaak — en een doorbraak door een niveau kan een grotere beweging starten. Volume vertelt hoeveel overtuiging er achter recente bewegingen zit: bewegingen op bovengemiddeld volume zijn betrouwbaarder dan bewegingen op dun volume."
+      }
+    },
+    "reasons": {
+      "insufficient_data": "Niet genoeg koersgeschiedenis in deze periode voor deze analyse.",
+      "golden_cross": "Het snelle gemiddelde kruiste zojuist boven het trage gemiddelde (golden cross) — een opwaartse trendwissel.",
+      "death_cross": "Het snelle gemiddelde kruiste zojuist onder het trage gemiddelde (death cross) — een neerwaartse trendwissel.",
+      "uptrend": "De koers en het snelle gemiddelde ({{sma_fast}}) staan boven het trage gemiddelde ({{sma_slow}}) — de trend wijst omhoog.",
+      "downtrend": "De koers en het snelle gemiddelde ({{sma_fast}}) staan onder het trage gemiddelde ({{sma_slow}}) — de trend wijst omlaag.",
+      "mixed_trend": "De gemiddelden wijzen verschillende kanten op — geen duidelijke trend.",
+      "overbought": "RSI is {{rsi}} — boven 70 is de asset overbought en wordt een terugval waarschijnlijker.",
+      "oversold": "RSI is {{rsi}} — onder 30 is de asset oversold en wordt een opleving waarschijnlijker.",
+      "rsi_neutral": "RSI is {{rsi}} en {{direction}} — geen extreem, het momentum is gematigd.",
+      "macd_bull_cross": "De MACD-lijn kruiste zojuist boven de signaallijn — opwaarts momentum bouwt op.",
+      "macd_bear_cross": "De MACD-lijn kruiste zojuist onder de signaallijn — het momentum slaat om naar beneden.",
+      "macd_above": "MACD staat boven de signaallijn en het histogram groeit — positief momentum.",
+      "macd_below": "MACD staat onder de signaallijn en het histogram krimpt — negatief momentum.",
+      "macd_flat": "MACD geeft op dit moment geen duidelijk momentumsignaal.",
+      "stretched_high": "De koers ({{price}}) zit op of boven de bovenste Bollinger-band ({{upper}}) — sterk uitgerekt; afkoeling komt vaak voor.",
+      "stretched_low": "De koers ({{price}}) zit op of onder de onderste Bollinger-band ({{lower}}) — sterk uitgerekt; een opleving komt vaak voor.",
+      "squeeze": "De Bollinger-banden zijn ongewoon smal ({{bandwidth_pct}}% van de koers) — na een squeeze volgt vaak een uitbraak.",
+      "vol_normal": "De volatiliteit is normaal — geen bandsignaal.",
+      "near_support": "De koers zit net boven steun op {{support}} (volume {{volume_state}}) — hier veert de koers vaak op.",
+      "near_resistance": "De koers zit net onder weerstand op {{resistance}} (volume {{volume_state}}) — hier stokt de stijging vaak.",
+      "between_levels": "De koers beweegt tussen steun op {{support}} en weerstand op {{resistance}} (volume {{volume_state}}).",
+      "no_levels": "Geen duidelijke steun- of weerstandsniveaus gevonden in deze periode."
+    }
+  },
   "orderForm": {
     "amountLabel": "Aantal ({{asset}})",
     "spendEur": "Besteden (EUR)",

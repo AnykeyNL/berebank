@@ -45,6 +45,43 @@ export interface NewsPage {
   total_count: number
 }
 
+// [timestamp_ms, open, high, low, close, volume]
+export type Candle = [number, string, string, string, string, string]
+
+export type AnalysisSignal = 'bullish' | 'bearish' | 'neutral' | 'none'
+export type AnalysisRange = '1d' | '1w' | '30d' | '90d' | '180d' | '365d'
+
+// [timestamp_ms, value] — value is null while the indicator is undefined
+export type IndicatorPoint = [number, string | null]
+
+export interface AnalysisLevel {
+  price: string | null
+  strength: number
+}
+
+export interface AnalysisStrategy {
+  signal: AnalysisSignal
+  reason: { code: string; params: Record<string, string | number | null> }
+  explanation: string
+  values: Record<string, string | null>
+  series: Record<string, IndicatorPoint[]>
+  levels?: AnalysisLevel[]
+}
+
+export interface Analysis {
+  market: string
+  range: AnalysisRange
+  generated_at: string
+  candles: Candle[]
+  strategies: {
+    trend: AnalysisStrategy
+    rsi: AnalysisStrategy
+    macd: AnalysisStrategy
+    volatility: AnalysisStrategy
+    levels_volume: AnalysisStrategy
+  }
+}
+
 export interface PriceUpdate {
   market: string
   last: string | null

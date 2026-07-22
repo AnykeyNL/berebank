@@ -242,18 +242,24 @@ class TwelveDataService:
         "1d": ("15min", 26),
         "1w": ("1h", 35),
         "30d": ("1day", 22),
+        "90d": ("1day", 63),
+        "180d": ("1day", 126),
         "365d": ("1day", 250),
     }
 
-    async def fetch_candles(self, market: str, range_: str) -> list[list]:
+    async def fetch_candles(self, market: str, range_: str, extra_bars: int = 0) -> list[list]:
         """OHLCV candles as [timestamp_ms, open, high, low, close, volume],
-        oldest first, converted to EUR — same shape as the Bitvavo candles."""
+        oldest first, converted to EUR — same shape as the Bitvavo candles.
+
+        ``extra_bars`` extends the window backwards at the same interval
+        (used as indicator warm-up by the analysis endpoint)."""
         inst = self._instruments.get(market)
         if inst is None:
             raise RuntimeError(f"Unknown Twelve Data market: {market}")
         if self.api_key is None:
             raise RuntimeError("Twelve Data API key not configured")
         interval, outputsize = self._RANGE_PARAMS[range_]
+        outputsize += extra_bars
         async with httpx.AsyncClient(base_url=TWELVEDATA_REST_URL, timeout=30) as client:
             resp = await client.get("/time_series", params={
                 "symbol": inst.td_symbol,

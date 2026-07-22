@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import PortfolioPage from './pages/PortfolioPage'
 import TradePage from './pages/TradePage'
+import AnalyzePage from './pages/AnalyzePage'
 import TradeHistoryPage from './pages/TradeHistoryPage'
 import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/" element={<PortfolioPage />} />
         <Route path="/trade" element={<TradePage />} />
         <Route path="/trade/:market" element={<TradePage />} />
+        <Route path="/analyze/:market" element={<AnalyzePage />} />
         <Route path="/history" element={<TradeHistoryPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/news" element={<NewsPage />} />

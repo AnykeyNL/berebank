@@ -259,6 +259,13 @@ export default function TradePage() {
               <PriceStat label={t('trade.last')} value={fmtPrice(selectedPrice?.last ?? selectedMarket?.last)} />
               <PriceStat label={t('trade.bid')} value={fmtPrice(selectedPrice?.bid ?? selectedMarket?.bid)} />
               <PriceStat label={t('trade.ask')} value={fmtPrice(selectedPrice?.ask ?? selectedMarket?.ask)} />
+              <button
+                type="button"
+                onClick={() => navigate(`/analyze/${selected}`)}
+                className="self-center rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800"
+              >
+                {t('analyze.analyzeButton')}
+              </button>
               {newsAvailable && (
                 <button
                   type="button"

@@ -272,6 +272,8 @@
       "1d": "1D",
       "1w": "1W",
       "30d": "30D",
+      "90d": "90D",
+      "180d": "180D",
       "365d": "1Y"
     },
     "loadError": "Could not load price history",
@@ -284,6 +286,97 @@
     "high": "High"
   },
 
+  "analyze": {
+    "analyzeButton": "Analyze",
+    "pageTitle": "Analyze {{market}}",
+    "backToTrade": "Back to trading",
+    "range": "Period",
+    "overlaysLabel": "Chart overlays",
+    "overlays": {
+      "sma": "SMA",
+      "ema": "EMA",
+      "bollinger": "Bollinger",
+      "levels": "Levels"
+    },
+    "loadError": "Could not load analysis",
+    "updated": "Updated {{time}} · refreshes every minute",
+    "howItWorks": "How this works",
+    "hideExplanation": "Hide explanation",
+    "disclaimer": "These signals are calculated from historical prices for educational purposes in this simulation. They are indications, not predictions or financial advice — no indicator can reliably foresee the market.",
+    "signals": {
+      "bullish": "Bullish",
+      "bearish": "Bearish",
+      "neutral": "Neutral",
+      "none": "No data"
+    },
+    "direction": {
+      "rising": "rising",
+      "falling": "falling"
+    },
+    "volumeState": {
+      "above_average": "above average",
+      "below_average": "below average",
+      "average": "average",
+      "unknown": "unknown"
+    },
+    "stats": {
+      "direction": "Direction",
+      "signalLine": "Signal line",
+      "histogram": "Histogram",
+      "bbUpper": "Upper band",
+      "bbLower": "Lower band",
+      "suggestedStop": "Suggested stop",
+      "support": "Support",
+      "resistance": "Resistance",
+      "volume": "Volume"
+    },
+    "strategies": {
+      "trend": {
+        "title": "Trend (moving averages)",
+        "explanation": "Moving averages smooth the price to reveal the underlying direction. The SMA-20 (average of the last 20 bars) reacts faster than the SMA-50; when the fast average and the price sit above the slow one, the trend points up. The moment the fast average crosses above the slow one is called a golden cross (bullish); crossing below is a death cross (bearish). The EMA variants weigh recent prices more heavily and react sooner."
+      },
+      "rsi": {
+        "title": "Momentum (RSI)",
+        "explanation": "The Relative Strength Index compares recent gains against recent losses on a scale of 0–100. Above 70 an asset is considered overbought: the rally may be overheated and a pullback becomes more likely. Below 30 it is oversold and a bounce becomes more likely. In between, the RSI simply shows which side has the upper hand. Extremes can persist during strong trends, so RSI works best combined with the trend signal."
+      },
+      "macd": {
+        "title": "Momentum (MACD)",
+        "explanation": "MACD measures the gap between a fast (12-bar) and slow (26-bar) exponential moving average. When that gap — the MACD line — crosses above its own 9-bar average (the signal line), upward momentum is building; crossing below means momentum is turning down. The histogram shows the distance between the two lines: growing bars mean the move is accelerating, shrinking bars mean it is fading."
+      },
+      "volatility": {
+        "title": "Volatility (Bollinger Bands & ATR)",
+        "explanation": "Bollinger Bands draw an envelope two standard deviations around a 20-bar average: about 95% of price action stays inside it. Price touching a band is stretched and often cools off; unusually narrow bands (a squeeze) mean volatility is compressed and a breakout frequently follows. The Average True Range (ATR) measures the typical movement per bar — useful for placing a stop-loss far enough away that normal noise does not trigger it (a common rule is two ATRs below the price)."
+      },
+      "levels_volume": {
+        "title": "Support / resistance & volume",
+        "explanation": "Support and resistance are price areas where the market repeatedly turned around: swing lows cluster into support (buyers step in), swing highs into resistance (sellers step in). Price approaching support often bounces; approaching resistance it often stalls — and a break through a level can start a bigger move. Volume tells you how much conviction is behind recent moves: moves on above-average volume are more trustworthy than moves on thin volume."
+      }
+    },
+    "reasons": {
+      "insufficient_data": "Not enough price history in this period for this analysis.",
+      "golden_cross": "The fast average just crossed above the slow average (golden cross) — an upward trend change.",
+      "death_cross": "The fast average just crossed below the slow average (death cross) — a downward trend change.",
+      "uptrend": "Price and the fast average ({{sma_fast}}) are above the slow average ({{sma_slow}}) — the trend points up.",
+      "downtrend": "Price and the fast average ({{sma_fast}}) are below the slow average ({{sma_slow}}) — the trend points down.",
+      "mixed_trend": "The moving averages point in different directions — no clear trend.",
+      "overbought": "RSI is {{rsi}} — above 70 the asset is overbought and a pullback becomes more likely.",
+      "oversold": "RSI is {{rsi}} — below 30 the asset is oversold and a bounce becomes more likely.",
+      "rsi_neutral": "RSI is {{rsi}} and {{direction}} — no extreme, momentum is moderate.",
+      "macd_bull_cross": "The MACD line just crossed above its signal line — upward momentum is building.",
+      "macd_bear_cross": "The MACD line just crossed below its signal line — momentum is turning down.",
+      "macd_above": "MACD is above its signal line and the histogram is growing — positive momentum.",
+      "macd_below": "MACD is below its signal line and the histogram is shrinking — negative momentum.",
+      "macd_flat": "MACD gives no clear momentum signal right now.",
+      "stretched_high": "Price ({{price}}) is at or above the upper Bollinger band ({{upper}}) — stretched high; a cooldown is common.",
+      "stretched_low": "Price ({{price}}) is at or below the lower Bollinger band ({{lower}}) — stretched low; a bounce is common.",
+      "squeeze": "The Bollinger bands are unusually narrow ({{bandwidth_pct}}% of price) — a breakout often follows a squeeze.",
+      "vol_normal": "Volatility is in a normal range — no band signal.",
+      "near_support": "Price is just above support at {{support}} (volume {{volume_state}}) — bounces are common here.",
+      "near_resistance": "Price is just below resistance at {{resistance}} (volume {{volume_state}}) — rallies often stall here.",
+      "between_levels": "Price is between support at {{support}} and resistance at {{resistance}} (volume {{volume_state}}).",
+      "no_levels": "No clear support or resistance levels found in this period."
+    }
+  },
   "orderForm": {
     "amountLabel": "Amount ({{asset}})",
     "spendEur": "Spend (EUR)",

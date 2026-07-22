@@ -64,7 +64,8 @@ de BereBank exposes an [MCP](https://modelcontextprotocol.io) server so assistan
 | Tool | Use for |
 | --- | --- |
 | `list_markets` | Browse all markets with live last/bid/ask, 24h change, volume. Filter by `asset_class` (`crypto`, `stock`, `fund`) or symbol substring (e.g. `filter="BTC"`) |
-| `get_candles` | Last 24 hours of 15-minute OHLCV candles for charting and technical analysis |
+| `get_candles` | OHLCV candles for charting and technical analysis. Optional `range`: `1h`, `1d` (default), `1w`, `30d`, `90d`, `180d`, `365d`; the bar interval scales with the range (1-minute up to daily bars) |
+| `analyze_market` | Technical analysis over a past `range` (`1d`, `1w`, `30d` default, `90d`, `180d`, `365d`): five strategies — trend (SMA/EMA crossovers), RSI-14, MACD, volatility (Bollinger Bands + ATR with a suggested stop-loss), support/resistance + volume — each with a bullish/bearish/neutral signal, reason, and explanation. Same engine as the web app's Analyze page |
 | `get_news` | Recent news for any market: RSS-matched articles (crypto and all assets) plus Twelve Data press releases for stocks/funds. Optional `limit` 1–10 |
 | `get_portfolio` | Cash, reserved funds, holdings with live valuation, total account value, current fee tier |
 | `list_orders` | Open, filled, or cancelled orders (newest first, max 200) |
@@ -97,7 +98,7 @@ trigger_price — required for stop_loss orders (together with amount); must be 
 When helping a user compete on the leaderboard:
 
 1. **Baseline** — call `get_portfolio` and `get_trade_history` to understand starting position and past decisions
-2. **Scan opportunities** — use `list_markets` (filter by asset class or symbol) and `get_candles` for candidates
+2. **Scan opportunities** — use `list_markets` (filter by asset class or symbol) and `get_candles` for candidates; run `analyze_market` on shortlisted assets for trend, momentum, volatility, and support/resistance signals
 3. **Form a strategy** — discuss goals, risk tolerance, time horizon, and constraints (fees, minimum order size, stock market hours)
 4. **Execute deliberately** — only call `place_order` when the user has enabled MCP trading and confirms the trade
 5. **Review regularly** — track `total_value_eur`, open orders, and realized P&L; adjust as the competition period progresses
