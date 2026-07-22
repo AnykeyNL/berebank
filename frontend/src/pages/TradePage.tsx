@@ -175,20 +175,28 @@ export default function TradePage() {
             placeholder={t('trade.searchPlaceholder')}
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm outline-none focus:border-amber-500"
           />
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex gap-1">
             {(['all', 'mine', 'crypto', 'stock', 'fund'] as const).map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setClassFilter(c)}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors md:px-2 md:py-1 ${
+                title={t(`trade.filter.${c}`)}
+                aria-label={t(`trade.filter.${c}`)}
+                aria-pressed={classFilter === c}
+                className={`flex flex-1 items-center justify-center rounded-md py-1.5 transition-colors ${
                   classFilter === c
                     ? 'bg-amber-500/15 text-amber-400'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                 }`}
               >
-                {c !== 'all' && c !== 'mine' && <AssetClassIcon assetClass={c} className="h-3.5 w-3.5" />}
-                {t(`trade.filter.${c}`)}
+                {c === 'all' ? (
+                  <AllFilterIcon className="h-5 w-5" />
+                ) : c === 'mine' ? (
+                  <MyAssetsFilterIcon className="h-5 w-5" />
+                ) : (
+                  <AssetClassIcon assetClass={c} className="h-5 w-5" />
+                )}
               </button>
             ))}
           </div>
@@ -526,6 +534,30 @@ export default function TradePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** Grid of four squares for the "all markets" filter. */
+function AllFilterIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+      className={className} aria-hidden="true">
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+    </svg>
+  )
+}
+
+/** Wallet for the "my assets" filter. */
+function MyAssetsFilterIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+      className={className} aria-hidden="true">
+      <path d="M12.5 5.5V4.8A1.3 1.3 0 0 0 11.2 3.5H4A1.5 1.5 0 0 0 2.5 5v6.5A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5V7A1.5 1.5 0 0 0 12 5.5H2.5" />
+      <path d="M13.5 8.25h-2.25a1.25 1.25 0 0 0 0 2.5h2.25" />
+    </svg>
   )
 }
 
