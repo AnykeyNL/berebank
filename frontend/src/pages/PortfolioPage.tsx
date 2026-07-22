@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { usePrices } from '../lib/usePrices'
-import { fmtAmount, fmtDateTime, fmtEur, fmtPrice } from '../lib/format'
+import { fmtAmount, fmtDateTime, fmtEur, fmtPct, fmtPrice } from '../lib/format'
 import type { Order, Portfolio } from '../lib/types'
 
 export default function PortfolioPage() {
@@ -39,7 +39,12 @@ export default function PortfolioPage() {
       const totalAmount = parseFloat(h.amount) + parseFloat(h.reserved)
       const value = price !== null ? totalAmount * parseFloat(price) : null
       if (value !== null) holdingsValue += value
-      return { ...h, total_amount: totalAmount, current_price: price, live_value: value }
+      const open = h.market ? prices[h.market]?.open : null
+      const change24hPct =
+        price !== null && open && parseFloat(open) !== 0
+          ? ((parseFloat(price) - parseFloat(open)) / parseFloat(open)) * 100
+          : null
+      return { ...h, total_amount: totalAmount, current_price: price, live_value: value, change_24h_pct: change24hPct }
     })
     const cash = parseFloat(portfolio.balance_eur)
     const reserved = parseFloat(portfolio.reserved_eur)
@@ -144,6 +149,7 @@ export default function PortfolioPage() {
                 <th className="px-4 py-2">{t('portfolio.asset')}</th>
                 <th className="px-4 py-2 text-right">{t('common.amount')}</th>
                 <th className="px-4 py-2 text-right">{t('common.price')}</th>
+                <th className="px-4 py-2 text-right">{t('common.change24h')}</th>
                 <th className="px-4 py-2 text-right">{t('common.value')}</th>
               </tr>
             </thead>
@@ -172,6 +178,17 @@ export default function PortfolioPage() {
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-right font-mono">{fmtPrice(h.current_price)}</td>
+                  <td
+                    className={`px-4 py-2.5 text-right font-mono ${
+                      h.change_24h_pct === null
+                        ? 'text-slate-500'
+                        : h.change_24h_pct >= 0
+                          ? 'text-emerald-400'
+                          : 'text-red-400'
+                    }`}
+                  >
+                    {fmtPct(h.change_24h_pct)}
+                  </td>
                   <td className="px-4 py-2.5 text-right font-mono">{fmtEur(h.live_value)}</td>
                 </tr>
               ))}
