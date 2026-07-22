@@ -152,6 +152,7 @@
     "searchPlaceholder": "Zoek op naam of ticker…",
     "filter": {
       "all": "Alles",
+      "mine": "Mijn bezittingen",
       "crypto": "Crypto",
       "stock": "Aandelen",
       "fund": "Fondsen"

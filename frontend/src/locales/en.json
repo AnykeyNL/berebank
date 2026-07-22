@@ -152,6 +152,7 @@
     "searchPlaceholder": "Search by name or ticker…",
     "filter": {
       "all": "All",
+      "mine": "My assets",
       "crypto": "Crypto",
       "stock": "Stocks",
       "fund": "Funds"

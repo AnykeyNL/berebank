@@ -12,7 +12,7 @@ import OrderForm from '../components/OrderForm'
 import PriceChart from '../components/PriceChart'
 import StopLossPanel from '../components/StopLossPanel'
 
-type ClassFilter = 'all' | AssetClass
+type ClassFilter = 'all' | 'mine' | AssetClass
 type TradeView = 'trade' | 'news'
 
 export default function TradePage() {
@@ -52,6 +52,15 @@ export default function TradePage() {
     setView('trade')
   }, [selected])
 
+  // Assets the user currently owns (including amounts reserved in open orders).
+  const ownedAssets = useMemo(() => {
+    const owned = new Set<string>()
+    for (const h of portfolio?.holdings ?? []) {
+      if (parseFloat(h.amount) + parseFloat(h.reserved) > 0) owned.add(h.asset)
+    }
+    return owned
+  }, [portfolio])
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return markets
@@ -65,14 +74,18 @@ export default function TradePage() {
             : null
         return { ...m, last, change }
       })
-      .filter((m) => classFilter === 'all' || m.asset_class === classFilter)
+      .filter((m) => {
+        if (classFilter === 'all') return true
+        if (classFilter === 'mine') return ownedAssets.has(m.base)
+        return m.asset_class === classFilter
+      })
       .filter((m) => {
         if (!q) return true
         const haystack = `${m.market} ${m.base} ${m.name ?? ''} ${m.listing ?? ''}`.toLowerCase()
         return haystack.includes(q)
       })
       .sort((a, b) => parseFloat(b.volume_quote ?? '0') - parseFloat(a.volume_quote ?? '0'))
-  }, [markets, prices, search, classFilter])
+  }, [markets, prices, search, classFilter, ownedAssets])
 
   const selectedPrice = prices[selected]
   const selectedMarket = markets.find((m) => m.market === selected)
@@ -163,7 +176,7 @@ export default function TradePage() {
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm outline-none focus:border-amber-500"
           />
           <div className="mt-2 flex flex-wrap gap-1">
-            {(['all', 'crypto', 'stock', 'fund'] as const).map((c) => (
+            {(['all', 'mine', 'crypto', 'stock', 'fund'] as const).map((c) => (
               <button
                 key={c}
                 type="button"
@@ -174,7 +187,7 @@ export default function TradePage() {
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                 }`}
               >
-                {c !== 'all' && <AssetClassIcon assetClass={c} className="h-3.5 w-3.5" />}
+                {c !== 'all' && c !== 'mine' && <AssetClassIcon assetClass={c} className="h-3.5 w-3.5" />}
                 {t(`trade.filter.${c}`)}
               </button>
             ))}
@@ -186,13 +199,15 @@ export default function TradePage() {
               <span className="text-red-400">● {t('trade.reconnecting')}</span>
             )}{' '}
             · {t('trade.marketsCount', { count: rows.length })}
-            <span className="lg:hidden">{search.trim() ? '' : ` · ${t('trade.typeToSearch')}`}</span>
+            <span className="lg:hidden">
+              {search.trim() || classFilter === 'mine' ? '' : ` · ${t('trade.typeToSearch')}`}
+            </span>
           </p>
         </div>
-        {/* On mobile the full list is hidden until the user searches. */}
+        {/* On mobile the full list is hidden until the user searches or picks "My assets". */}
         <div
           className={`max-h-[40vh] overflow-y-auto lg:max-h-[70vh] ${
-            search.trim() ? '' : 'hidden lg:block'
+            search.trim() || classFilter === 'mine' ? '' : 'hidden lg:block'
           }`}
         >
           {rows.map((m) => (
