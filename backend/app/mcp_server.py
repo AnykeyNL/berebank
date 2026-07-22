@@ -24,6 +24,7 @@ from .config import PUBLIC_URL
 from .database import SessionLocal
 from .models import User
 from .oauth import oauth_provider
+from .routers.leaderboard import get_leaderboard as _get_leaderboard
 from .routers.markets import get_analysis as _get_analysis
 from .routers.markets import get_candles as _get_candles
 from .routers.markets import get_news as _get_news
@@ -248,6 +249,34 @@ def get_trade_history() -> list[dict]:
         return [r.model_dump(mode="json") for r in rows]
     finally:
         db.close()
+
+
+@mcp.tool()
+def get_leaderboard() -> list[dict]:
+    """Get the competition leaderboard: all active traders ranked by total
+    account value, highest first.
+
+    Each entry has rank, display_name, trades (executed trade count),
+    cash_eur (EUR balance plus funds reserved for open limit buys),
+    assets_eur (holdings valued at the live last price) and total_eur
+    (cash + assets — the score that decides the competition). The entry
+    belonging to the connected user is marked with is_you=true.
+    """
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        entries = _get_leaderboard(user=user, db=db)
+        user_id = user.id
+    finally:
+        db.close()
+    result = []
+    for rank, entry in enumerate(entries, start=1):
+        row = entry.model_dump(mode="json")
+        row["rank"] = rank
+        row["is_you"] = entry.user_id == user_id
+        del row["user_id"]
+        result.append(row)
+    return result
 
 
 @mcp.tool()

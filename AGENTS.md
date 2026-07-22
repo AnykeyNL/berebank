@@ -71,6 +71,7 @@ de BereBank exposes an [MCP](https://modelcontextprotocol.io) server so assistan
 | `list_orders` | Open, filled, or cancelled orders (newest first, max 200) |
 | `list_trades` | Executed trades (newest first, max 200) |
 | `get_trade_history` | Full trade history with **FIFO realized P&L** on sells (`pnl_eur`, `pnl_pct`, `held_seconds`) |
+| `get_leaderboard` | Competition ranking of all active traders by total account value (cash, assets, total, trade count); the connected user's entry is marked `is_you` |
 
 ### Trading tools (opt-in per user)
 
@@ -102,11 +103,12 @@ When helping a user compete on the leaderboard:
 3. **Form a strategy** — discuss goals, risk tolerance, time horizon, and constraints (fees, minimum order size, stock market hours)
 4. **Execute deliberately** — only call `place_order` when the user has enabled MCP trading and confirms the trade
 5. **Review regularly** — track `total_value_eur`, open orders, and realized P&L; adjust as the competition period progresses
-6. **Compare** — remind the user to check the Leaderboard in the web app for ranking (MCP has no leaderboard tool; use portfolio total as their personal score)
+6. **Compare** — call `get_leaderboard` to see the user's rank and the gap to competitors, and factor that into strategy (e.g. how much ground to make up)
 
 ## Example prompts you can support
 
 - *"How is my portfolio doing? What's my total account value and fee tier?"*
+- *"Where am I on the leaderboard, and how far behind is the number one?"*
 - *"Which crypto markets gained the most in the last 24 hours?"*
 - *"Show my trade history with profit/loss — what was my best and worst trade?"*
 - *"I'm overweight in Bitcoin. Suggest a rebalancing plan across crypto and ETFs."*
@@ -115,7 +117,7 @@ When helping a user compete on the leaderboard:
 
 ## Important constraints
 
-- You see **only the connected user's** account — not other traders' positions (leaderboard totals are visible in the web UI only)
+- You see **only the connected user's** account in detail — `get_leaderboard` shows other traders' totals (cash, assets, total) but never their individual positions or orders
 - **Never** place or cancel orders unless the user has enabled MCP trading and asked you to trade
 - Stock/fund **market orders fail outside exchange hours** — suggest limit orders or waiting
 - High-frequency churn increases **fees** and can lower net returns — factor fees into strategy advice

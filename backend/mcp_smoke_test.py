@@ -158,7 +158,8 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             await session.initialize()
             tools = {t.name for t in (await session.list_tools()).tools}
             expected = {"list_markets", "get_candles", "get_news", "get_portfolio", "list_orders",
-                        "list_trades", "get_trade_history", "place_order", "cancel_order"}
+                        "list_trades", "get_trade_history", "get_leaderboard", "place_order",
+                        "cancel_order"}
             assert expected <= tools, f"missing tools: {expected - tools}"
             print("tools listed:", sorted(tools))
 
@@ -184,6 +185,18 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
                 r = await session.call_tool(tool, {})
                 assert not r.isError, f"{tool}: {tool_text(r)}"
                 print(f"{tool} OK")
+
+            r = await session.call_tool("get_leaderboard", {})
+            assert not r.isError, tool_text(r)
+            import json as _lb_json
+            entries = []
+            for block in r.content:
+                parsed = _lb_json.loads(block.text)
+                entries.extend(parsed if isinstance(parsed, list) else [parsed])
+            assert entries and entries[0]["rank"] == 1
+            assert any(e.get("is_you") for e in entries), "connected user missing from leaderboard"
+            assert "user_id" not in entries[0]
+            print("get_leaderboard OK,", len(entries), "traders")
 
             # Trading disabled -> clear error
             set_trading(c, web_token, False)
