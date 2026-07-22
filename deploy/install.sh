@@ -179,7 +179,7 @@ Description=de BereBank auto-update (triggered by GitHub webhook)
 [Service]
 Type=oneshot
 ExecStartPre=/bin/rm -f /run/berebank/update-requested
-ExecStart=$REPO_DIR/deploy/update.sh
+ExecStart=/bin/bash $REPO_DIR/deploy/update.sh
 TimeoutStartSec=30min
 EOF
 
