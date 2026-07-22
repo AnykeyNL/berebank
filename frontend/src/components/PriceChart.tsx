@@ -359,7 +359,7 @@ export default function PriceChart({
   }, [limitOrders, trades, lastPrice, candles, chartType])
 
   const btnBase =
-    'rounded px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-500'
+    'rounded px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-500 md:px-2 md:py-1'
   const btnActive = 'bg-slate-700 text-slate-100'
   const btnIdle = 'text-slate-400 hover:text-slate-200'
 

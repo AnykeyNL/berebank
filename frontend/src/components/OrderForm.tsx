@@ -175,7 +175,7 @@ export default function OrderForm({ market, lastPrice, holdingAmount, reservedAm
                     disabled={owned <= 0}
                     onClick={() => fillPercent(pct)}
                     title={owned <= 0 ? t('orderForm.allReserved', { asset: baseAsset }) : undefined}
-                    className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 transition-colors enabled:hover:border-amber-500 enabled:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded border border-slate-700 px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors enabled:hover:border-amber-500 enabled:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40 md:px-1.5 md:py-0.5"
                   >
                     {pct}%
                   </button>
@@ -225,7 +225,7 @@ export default function OrderForm({ market, lastPrice, holdingAmount, reservedAm
                         type="button"
                         onClick={() => fillLimitPercent(offset)}
                         title={t('orderForm.limitPctTitle', { offset: `${offset > 0 ? '+' : ''}${offset}` })}
-                        className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400"
+                        className="rounded border border-slate-700 px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400 md:px-1.5 md:py-0.5"
                       >
                         {offset > 0 ? '+' : ''}
                         {offset}%

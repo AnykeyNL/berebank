@@ -33,7 +33,7 @@ function CopyableUrl({ labelKey, url }: { labelKey: string; url: string }) {
           type="text"
           readOnly
           value={url}
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm outline-none focus:border-amber-500"
+          className="w-full min-w-0 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm outline-none focus:border-amber-500"
         />
         <button
           type="button"

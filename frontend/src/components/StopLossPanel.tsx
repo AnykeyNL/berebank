@@ -129,7 +129,7 @@ export default function StopLossPanel({
                 <button
                   type="button"
                   onClick={() => cancelOrder(o.id)}
-                  className="rounded border border-slate-700 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-800"
+                  className="rounded border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 md:px-2 md:py-0.5"
                 >
                   {t('common.cancel')}
                 </button>
@@ -154,7 +154,7 @@ export default function StopLossPanel({
                       type="button"
                       onClick={() => fillTriggerPercent(pct)}
                       title={t('stopLoss.triggerPctTitle', { pct })}
-                      className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400"
+                      className="rounded border border-slate-700 px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:border-amber-500 hover:text-amber-400 md:px-1.5 md:py-0.5"
                     >
                       -{pct}%
                     </button>
@@ -191,7 +191,7 @@ export default function StopLossPanel({
                           ? t('orderForm.allReserved', { asset: baseAsset })
                           : t('stopLoss.protectPctTitle', { pct })
                       }
-                      className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 transition-colors enabled:hover:border-amber-500 enabled:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded border border-slate-700 px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors enabled:hover:border-amber-500 enabled:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40 md:px-1.5 md:py-0.5"
                     >
                       {pct}%
                     </button>

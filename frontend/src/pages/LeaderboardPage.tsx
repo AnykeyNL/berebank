@@ -46,7 +46,38 @@ export default function LeaderboardPage() {
         {entries.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-slate-500">{t('leaderboard.empty')}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Card list on phones, table on md+ */}
+          <div className="divide-y divide-slate-800/60 md:hidden">
+            {entries.map((entry, i) => {
+              const isMe = entry.user_id === user?.id
+              return (
+                <div key={entry.user_id} className={`px-4 py-3 ${isMe ? 'bg-amber-500/10' : ''}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="w-7 shrink-0 text-slate-400">
+                        {i < medals.length ? medals[i] : i + 1}
+                      </span>
+                      <span className={`truncate font-medium ${isMe ? 'text-amber-400' : ''}`}>
+                        {entry.display_name}
+                        {isMe && <span className="ml-2 text-xs text-slate-500">{t('leaderboard.you')}</span>}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono font-semibold text-white">{fmtEur(entry.total_eur)}</span>
+                  </div>
+                  <p className="mt-1 pl-9 text-xs text-slate-500">
+                    {t('leaderboard.cash')}: <span className="font-mono text-slate-400">{fmtEur(entry.cash_eur)}</span>
+                    <span className="mx-1.5">·</span>
+                    {t('leaderboard.assets')}:{' '}
+                    <span className="font-mono text-slate-400">{fmtEur(entry.assets_eur)}</span>
+                    <span className="mx-1.5">·</span>
+                    {t('leaderboard.trades')}: <span className="font-mono text-slate-400">{entry.trades}</span>
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -89,6 +120,7 @@ export default function LeaderboardPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
         <p className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">{t('leaderboard.note')}</p>
       </div>

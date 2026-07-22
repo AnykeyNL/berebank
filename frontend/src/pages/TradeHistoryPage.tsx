@@ -51,7 +51,60 @@ export default function TradeHistoryPage() {
         {trades.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-slate-500">{t('common.noTradesYet')}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Card list on phones, table on md+ */}
+          <div className="divide-y divide-slate-800/60 md:hidden">
+            {trades.map((tr) => {
+              const pnl = tr.pnl_eur !== null ? parseFloat(tr.pnl_eur) : null
+              const pnlClass =
+                pnl === null ? 'text-slate-500' : pnl > 0 ? 'text-emerald-400' : pnl < 0 ? 'text-red-400' : 'text-slate-300'
+              return (
+                <div key={tr.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-baseline gap-2">
+                      <span className="font-medium">{tr.market}</span>
+                      <span className={`text-xs font-medium ${tr.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {t(`common.${tr.side}`)}
+                      </span>
+                    </span>
+                    <span className="text-xs text-slate-500">{fmtDateTime(tr.created_at)}</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.amount')}</p>
+                      <p className="truncate font-mono">{fmtAmount(tr.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.price')}</p>
+                      <p className="truncate font-mono">{fmtPrice(tr.price)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.value')}</p>
+                      <p className="truncate font-mono">{fmtEur(tr.eur_value)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs">
+                    <span className="text-slate-500">
+                      {t('common.fee')}: <span className="font-mono text-slate-400">{fmtEur(tr.fee_eur)}</span>
+                    </span>
+                    {pnl !== null && (
+                      <span className={pnlClass}>
+                        {t('history.pnl')}:{' '}
+                        <span className="font-mono">
+                          {fmtEur(pnl)}
+                          {tr.pnl_pct !== null && ` (${fmtPct(tr.pnl_pct)})`}
+                        </span>
+                        <span className="ml-2 text-slate-500">
+                          {t('history.held')}: {fmtDuration(tr.held_seconds)}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -98,6 +151,7 @@ export default function TradeHistoryPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
         <p className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">{t('history.fifoNote')}</p>
       </div>

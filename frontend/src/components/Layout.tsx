@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import LanguageSwitcher from './LanguageSwitcher'
+import MobileTabBar from './MobileTabBar'
 
 const menuLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
@@ -69,7 +70,8 @@ export default function Layout() {
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="relative" ref={menuRef}>
+            {/* Hamburger menu is desktop-only; phones use the bottom tab bar. */}
+            <div className="relative hidden md:block" ref={menuRef}>
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
@@ -113,7 +115,7 @@ export default function Layout() {
               <span className="text-lg font-bold tracking-tight text-amber-400">de BereBank</span>
             </NavLink>
           </div>
-          <div className="ml-auto flex items-center gap-3 text-sm">
+          <div className="ml-auto hidden items-center gap-3 text-sm md:flex">
             <LanguageSwitcher />
             <span className="text-slate-400">
               {user?.display_name}
@@ -156,9 +158,10 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 pb-24 md:pb-6">
         <Outlet />
       </main>
+      <MobileTabBar />
     </div>
   )
 }

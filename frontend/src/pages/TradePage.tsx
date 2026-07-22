@@ -153,13 +153,13 @@ export default function TradePage() {
             placeholder={t('trade.searchPlaceholder')}
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm outline-none focus:border-amber-500"
           />
-          <div className="mt-2 flex gap-1">
+          <div className="mt-2 flex flex-wrap gap-1">
             {(['all', 'crypto', 'stock', 'fund'] as const).map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setClassFilter(c)}
-                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors md:px-2 md:py-1 ${
                   classFilter === c
                     ? 'bg-amber-500/15 text-amber-400'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
@@ -255,7 +255,7 @@ export default function TradePage() {
                   : ''}
               </p>
             </div>
-            <div className="flex gap-6 text-sm">
+            <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm sm:w-auto sm:justify-end sm:gap-6">
               <PriceStat label={t('trade.last')} value={fmtPrice(selectedPrice?.last ?? selectedMarket?.last)} />
               <PriceStat label={t('trade.bid')} value={fmtPrice(selectedPrice?.bid ?? selectedMarket?.bid)} />
               <PriceStat label={t('trade.ask')} value={fmtPrice(selectedPrice?.ask ?? selectedMarket?.ask)} />
@@ -341,7 +341,45 @@ export default function TradePage() {
           {openOrders.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-500">{t('trade.noOpenOrders')}</p>
           ) : (
-            <table className="w-full text-sm">
+            <>
+            {/* Card list on phones, table on md+ */}
+            <div className="divide-y divide-slate-800/60 md:hidden">
+              {openOrders.map((o) => (
+                <div key={o.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-baseline gap-2">
+                      <span className="font-medium">{o.market}</span>
+                      <span className={`text-xs font-medium ${o.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {t(`common.${o.side}`)}
+                      </span>
+                      <span className={`text-xs ${o.order_type === 'stop_loss' ? 'text-amber-400' : 'text-slate-400'}`}>
+                        {t(`common.${o.order_type}`)}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => cancelOrder(o.id)}
+                      className="rounded border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.amount')}</p>
+                      <p className="font-mono">{fmtAmount(o.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('trade.priceCol')}</p>
+                      <p className="font-mono">
+                        {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-500">{fmtDateTime(o.created_at)}</p>
+                </div>
+              ))}
+            </div>
+            <table className="hidden w-full text-sm md:table">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2">{t('trade.marketCol')}</th>
@@ -380,6 +418,7 @@ export default function TradePage() {
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
 
@@ -390,7 +429,40 @@ export default function TradePage() {
             <p className="px-4 py-6 text-center text-sm text-slate-500">{t('common.noTradesYet')}</p>
           ) : (
             <div className="max-h-80 overflow-y-auto">
-              <table className="w-full text-sm">
+              {/* Card list on phones, table on md+ */}
+              <div className="divide-y divide-slate-800/60 md:hidden">
+                {trades.map((tr) => (
+                  <div key={tr.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-baseline gap-2">
+                        <span className="font-medium">{tr.market}</span>
+                        <span className={`text-xs font-medium ${tr.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {t(`common.${tr.side}`)}
+                        </span>
+                      </span>
+                      <span className="text-xs text-slate-500">{fmtDateTime(tr.created_at)}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.amount')}</p>
+                        <p className="truncate font-mono">{fmtAmount(tr.amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.price')}</p>
+                        <p className="truncate font-mono">{fmtPrice(tr.price)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.value')}</p>
+                        <p className="truncate font-mono">{fmtEur(tr.eur_value)}</p>
+                      </div>
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      {t('common.fee')}: <span className="font-mono text-slate-400">{fmtEur(tr.fee_eur)}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <table className="hidden w-full text-sm md:table">
                 <thead className="sticky top-0 bg-slate-900">
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                     <th className="px-4 py-2">{t('common.time')}</th>

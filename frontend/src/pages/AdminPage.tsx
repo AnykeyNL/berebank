@@ -33,9 +33,16 @@ function UserManagement() {
       <h2 className="mb-4 text-xl font-bold">{t('admin.userManagement')}</h2>
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <CreateUserForm onCreated={load} />
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60">
+        <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/60">
           <h3 className="border-b border-slate-800 px-4 py-3 font-semibold">{t('admin.accounts')}</h3>
           {error && <p className="px-4 py-3 text-sm text-red-400">{error}</p>}
+          {/* Card list on phones, table on md+ */}
+          <div className="divide-y divide-slate-800/60 md:hidden">
+            {users.map((u) => (
+              <UserCard key={u.id} user={u} onChanged={load} />
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -53,13 +60,14 @@ function UserManagement() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </section>
   )
 }
 
-function UserRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }) {
+function useUserActions(user: AdminUser, onChanged: () => void) {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
   const [editing, setEditing] = useState(false)
@@ -75,6 +83,11 @@ function UserRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }
     onChanged()
   }
 
+  function startEditing() {
+    setBalance(parseFloat(user.balance_eur).toFixed(2))
+    setEditing(true)
+  }
+
   async function toggleActive() {
     await api(`/admin/users/${user.id}`, {
       method: 'PATCH',
@@ -88,6 +101,86 @@ function UserRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }
     await api(`/admin/users/${user.id}`, { method: 'DELETE' })
     onChanged()
   }
+
+  return { editing, setEditing, startEditing, balance, setBalance, saveBalance, toggleActive, deleteUser, canDelete }
+}
+
+function UserCard({ user, onChanged }: { user: AdminUser; onChanged: () => void }) {
+  const { t } = useTranslation()
+  const { editing, setEditing, startEditing, balance, setBalance, saveBalance, toggleActive, deleteUser, canDelete } =
+    useUserActions(user, onChanged)
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{user.display_name}</span>
+            {user.role === 'bank_manager' && (
+              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-400">BankManager</span>
+            )}
+            {user.is_active ? (
+              <span className="text-xs text-emerald-400">{t('admin.active')}</span>
+            ) : (
+              <span className="text-xs text-red-400">{t('admin.disabled')}</span>
+            )}
+          </span>
+          <span className="mt-0.5 block break-all text-xs text-slate-500">{user.email}</span>
+        </span>
+        {editing ? (
+          <span className="flex shrink-0 items-center gap-1">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={balance}
+              onChange={(e) => setBalance(e.target.value)}
+              className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-right text-xs outline-none focus:border-amber-500"
+            />
+            <button onClick={saveBalance} className="text-xs text-emerald-400 hover:underline">
+              {t('admin.save')}
+            </button>
+            <button onClick={() => setEditing(false)} className="text-xs text-slate-400 hover:underline">
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            onClick={startEditing}
+            title={t('admin.editBalanceTitle')}
+            className="shrink-0 font-mono hover:text-amber-400"
+          >
+            {fmtEur(user.balance_eur)}
+          </button>
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-slate-500">{fmtDateTime(user.created_at)}</span>
+        <span className="flex gap-1.5">
+          <button
+            onClick={toggleActive}
+            className="rounded border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+          >
+            {user.is_active ? t('admin.disable') : t('admin.enable')}
+          </button>
+          {canDelete && (
+            <button
+              onClick={deleteUser}
+              className="rounded border border-red-900/60 px-2.5 py-1 text-xs text-red-400 hover:bg-red-950/40"
+            >
+              {t('admin.delete')}
+            </button>
+          )}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function UserRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }) {
+  const { t } = useTranslation()
+  const { editing, setEditing, startEditing, balance, setBalance, saveBalance, toggleActive, deleteUser, canDelete } =
+    useUserActions(user, onChanged)
 
   return (
     <tr className="border-t border-slate-800/60">
@@ -122,10 +215,7 @@ function UserRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }
           </span>
         ) : (
           <button
-            onClick={() => {
-              setBalance(parseFloat(user.balance_eur).toFixed(2))
-              setEditing(true)
-            }}
+            onClick={startEditing}
             title={t('admin.editBalanceTitle')}
             className="hover:text-amber-400"
           >
@@ -227,7 +317,7 @@ function CreateUserForm({ onCreated }: { onCreated: () => void }) {
           className={inputClass}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">{t('admin.initialBalance')}</label>
           <input
@@ -621,6 +711,46 @@ function RssFeedSettings() {
       {data && data.feeds.length > 0 && (
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/60">
           <h3 className="border-b border-slate-800 px-4 py-3 font-semibold">{t('admin.rssFeedList')}</h3>
+          {/* Card list on phones, table on md+ */}
+          <div className="divide-y divide-slate-800/60 md:hidden">
+            {data.feeds.map((feed) => (
+              <div key={feed.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate font-medium">{feed.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleEnabled(feed.id, feed.enabled)}
+                    className={`shrink-0 text-xs ${feed.enabled ? 'text-emerald-400' : 'text-slate-500'}`}
+                  >
+                    {feed.enabled ? t('admin.active') : t('admin.disabled')}
+                  </button>
+                </div>
+                <p className="mt-1 break-all font-mono text-xs text-slate-400">{feed.url}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('admin.rssLastFetched')}: {feed.last_fetched_at ? fmtDateTime(feed.last_fetched_at) : '—'}
+                </p>
+                {feed.last_error && <p className="mt-1 text-xs text-red-400">{feed.last_error}</p>}
+                <div className="mt-2 flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => fetchNow(feed.id)}
+                    disabled={busy === feed.id}
+                    className="rounded border border-slate-700 px-2.5 py-1 text-xs text-amber-400 hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {t('admin.rssFetchNow')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteFeed(feed.id)}
+                    className="rounded border border-red-900/60 px-2.5 py-1 text-xs text-red-400 hover:bg-red-950/40"
+                  >
+                    {t('admin.delete')}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -672,6 +802,7 @@ function RssFeedSettings() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

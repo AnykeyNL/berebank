@@ -21,10 +21,12 @@
     "portfolio": "Portfolio",
     "trade": "Trade",
     "history": "Trade History",
+    "historyShort": "History",
     "leaderboard": "Leaderboard",
     "news": "News",
     "ai": "AI / MCP",
     "admin": "Admin",
+    "more": "More",
     "logout": "Log out"
   },
   "leaderboard": {

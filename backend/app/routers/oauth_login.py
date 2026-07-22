@@ -19,7 +19,9 @@ from ..security import verify_password
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 _EXPIRED_PAGE = """<!doctype html>
-<html><head><meta charset="utf-8"><title>de BereBank</title></head>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>de BereBank</title></head>
 <body style="font-family:system-ui;background:#0f172a;color:#e2e8f0;display:flex;
 justify-content:center;padding-top:4rem">
 <p>This authorization request has expired. Please start again from your MCP client.</p>

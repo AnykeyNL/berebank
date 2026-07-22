@@ -77,7 +77,48 @@ export default function PortfolioPage() {
         {openOrders.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-slate-500">{t('portfolio.noOpenLimitOrders')}</p>
         ) : (
-          <table className="w-full text-sm">
+          <>
+          {/* Card list on phones, table on md+ */}
+          <div className="divide-y divide-slate-800/60 md:hidden">
+            {openOrders.map((o) => (
+              <div key={o.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-baseline gap-2">
+                    <Link to={`/trade/${o.market}`} className="font-medium text-amber-400 hover:underline">
+                      {o.market}
+                    </Link>
+                    <span className={`text-xs font-medium ${o.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {t(`common.${o.side}`)}
+                    </span>
+                    <span className={`text-xs ${o.order_type === 'stop_loss' ? 'text-amber-400' : 'text-slate-400'}`}>
+                      {t(`common.${o.order_type}`)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => cancelOrder(o.id)}
+                    className="rounded border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.amount')}</p>
+                    <p className="font-mono">{fmtAmount(o.amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('trade.priceCol')}</p>
+                    <p className="font-mono">
+                      {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">{fmtDateTime(o.created_at)}</p>
+              </div>
+            ))}
+          </div>
+          <table className="hidden w-full text-sm md:table">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2">{t('trade.marketCol')}</th>
@@ -121,11 +162,12 @@ export default function PortfolioPage() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60">
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+        <div className="flex flex-col gap-1 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-semibold">{t('portfolio.yourAssets')}</h2>
           <span className="text-xs text-slate-400">
             {t('portfolio.feeTierLine', {
@@ -143,7 +185,61 @@ export default function PortfolioPage() {
             </Link>
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <>
+          {/* Card list on phones, table on md+ */}
+          <div className="divide-y divide-slate-800/60 md:hidden">
+            {live.holdings.map((h) => {
+              const changeClass =
+                h.change_24h_pct === null
+                  ? 'text-slate-500'
+                  : h.change_24h_pct >= 0
+                    ? 'text-emerald-400'
+                    : 'text-red-400'
+              const body = (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className={`font-medium ${h.market ? 'text-amber-400' : ''}`}>
+                        {h.market ?? h.asset}
+                      </span>
+                      {h.name && <span className="mt-0.5 block truncate text-sm text-slate-300">{h.name}</span>}
+                      {h.listing && <span className="mt-0.5 block text-xs text-slate-500">{h.listing}</span>}
+                    </span>
+                    <span className="shrink-0 text-right font-mono font-semibold">{fmtEur(h.live_value)}</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.amount')}</p>
+                      <p className="truncate font-mono">{fmtAmount(h.total_amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.price')}</p>
+                      <p className="truncate font-mono">{fmtPrice(h.current_price)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">{t('common.change24h')}</p>
+                      <p className={`font-mono ${changeClass}`}>{fmtPct(h.change_24h_pct)}</p>
+                    </div>
+                  </div>
+                  {parseFloat(h.reserved) > 0 && (
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      {t('portfolio.inOpenOrders', { amount: fmtAmount(h.reserved) })}
+                    </p>
+                  )}
+                </>
+              )
+              return h.market ? (
+                <Link key={h.asset} to={`/trade/${h.market}`} className="block px-4 py-3 hover:bg-slate-800/30">
+                  {body}
+                </Link>
+              ) : (
+                <div key={h.asset} className="px-4 py-3">
+                  {body}
+                </div>
+              )
+            })}
+          </div>
+          <table className="hidden w-full text-sm md:table">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2">{t('portfolio.asset')}</th>
@@ -194,6 +290,7 @@ export default function PortfolioPage() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
     </div>

@@ -21,10 +21,12 @@
     "portfolio": "Portfolio",
     "trade": "Handelen",
     "history": "Handelsgeschiedenis",
+    "historyShort": "Historie",
     "leaderboard": "Klassement",
     "news": "Nieuws",
     "ai": "AI / MCP",
     "admin": "Beheer",
+    "more": "Meer",
     "logout": "Uitloggen"
   },
   "leaderboard": {
