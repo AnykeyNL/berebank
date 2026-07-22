@@ -33,7 +33,8 @@ from .routers.orders import list_orders as _list_orders
 from .routers.orders import list_trades as _list_trades
 from .routers.orders import trade_history as _trade_history
 from .routers.portfolio import get_portfolio as _get_portfolio
-from .schemas import OrderOut
+from .routers.portfolio import get_portfolio_history as _get_portfolio_history
+from .schemas import OrderOut, PortfolioSnapshotOut
 from .services import trading
 from .services.trading import TradingError, trade_lock
 
@@ -205,6 +206,27 @@ def get_portfolio() -> dict:
     try:
         user = _current_user(db)
         return _get_portfolio(user=user, db=db).model_dump(mode="json")
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def get_portfolio_history() -> list[dict]:
+    """Get the user's portfolio value history over the past 30 days.
+
+    Returns hourly snapshots, oldest first, each with created_at,
+    total_value_eur (cash + reserved funds + holdings at the live price,
+    as a decimal string) and asset_count (distinct assets held, including
+    assets locked in open sell orders). Recording starts when the account
+    becomes active on the platform, so new accounts may have less than 30
+    days of history. Useful for charting performance over time or comparing
+    against market benchmarks.
+    """
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        rows = _get_portfolio_history(user=user, db=db)
+        return [PortfolioSnapshotOut.model_validate(r).model_dump(mode="json") for r in rows]
     finally:
         db.close()
 

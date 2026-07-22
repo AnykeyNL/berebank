@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
+import PortfolioValueChart from '../components/PortfolioValueChart'
 import { usePrices } from '../lib/usePrices'
 import { fmtAmount, fmtDateTime, fmtEur, fmtPct, fmtPrice } from '../lib/format'
 import type { Order, Portfolio } from '../lib/types'
@@ -85,6 +86,8 @@ export default function PortfolioPage() {
         <StatCard label={t('portfolio.reserved')} value={fmtEur(live.reserved)} />
         <StatCard label={t('portfolio.assetsValue')} value={fmtEur(live.holdingsValue)} />
       </div>
+
+      <PortfolioValueChart />
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60">
         <h2 className="border-b border-slate-800 px-4 py-3 font-semibold">{t('portfolio.openLimitOrders')}</h2>

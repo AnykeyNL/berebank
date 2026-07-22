@@ -155,6 +155,14 @@ class FeeTierOut(BaseModel):
     taker_pct: Decimal
 
 
+class PortfolioSnapshotOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    created_at: datetime
+    total_value_eur: Decimal
+    asset_count: int
+
+
 # ---- Leaderboard ----
 
 class LeaderboardEntry(BaseModel):

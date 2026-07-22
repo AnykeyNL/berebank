@@ -141,7 +141,10 @@
     "tradeLink": "Trade",
     "openLimitOrders": "Open limit & stop-loss orders",
     "noOpenLimitOrders": "No open limit or stop-loss orders",
-    "currentPrice": "Current price"
+    "currentPrice": "Current price",
+    "valueChartTitle": "Portfolio value (30 days)",
+    "assetsHeldLegend": "Assets held",
+    "valueChartEmpty": "Your portfolio value history starts recording now — the chart fills in hour by hour."
   },
   "assetClass": {
     "crypto": "Crypto",

@@ -85,6 +85,18 @@ class Trade(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
+class PortfolioSnapshot(Base):
+    """Hourly record of an account's total value, used for the portfolio chart."""
+
+    __tablename__ = "portfolio_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), index=True)
+    total_value_eur: Mapped[Decimal] = mapped_column(Money)
+    asset_count: Mapped[int] = mapped_column(default=0)  # distinct assets held (incl. open sell orders)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
 

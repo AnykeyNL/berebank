@@ -68,6 +68,7 @@ de BereBank exposes an [MCP](https://modelcontextprotocol.io) server so assistan
 | `analyze_market` | Technical analysis over a past `range` (`1d`, `1w`, `30d` default, `90d`, `180d`, `365d`): five strategies — trend (SMA/EMA crossovers), RSI-14, MACD, volatility (Bollinger Bands + ATR with a suggested stop-loss), support/resistance + volume — each with a bullish/bearish/neutral signal, reason, and explanation. Same engine as the web app's Analyze page |
 | `get_news` | Recent news for any market: RSS-matched articles (crypto and all assets) plus Twelve Data press releases for stocks/funds. Optional `limit` 1–10 |
 | `get_portfolio` | Cash, reserved funds, holdings with live valuation, total account value, current fee tier |
+| `get_portfolio_history` | Hourly snapshots of the past 30 days: total account value and distinct assets held, oldest first — for charting performance over time |
 | `list_orders` | Open, filled, or cancelled orders (newest first, max 200) |
 | `list_trades` | Executed trades (newest first, max 200) |
 | `get_trade_history` | Full trade history with **FIFO realized P&L** on sells (`pnl_eur`, `pnl_pct`, `held_seconds`) |

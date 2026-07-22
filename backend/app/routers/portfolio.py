@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends
@@ -5,13 +6,27 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Holding, Order, User
-from ..schemas import FeeTierOut, HoldingOut, PortfolioOut
+from ..models import Holding, Order, PortfolioSnapshot, User, utcnow
+from ..schemas import FeeTierOut, HoldingOut, PortfolioOut, PortfolioSnapshotOut
 from ..security import get_current_user
 from ..services.fees import get_30d_volume, get_fee_rates
 from ..services.market_data import market_data_service
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
+
+
+@router.get("/history", response_model=list[PortfolioSnapshotOut])
+def get_portfolio_history(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Hourly total-value snapshots for the past 30 days, oldest first."""
+    since = utcnow() - timedelta(days=30)
+    return db.scalars(
+        select(PortfolioSnapshot)
+        .where(
+            PortfolioSnapshot.account_id == user.account.id,
+            PortfolioSnapshot.created_at >= since,
+        )
+        .order_by(PortfolioSnapshot.created_at)
+    ).all()
 
 
 @router.get("", response_model=PortfolioOut)

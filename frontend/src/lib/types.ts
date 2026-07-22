@@ -143,6 +143,12 @@ export interface FeeTier {
   taker_pct: string
 }
 
+export interface PortfolioSnapshot {
+  created_at: string
+  total_value_eur: string
+  asset_count: number
+}
+
 export interface Portfolio {
   balance_eur: string
   reserved_eur: string

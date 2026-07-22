@@ -141,7 +141,10 @@
     "tradeLink": "Handel",
     "openLimitOrders": "Open limiet- & stop-loss-orders",
     "noOpenLimitOrders": "Geen open limiet- of stop-loss-orders",
-    "currentPrice": "Huidige koers"
+    "currentPrice": "Huidige koers",
+    "valueChartTitle": "Portefeuillewaarde (30 dagen)",
+    "assetsHeldLegend": "Aantal assets",
+    "valueChartEmpty": "De waardegeschiedenis van je portefeuille wordt vanaf nu bijgehouden — de grafiek vult zich uur na uur."
   },
   "assetClass": {
     "crypto": "Crypto",
