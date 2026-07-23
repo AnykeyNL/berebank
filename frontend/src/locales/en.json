@@ -394,6 +394,7 @@
     "amountPlaceholder": "e.g. 0.005",
     "eurPlaceholder": "e.g. 100",
     "allReserved": "All your {{asset}} is reserved in open orders — cancel an order to sell",
+    "allCashReserved": "All your cash is reserved in open buy orders — cancel an order to buy",
     "filled": "Order filled at {{price}} (fee € {{fee}})",
     "limitPlaced": "Limit order placed",
     "failed": "Order failed",

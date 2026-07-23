@@ -358,6 +358,10 @@ export default function TradePage() {
               lastPrice={selectedPrice?.last ?? selectedMarket?.last ?? null}
               holdingAmount={holding?.amount ?? null}
               reservedAmount={holding?.reserved ?? null}
+              balanceEur={portfolio?.balance_eur ?? null}
+              reservedEur={portfolio?.reserved_eur ?? null}
+              makerPct={portfolio?.fee_tier.maker_pct ?? null}
+              takerPct={portfolio?.fee_tier.taker_pct ?? null}
               onPlaced={refresh}
             />
 

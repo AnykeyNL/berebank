@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { fmtAmount, fmtDateTime, fmtDuration, fmtEur, fmtPct, fmtPrice } from '../lib/format'
@@ -62,7 +63,9 @@ export default function TradeHistoryPage() {
                 <div key={tr.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-baseline gap-2">
-                      <span className="font-medium">{tr.market}</span>
+                      <Link to={`/trade/${tr.market}`} className="font-medium text-amber-400 hover:underline">
+                        {tr.market}
+                      </Link>
                       <span className={`text-xs font-medium ${tr.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
                         {t(`common.${tr.side}`)}
                       </span>
@@ -128,7 +131,11 @@ export default function TradeHistoryPage() {
                   return (
                     <tr key={tr.id} className="border-t border-slate-800/60 hover:bg-slate-800/30">
                       <td className="px-4 py-2 whitespace-nowrap text-slate-400">{fmtDateTime(tr.created_at)}</td>
-                      <td className="px-4 py-2">{tr.market}</td>
+                      <td className="px-4 py-2">
+                        <Link to={`/trade/${tr.market}`} className="text-amber-400 hover:underline">
+                          {tr.market}
+                        </Link>
+                      </td>
                       <td className={`px-4 py-2 font-medium ${tr.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
                         {t(`common.${tr.side}`)}
                       </td>

@@ -394,6 +394,7 @@
     "amountPlaceholder": "bijv. 0,005",
     "eurPlaceholder": "bijv. 100",
     "allReserved": "Al je {{asset}} is gereserveerd in open orders — annuleer een order om te verkopen",
+    "allCashReserved": "Al je cash staat gereserveerd in open kooporders — annuleer een order om te kopen",
     "filled": "Order uitgevoerd tegen {{price}} (kosten € {{fee}})",
     "limitPlaced": "Limietorder geplaatst",
     "failed": "Order mislukt",

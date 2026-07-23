@@ -9,6 +9,10 @@ interface Props {
   lastPrice: string | null
   holdingAmount: string | null
   reservedAmount?: string | null
+  balanceEur?: string | null
+  reservedEur?: string | null
+  makerPct?: string | null
+  takerPct?: string | null
   onPlaced: () => void
 }
 
@@ -16,7 +20,17 @@ function trimZeros(value: string): string {
   return value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
 }
 
-export default function OrderForm({ market, lastPrice, holdingAmount, reservedAmount, onPlaced }: Props) {
+export default function OrderForm({
+  market,
+  lastPrice,
+  holdingAmount,
+  reservedAmount,
+  balanceEur,
+  reservedEur,
+  makerPct,
+  takerPct,
+  onPlaced,
+}: Props) {
   const { t } = useTranslation()
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market')
@@ -33,6 +47,8 @@ export default function OrderForm({ market, lastPrice, holdingAmount, reservedAm
   const baseAsset = market.split('-')[0]
   const owned = holdingAmount ? parseFloat(holdingAmount) : 0
   const reserved = reservedAmount ? parseFloat(reservedAmount) : 0
+  const availableCash = balanceEur ? parseFloat(balanceEur) : 0
+  const reservedCash = reservedEur ? parseFloat(reservedEur) : 0
 
   function priceBasis(limit: string = limitPrice): number | null {
     const p = orderType === 'limit' && limit ? parseFloat(limit) : lastPrice ? parseFloat(lastPrice) : null
@@ -85,6 +101,22 @@ export default function OrderForm({ market, lastPrice, holdingAmount, reservedAm
       return
     }
     syncFromCrypto(trimZeros(((owned * pct) / 100).toFixed(8)))
+  }
+
+  function fillCashPercent(pct: number) {
+    if (!balanceEur) return
+    if (pct === 100) {
+      const ratePct = orderType === 'limit' ? makerPct : takerPct
+      const rate = ratePct ? parseFloat(ratePct) / 100 : 0
+      const balance = parseFloat(balanceEur)
+      if (!Number.isNaN(balance) && rate > 0) {
+        syncFromEur(trimZeros((Math.floor((balance / (1 + rate)) * 100) / 100).toFixed(2)))
+        return
+      }
+      syncFromEur(balanceEur)
+      return
+    }
+    syncFromEur(trimZeros(((availableCash * pct) / 100).toFixed(2)))
   }
 
   async function onSubmit(e: FormEvent) {
@@ -195,9 +227,27 @@ export default function OrderForm({ market, lastPrice, holdingAmount, reservedAm
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-            {side === 'buy' ? t('orderForm.spendEur') : t('orderForm.receiveEur')}
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+              {side === 'buy' ? t('orderForm.spendEur') : t('orderForm.receiveEur')}
+            </label>
+            {side === 'buy' && (availableCash > 0 || reservedCash > 0) && (
+              <span className="flex gap-1">
+                {[25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    disabled={availableCash <= 0}
+                    onClick={() => fillCashPercent(pct)}
+                    title={availableCash <= 0 ? t('orderForm.allCashReserved') : undefined}
+                    className="rounded border border-slate-700 px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors enabled:hover:border-amber-500 enabled:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40 md:px-1.5 md:py-0.5"
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </span>
+            )}
+          </div>
           <input
             type="number"
             step="any"
