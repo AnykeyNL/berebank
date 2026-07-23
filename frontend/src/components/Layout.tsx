@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
+import FullscreenButton from './FullscreenButton'
 import LanguageSwitcher from './LanguageSwitcher'
 import MobileTabBar from './MobileTabBar'
 
@@ -116,6 +117,7 @@ export default function Layout() {
             </NavLink>
           </div>
           <div className="ml-auto hidden items-center gap-3 text-sm md:flex">
+            <FullscreenButton />
             <LanguageSwitcher />
             <span className="text-slate-400">
               {user?.display_name}

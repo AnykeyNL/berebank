@@ -27,6 +27,8 @@
     "ai": "AI / MCP",
     "admin": "Beheer",
     "more": "Meer",
+    "enterFullscreen": "Volledig scherm",
+    "exitFullscreen": "Volledig scherm verlaten",
     "logout": "Uitloggen"
   },
   "leaderboard": {

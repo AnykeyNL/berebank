@@ -27,6 +27,8 @@
     "ai": "AI / MCP",
     "admin": "Admin",
     "more": "More",
+    "enterFullscreen": "Enter fullscreen",
+    "exitFullscreen": "Exit fullscreen",
     "logout": "Log out"
   },
   "leaderboard": {
