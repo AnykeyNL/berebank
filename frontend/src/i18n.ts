@@ -15,9 +15,16 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false }, // React already escapes
 })
 
+function syncDocumentLanguage(lng: string) {
+  const lang = lng.startsWith('nl') ? 'nl' : 'en'
+  document.documentElement.lang = lang
+}
+
 i18n.on('languageChanged', (lng) => {
   localStorage.setItem(LANG_KEY, lng)
-  document.documentElement.lang = lng
+  syncDocumentLanguage(lng)
 })
+
+syncDocumentLanguage(i18n.language)
 
 export default i18n

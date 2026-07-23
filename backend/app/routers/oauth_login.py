@@ -19,7 +19,8 @@ from ..security import verify_password
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 _EXPIRED_PAGE = """<!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>de BereBank</title></head>
 <body style="font-family:system-ui;background:#0f172a;color:#e2e8f0;display:flex;
@@ -34,9 +35,10 @@ def _login_page(txn: str, client_name: str, error: str | None = None) -> str:
         if error else ""
     )
     return f"""<!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>de BereBank — authorize access</title>
 <style>
