@@ -176,7 +176,7 @@ export default function TradePage() {
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm outline-none focus:border-amber-500"
           />
           <div className="mt-2 flex gap-1">
-            {(['all', 'mine', 'crypto', 'stock', 'fund'] as const).map((c) => (
+            {(['all', 'mine', 'crypto', 'stock', 'fund', 'commodity'] as const).map((c) => (
               <button
                 key={c}
                 type="button"

@@ -9,6 +9,7 @@ No real money or real orders are ever involved — only the market data is real.
 ## Features
 
 - Live prices for all ~430 EUR markets via the [Bitvavo public WebSocket API](https://docs.bitvavo.com/docs/websocket-api/) (no API key required)
+- US stocks (S&P 100), popular ETFs ("funds") and commodities (gold, silver, platinum, palladium and oil) as `{TICKER}-EUR` markets via [Twelve Data](https://twelvedata.com), once a BankManager sets the API key in Admin; USD-priced instruments are converted with the live USD/EUR rate
 - Market orders (instant fill at live bid/ask, taker fee) and limit orders (filled by a background matcher when the live price crosses, maker fee)
 - Portfolio view: EUR cash, reserved funds, crypto holdings with live valuation, total account value, current fee tier
 - Role system: regular users trade; **BankManager** creates accounts, sets initial/current balances, enables/disables users, and manages the Bitvavo API configuration

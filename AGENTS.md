@@ -35,8 +35,9 @@ All instruments are quoted in **EUR** (`{TICKER}-EUR`):
 | **Crypto** (~430 markets) | Bitvavo live WebSocket | 24/7 |
 | **Stocks** | S&P 100 | Exchange hours only |
 | **Funds** (ETFs) | Popular US ETFs | Exchange hours only |
+| **Commodities** | Gold (XAU), silver (XAG), platinum (XPT), palladium (XPD), WTI, Brent (XBR) and Urals crude oil | Forex hours (roughly 24/5, closed weekends) |
 
-**Stocks and funds:** market orders are rejected while the exchange is closed (evenings, weekends). Limit orders can be placed anytime and may fill when trading resumes. Crypto has no market-hours restriction.
+**Stocks, funds and commodities:** market orders are rejected while the market is closed (evenings and weekends for stocks/funds, weekends for commodities). Limit orders can be placed anytime and may fill when trading resumes. Crypto has no market-hours restriction.
 
 ## How trading works (simulation rules)
 
@@ -63,7 +64,7 @@ de BereBank exposes an [MCP](https://modelcontextprotocol.io) server so assistan
 
 | Tool | Use for |
 | --- | --- |
-| `list_markets` | Browse all markets with live last/bid/ask, 24h change, volume. Filter by `asset_class` (`crypto`, `stock`, `fund`) or symbol substring (e.g. `filter="BTC"`) |
+| `list_markets` | Browse all markets with live last/bid/ask, 24h change, volume. Filter by `asset_class` (`crypto`, `stock`, `fund`, `commodity`) or symbol substring (e.g. `filter="BTC"`) |
 | `get_candles` | OHLCV candles for charting and technical analysis. Optional `range`: `1h`, `1d` (default), `1w`, `30d`, `90d`, `180d`, `365d`; the bar interval scales with the range (1-minute up to daily bars) |
 | `analyze_market` | Technical analysis over a past `range` (`1d`, `1w`, `30d` default, `90d`, `180d`, `365d`): five strategies — trend (SMA/EMA crossovers), RSI-14, MACD, volatility (Bollinger Bands + ATR with a suggested stop-loss), support/resistance + volume — each with a bullish/bearish/neutral signal, reason, and explanation. Same engine as the web app's Analyze page |
 | `get_news` | Recent news for any market: RSS-matched articles (crypto and all assets) plus Twelve Data press releases for stocks/funds. Optional `limit` 1–10 |
@@ -120,7 +121,7 @@ When helping a user compete on the leaderboard:
 
 - You see **only the connected user's** account in detail — `get_leaderboard` shows other traders' totals (cash, assets, total) but never their individual positions or orders
 - **Never** place or cancel orders unless the user has enabled MCP trading and asked you to trade
-- Stock/fund **market orders fail outside exchange hours** — suggest limit orders or waiting
+- Stock, fund and commodity **market orders fail while the market is closed** — suggest limit orders or waiting
 - High-frequency churn increases **fees** and can lower net returns — factor fees into strategy advice
 - This is **educational simulation** — not financial advice for real investing
 

@@ -149,7 +149,8 @@
   "assetClass": {
     "crypto": "Crypto",
     "stock": "Stock",
-    "fund": "Fund"
+    "fund": "Fund",
+    "commodity": "Commodity"
   },
   "trade": {
     "searchPlaceholder": "Search by name or ticker…",
@@ -158,7 +159,8 @@
       "mine": "My assets",
       "crypto": "Crypto",
       "stock": "Stocks",
-      "fund": "Funds"
+      "fund": "Funds",
+      "commodity": "Commodities"
     },
     "marketClosed": "market closed",
     "live": "live",

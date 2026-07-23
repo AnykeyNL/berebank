@@ -1,6 +1,7 @@
-"""Curated list of stock and fund instruments served via Twelve Data.
+"""Curated list of stock, fund and commodity instruments served via Twelve Data.
 
-Universe: the S&P 100 and a handful of popular ETFs ("funds"). Every
+Universe: the S&P 100, a handful of popular ETFs ("funds") and the spot
+commodities Twelve Data offers (precious metals and oil). Every
 instrument is exposed as a
 ``{TICKER}-EUR`` market so the rest of the app (portfolio, leaderboard,
 orders) can treat the ticker exactly like a crypto base asset. USD-priced
@@ -16,14 +17,20 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Instrument:
     symbol: str        # exchange ticker as known by Twelve Data
-    asset_class: str   # "stock" | "fund"
+    asset_class: str   # "stock" | "fund" | "commodity"
     currency: str      # native quote currency ("EUR" or "USD")
     exchange: str | None = None  # Twelve Data exchange suffix (None = US)
     alias: str | None = None     # base-asset override when the ticker collides with a crypto
+    name: str | None = None      # display-name override (quote names are kept otherwise)
 
     @property
     def td_symbol(self) -> str:
         """Symbol as sent to / returned by the Twelve Data API."""
+        # Commodities are slash pairs against a quote currency (e.g. XAU/EUR,
+        # WTI/USD); stocks and funds are plain tickers with an optional
+        # exchange suffix.
+        if self.asset_class == "commodity":
+            return f"{self.symbol}/{self.currency}"
         return f"{self.symbol}:{self.exchange}" if self.exchange else self.symbol
 
     @property
@@ -72,9 +79,23 @@ _FUNDS_US = [
     "IBIT", "GLD",
 ]
 
+# Spot commodities. XAU and XAG are quoted natively in EUR; the rest are
+# USD spot prices converted with the live USD/EUR rate, like US stocks.
+# These trade on forex hours (roughly 24/5, closed on weekends).
+_COMMODITIES = [
+    Instrument("XAU", "commodity", "EUR", name="Gold"),
+    Instrument("XAG", "commodity", "EUR", name="Silver"),
+    Instrument("XPT", "commodity", "USD", name="Platinum"),
+    Instrument("XPD", "commodity", "USD", name="Palladium"),
+    Instrument("WTI", "commodity", "USD", name="WTI Crude Oil"),
+    Instrument("XBR", "commodity", "USD", name="Brent Crude Oil"),
+    Instrument("URALS", "commodity", "USD", name="Urals Crude Oil"),
+]
+
 INSTRUMENTS: list[Instrument] = (
     [_us(s) for s in _US_STOCKS]
     + [_us(s, "fund") for s in _FUNDS_US]
+    + _COMMODITIES
 )
 
 INSTRUMENTS_BY_MARKET: dict[str, Instrument] = {i.market: i for i in INSTRUMENTS}

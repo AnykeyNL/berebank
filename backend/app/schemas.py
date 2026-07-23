@@ -47,7 +47,7 @@ class MarketOut(BaseModel):
     quote: str
     name: str | None = None  # full asset name, e.g. "Apple Inc." or "Bitcoin"
     listing: str | None = None  # venue, e.g. "Bitvavo", "NASDAQ", "NYSE"
-    asset_class: str = "crypto"  # crypto | stock | fund
+    asset_class: str = "crypto"  # crypto | stock | fund | commodity
     market_open: bool | None = None  # None for crypto (always open)
     last: Decimal | None = None
     bid: Decimal | None = None

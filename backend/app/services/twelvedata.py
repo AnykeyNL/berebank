@@ -1,8 +1,8 @@
-"""Twelve Data market data client for stocks and funds.
+"""Twelve Data market data client for stocks, funds and commodities.
 
 Polls batched /quote requests for the curated instrument list (see
 instruments.py) once per minute, plus the USD/EUR exchange rate used to
-convert US-listed instruments to EUR. The service is idle until a
+convert USD-priced instruments to EUR. The service is idle until a
 BankManager saves a Twelve Data API key in the admin settings.
 
 Exposes the same surface as BitvavoService (markets, prices, get_price,
@@ -122,8 +122,10 @@ class TwelveDataService:
                 "currency": inst.currency,
                 "listing": None,
             }
+            if inst.name:
+                markets[inst.market]["name"] = inst.name
         self.markets = markets
-        logger.info("Loaded %d stock/fund instruments for Twelve Data", len(markets))
+        logger.info("Loaded %d Twelve Data instruments", len(markets))
 
     async def _run(self) -> None:
         while True:
@@ -191,7 +193,9 @@ class TwelveDataService:
             entry = self._build_entry(inst, quote)
             if entry is not None:
                 name = quote.get("name")
-                if name:
+                # Instruments with a curated display name keep it (commodity
+                # quote names read like "Gold Spot / Euro").
+                if name and inst.name is None:
                     self.markets[inst.market]["name"] = name
                 listing = _listing_from_quote(quote)
                 if listing:
@@ -305,7 +309,12 @@ class TwelveDataService:
         if self.api_key is None or not self._instruments:
             return []
 
-        markets = list(self._instruments.keys())[:max_markets]
+        # Commodities have no press releases (the endpoint returns 404).
+        markets = [
+            market
+            for market, inst in self._instruments.items()
+            if inst.asset_class != "commodity"
+        ][:max_markets]
         sem = asyncio.Semaphore(5)
 
         async def fetch_one(

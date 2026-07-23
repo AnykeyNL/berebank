@@ -44,10 +44,11 @@ mcp = FastMCP(
     "de BereBank",
     instructions=(
         "de BereBank is a simulated exchange: users trade with paper money in EUR "
-        "against live market data (crypto via Bitvavo; US stocks and funds "
-        "via Twelve Data), with realistic maker/taker fees. Amounts and prices are "
-        "decimal numbers serialized as strings. Stock/fund market orders are rejected "
-        "while the exchange is closed. Besides market and limit orders, stop-loss "
+        "against live market data (crypto via Bitvavo; US stocks, funds and "
+        "commodities via Twelve Data), with realistic maker/taker fees. Amounts and "
+        "prices are decimal numbers serialized as strings. Market orders on "
+        "stocks, funds and commodities are rejected while the market is closed. "
+        "Besides market and limit orders, stop-loss "
         "sell orders are supported: they trigger when the price falls to the trigger "
         "price and then sell at the live bid. Placing or cancelling orders requires "
         "the user to have enabled trading via MCP in their BereBank profile."
@@ -102,14 +103,15 @@ def _parse_decimal(value: str | float | int | None, field: str) -> Decimal | Non
 def list_markets(filter: str | None = None, asset_class: str | None = None) -> list[dict]:
     """List EUR markets with live prices (last/bid/ask), 24h change and volume.
 
-    Markets cover crypto plus US stocks and funds; each row has an
-    asset_class of "crypto", "stock" or "fund" (stocks/funds also carry a
-    market_open flag). Optionally filter by asset_class and/or by a
-    case-insensitive substring of the market symbol, e.g. "BTC" matches
-    BTC-EUR. Prices are EUR decimals as strings.
+    Markets cover crypto plus US stocks, funds and commodities (gold, silver,
+    platinum, palladium and oil); each row has an asset_class of "crypto",
+    "stock", "fund" or "commodity" (non-crypto rows also carry a market_open
+    flag). Optionally filter by asset_class and/or by a case-insensitive
+    substring of the market symbol, e.g. "BTC" matches BTC-EUR. Prices are
+    EUR decimals as strings.
     """
-    if asset_class is not None and asset_class not in ("crypto", "stock", "fund"):
-        raise ToolError('asset_class must be "crypto", "stock" or "fund"')
+    if asset_class is not None and asset_class not in ("crypto", "stock", "fund", "commodity"):
+        raise ToolError('asset_class must be "crypto", "stock", "fund" or "commodity"')
     db = SessionLocal()
     try:
         user = _current_user(db)
@@ -130,7 +132,8 @@ async def get_candles(market: str, range: str = "1d") -> list[list]:
     first. Range is one of "1h", "1d", "1w", "30d", "90d", "180d" or "365d"
     (default "1d"); the bar interval scales with the range, from 1-minute
     bars for "1h" up to daily bars for "90d" and longer. Stocks and funds
-    only have bars during exchange hours.
+    only have bars during exchange hours; commodities follow forex hours
+    (roughly 24/5).
     """
     db = SessionLocal()
     try:

@@ -149,7 +149,8 @@
   "assetClass": {
     "crypto": "Crypto",
     "stock": "Aandeel",
-    "fund": "Fonds"
+    "fund": "Fonds",
+    "commodity": "Grondstof"
   },
   "trade": {
     "searchPlaceholder": "Zoek op naam of ticker…",
@@ -158,7 +159,8 @@
       "mine": "Mijn bezittingen",
       "crypto": "Crypto",
       "stock": "Aandelen",
-      "fund": "Fondsen"
+      "fund": "Fondsen",
+      "commodity": "Grondstoffen"
     },
     "marketClosed": "beurs gesloten",
     "live": "live",

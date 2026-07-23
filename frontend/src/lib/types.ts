@@ -8,7 +8,7 @@ export interface User {
   mcp_trading_enabled: boolean
 }
 
-export type AssetClass = 'crypto' | 'stock' | 'fund'
+export type AssetClass = 'crypto' | 'stock' | 'fund' | 'commodity'
 
 export interface Market {
   market: string

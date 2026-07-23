@@ -3,7 +3,8 @@ import type { AssetClass } from '../lib/types'
 
 /**
  * Small inline icon indicating an asset's class: a coin for crypto, a bar
- * chart for stocks and a pie chart for funds.
+ * chart for stocks, a pie chart for funds and a stack of ingots for
+ * commodities.
  */
 export default function AssetClassIcon({ assetClass, className = 'h-4 w-4' }: { assetClass: AssetClass; className?: string }) {
   const { t } = useTranslation()
@@ -18,6 +19,17 @@ export default function AssetClassIcon({ assetClass, className = 'h-4 w-4' }: { 
         <path d="M6.5 13.5v-7" />
         <path d="M10.5 13.5v-5" />
         <path d="M14 13.5v-9" />
+      </svg>
+    )
+  }
+  if (assetClass === 'commodity') {
+    return (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"
+        className={`${className} text-orange-400`} role="img" aria-label={label}>
+        <title>{label}</title>
+        <path d="M6.2 3.5h3.6l1.2 3.5H5l1.2-3.5Z" />
+        <path d="M2.7 9h3.6l1.2 3.5H1.5L2.7 9Z" />
+        <path d="M9.7 9h3.6l1.2 3.5H8.5L9.7 9Z" />
       </svg>
     )
   }

@@ -59,7 +59,7 @@ def _change_pct(price: dict) -> Decimal | None:
 def list_markets(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    asset_class: Annotated[str | None, Query(pattern="^(crypto|stock|fund)$")] = None,
+    asset_class: Annotated[str | None, Query(pattern="^(crypto|stock|fund|commodity)$")] = None,
 ):
     article_counts = get_markets_with_articles(db)
     td_configured = twelvedata_service.api_key is not None
@@ -69,10 +69,11 @@ def list_markets(
             continue
         price = market_data_service.get_price(market) or {}
         rss_count = article_counts.get(market, 0)
-        if info["asset_class"] == "crypto":
-            has_news = rss_count > 0
-        else:
+        if info["asset_class"] in ("stock", "fund"):
             has_news = rss_count > 0 or td_configured
+        else:
+            # Crypto and commodities rely on RSS matching only.
+            has_news = rss_count > 0
         out.append(MarketOut(
             market=market,
             base=info["base"],
@@ -209,7 +210,7 @@ async def get_news(
 
     items: list[dict] = fetch_articles_for_market(db, market, limit=limit)
 
-    if market_info["asset_class"] != "crypto":
+    if market_info["asset_class"] in ("stock", "fund"):
         try:
             td_items = await twelvedata_service.fetch_press_releases(market, limit)
             for row in td_items:
