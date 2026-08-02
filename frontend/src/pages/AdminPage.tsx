@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, downloadApiFile, uploadApiFile } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -846,7 +846,7 @@ function CandleHistoryTransfer() {
     }
   }
 
-  async function onImport(e: FormEvent<HTMLInputElement>) {
+  async function onImport(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
