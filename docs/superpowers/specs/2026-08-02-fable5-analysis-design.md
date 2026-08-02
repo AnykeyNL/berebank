@@ -1,7 +1,8 @@
 # Fable5 analysis — design spec
 
 Date: 2026-08-02
-Status: implemented
+Status: implemented (extended the same day — see "Extension: asset-class
+context signals for short-term horizons" below)
 
 ## Goal
 
@@ -110,3 +111,86 @@ existing Analyze, KimiK3 and GTP56Sol sections untouched.
   the same shared candle harvest as the other analyzers.
 - The outlook is an educational indication, not a prediction; the disclaimer
   is shown on the page and documented in the MCP tool.
+
+## Extension: asset-class context signals for short-term horizons
+
+Evaluated against `docs/external_source.md`, the original eight-signal design
+left the highest-value short-term data from the paid subscriptions unused.
+The extension keeps the fixed-weight recipe and the shared outlook contract,
+and adds context signals that only join the vote for the asset class they
+belong to (an equity user never sees crypto derivative slots and vice versa;
+the walk-forward track record still uses the eight price strategies only).
+
+### New data integration
+
+- **Coinglass `/api/futures/pairs-markets`** (the top unused Hobbyist
+  endpoint per the external-sources doc): aggregated per coin into a
+  cross-exchange taker `long_short_ratio` and the 24h
+  `long/short_liquidation_usd_24h` split. Cached 15 min per symbol in
+  `services/coinglass.py`, merged into the crypto market context, and shown
+  in the supplementary context panel of all analysis pages.
+
+### Signal changes (fixed weights in parentheses)
+
+- **Crypto**
+  - `oi_momentum` (1.0) — now price-confirmed: OI change (4h preferred when
+    it moves ≥2%, else 24h) read against the price move over the same
+    window computed from the request's own candles. OI up + price up is
+    bullish (new longs), OI up + price down is bearish (new shorts, the
+    case the old level-only rule got backwards), OI down means the move
+    runs on closing positions (neutral "unwinding").
+  - `long_short` (1.0, new) — taker long/short volume ratio, contrarian at
+    extremes (≥1.2 crowded longs bearish, ≤0.83 crowded shorts bullish).
+  - `liquidations` (1.0, new) — 24h liquidation split: a ≥70% one-sided
+    long flush is a contrarian bounce setup (bullish), a short squeeze is
+    pullback risk (bearish); totals under 0.05% of open interest count as
+    calm (neutral).
+  - `fear_greed_regime` — extremes stay contrarian; in the middle zone a
+    ±10-point 7-day change now votes with the sentiment momentum.
+- **Stocks / funds / commodities**
+  - `vix_regime` — level bands unchanged; mid-range now reads the 5-day
+    VIX change (≥+20% spike bearish, ≤-15% cool-down bullish). For
+    precious metals (XAU/XAG/XPT/XPD) elevated or spiking VIX votes
+    bullish (safe-haven bid) instead of bearish.
+  - `yield_curve` — inverted curve votes bullish for precious metals
+    (recession hedge) and the signal is omitted entirely for energy
+    commodities (WTI/XBR/URALS) where the treasury curve is not
+    predictive.
+  - `relative_strength` (1.0, new, stocks only) — 20-day return vs the
+    sector SPDR ETF (±2 pp thresholds), the short-term relative-strength
+    data `td_context.py` already fetched but nothing consumed.
+  - `event_risk` (1.0, new, stocks only) — within 5 days of a scheduled
+    earnings report it votes neutral on purpose, diluting the score toward
+    the middle while gap risk is live; otherwise it abstains.
+
+### Buy / sell scores
+
+`compute_outlook` additionally returns `buy_score` and `sell_score`
+(0..100): the shares of active signal weight voting bullish resp. bearish.
+Unlike the net score they surface contested markets — high values on both
+sides mean the evidence is split, not absent. They ride along on the
+outlook contract (detail endpoint, `/markets/fable5-outlooks` summaries,
+MCP tool) and render as sortable Buy / Sell columns in the Fable5 asset
+picker table (default sort: Buy, descending) plus chips on the detail
+hero card.
+
+### Plumbing
+
+- The Fable5 endpoints copy the shared context and tag it with
+  `asset_class` and `base` (never mutating the cached macro dicts);
+  `analyze_fable5` gates strategy inclusion on those tags.
+- `crypto_context.serialize_context` exposes the new positioning fields;
+  the supplementary context panel renders long/short ratio and liquidation
+  rows for every analysis page namespace (en + nl).
+- Coinglass request budget: one bulk funding call plus two cached calls per
+  unique coin per 15 min (open interest + pairs-markets) — within the
+  Hobbyist 30 req/min limit for realistic usage.
+
+### Not done (documented for later)
+
+- RSS headline sentiment (external-sources suggestion #6): needs an NLP
+  scoring step and a context plumbing change; naive keyword scoring risks
+  degrading signal quality, so it stays out for now.
+- Funding/OI 4h history harvest (suggestion #4) would enable backtesting
+  the derivative signals; today they are live-only and therefore excluded
+  from the track record by design.

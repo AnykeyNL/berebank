@@ -17,11 +17,14 @@ logger = logging.getLogger("berebank.coinglass")
 COINGLASS_REST_URL = "https://open-api-v4.coinglass.com"
 _CACHE_TTL = 900.0
 _OI_CACHE_TTL = 900.0
+_PAIRS_CACHE_TTL = 900.0
 
 _funding_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
 _oi_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+_pairs_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _funding_lock = asyncio.Lock()
 _oi_lock = asyncio.Lock()
+_pairs_lock = asyncio.Lock()
 
 
 class CoinglassService:
@@ -32,9 +35,10 @@ class CoinglassService:
 
     def set_api_key(self, api_key: str | None) -> None:
         self.api_key = api_key.strip() if api_key else None
-        global _funding_cache, _oi_cache
+        global _funding_cache, _oi_cache, _pairs_cache
         _funding_cache = None
         _oi_cache = {}
+        _pairs_cache = {}
 
     def status(self) -> dict[str, Any]:
         return {
@@ -131,6 +135,47 @@ async def fetch_open_interest(client: httpx.AsyncClient, symbol: str) -> dict[st
     }
 
 
+def _sum_field(rows: list[dict], field: str) -> float | None:
+    total = 0.0
+    seen = False
+    for row in rows:
+        value = row.get(field)
+        if value is None:
+            continue
+        try:
+            total += float(value)
+            seen = True
+        except (TypeError, ValueError):
+            continue
+    return total if seen else None
+
+
+def aggregate_pairs_markets(rows: list[dict]) -> dict[str, Any]:
+    """Cross-exchange positioning aggregates from ``/pairs-markets`` rows.
+
+    Long/short taker volume ratio and 24h liquidation split — the short-term
+    positioning data the Hobbyist plan exposes per coin in one call.
+    """
+    long_vol = _sum_field(rows, "long_volume_usd")
+    short_vol = _sum_field(rows, "short_volume_usd")
+    long_liq = _sum_field(rows, "long_liquidation_usd_24h")
+    short_liq = _sum_field(rows, "short_liquidation_usd_24h")
+    out: dict[str, Any] = {}
+    if long_vol is not None and short_vol is not None and short_vol > 0:
+        out["long_short_ratio"] = long_vol / short_vol
+    if long_liq is not None or short_liq is not None:
+        out["long_liquidation_usd_24h"] = long_liq or 0.0
+        out["short_liquidation_usd_24h"] = short_liq or 0.0
+    return out
+
+
+async def fetch_pairs_markets(client: httpx.AsyncClient, symbol: str) -> dict[str, Any] | None:
+    rows = await _get_json(client, "/api/futures/pairs-markets", params={"symbol": symbol})
+    if not isinstance(rows, list) or not rows:
+        return None
+    return aggregate_pairs_markets(rows)
+
+
 async def get_funding_map() -> dict[str, dict[str, Any]]:
     """All symbols' average funding rates (one Coinglass call, cached)."""
     global _funding_cache
@@ -186,16 +231,34 @@ async def get_symbol_derivatives(base: str) -> dict[str, Any]:
         cached = _oi_cache.get(resolved)
         if cached and now - cached[0] < _OI_CACHE_TTL:
             out.update(cached[1])
-            return out
-        try:
-            async with httpx.AsyncClient(base_url=COINGLASS_REST_URL, headers=_headers(), timeout=30) as client:
-                oi = await fetch_open_interest(client, resolved)
-        except Exception:
-            logger.debug("Coinglass OI fetch failed for %s", resolved, exc_info=True)
-            oi = cached[1] if cached else None
-        if oi:
-            _oi_cache[resolved] = (now, oi)
-            out.update(oi)
-        elif cached:
+        else:
+            try:
+                async with httpx.AsyncClient(base_url=COINGLASS_REST_URL, headers=_headers(), timeout=30) as client:
+                    oi = await fetch_open_interest(client, resolved)
+            except Exception:
+                logger.debug("Coinglass OI fetch failed for %s", resolved, exc_info=True)
+                oi = cached[1] if cached else None
+            if oi:
+                _oi_cache[resolved] = (now, oi)
+                out.update(oi)
+            elif cached:
+                out.update(cached[1])
+
+    async with _pairs_lock:
+        now = time.monotonic()
+        cached = _pairs_cache.get(resolved)
+        if cached and now - cached[0] < _PAIRS_CACHE_TTL:
             out.update(cached[1])
+        else:
+            try:
+                async with httpx.AsyncClient(base_url=COINGLASS_REST_URL, headers=_headers(), timeout=30) as client:
+                    pairs = await fetch_pairs_markets(client, resolved)
+            except Exception:
+                logger.debug("Coinglass pairs-markets fetch failed for %s", resolved, exc_info=True)
+                pairs = cached[1] if cached else None
+            if pairs:
+                _pairs_cache[resolved] = (now, pairs)
+                out.update(pairs)
+            elif cached:
+                out.update(cached[1])
     return out

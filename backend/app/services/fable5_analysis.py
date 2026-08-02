@@ -1,12 +1,23 @@
-"""Fable5 analysis: a fixed-weight direction gauge blended from eight signals.
+"""Fable5 analysis: a fixed-weight direction gauge blended from many signals.
 
 Reuses the five strategy signals from ``analysis.analyze`` (single source of
-truth for base indicator math) and adds three Fable5-specific strategies:
+truth for base indicator math) and adds three Fable5-specific price strategies:
 dual-horizon momentum (rate of change over 10 and 20 bars), a slow stochastic
-oscillator (14, 3, 3) and ADX trend strength. All eight votes blend into one
-composite outlook: a direction (bullish/bearish/neutral), a -100..+100 score
-rendered as a five-zone gauge in the web app, a confidence level and
-per-strategy contributions so users can see exactly why.
+oscillator (14, 3, 3) and ADX trend strength. On top of that, asset-class
+specific context signals join the vote when supplementary data is available:
+
+- All non-crypto: VIX level and 5-day VIX change, treasury yield curve
+  (inverted for precious metals, omitted for energy futures where it is not
+  predictive).
+- Crypto: Fear & Greed level and 7-day sentiment momentum, BTC dominance /
+  stablecoin liquidity, Coinglass funding, price-confirmed open-interest
+  momentum, cross-exchange long/short taker ratio and 24h liquidation split.
+- Stocks: 20-day relative strength vs the sector SPDR ETF and an earnings
+  proximity brake that pulls the score toward neutral in gap-risk windows.
+
+All votes blend into one composite outlook: a direction (bullish/bearish/
+neutral), a -100..+100 score rendered as a five-zone gauge in the web app, a
+confidence level and per-strategy contributions so users can see exactly why.
 
 Unlike KimiK3's regime-aware weighting, Fable5 uses fixed importance weights
 that never change with market conditions: the recipe users see is always the
@@ -16,6 +27,10 @@ weighted share of active strategies agreeing with the verdict.
 from __future__ import annotations
 
 from . import analysis
+
+# Commodity bases whose macro signals need special treatment.
+PRECIOUS_METALS = {"XAU", "XAG", "XPT", "XPD"}
+ENERGY_COMMODITIES = {"WTI", "XBR", "URALS"}
 
 EXPLANATIONS = {
     "momentum": (
@@ -38,13 +53,17 @@ EXPLANATIONS = {
     "vix_regime": (
         "The CBOE Volatility Index (VIX) measures expected US equity "
         "volatility. Elevated VIX (25+) often coincides with risk-off "
-        "conditions; subdued VIX (15 or below) suggests calmer markets."
+        "conditions; subdued VIX (15 or below) suggests calmer markets. A "
+        "fast VIX spike or cool-down over the past week is a short-term "
+        "risk signal even when the level is mid-range. For gold and other "
+        "precious metals, elevated fear tends to attract safe-haven buying."
     ),
     "fear_greed_regime": (
         "The Crypto Fear & Greed Index blends volatility, momentum, social "
         "media and surveys into a 0–100 score. Extreme fear (25 or below) "
         "often marks capitulation; extreme greed (75+) can signal overheated "
-        "conditions."
+        "conditions. In the middle zone, a fast 7-day improvement or "
+        "deterioration in sentiment acts as a short-term momentum signal."
     ),
     "yield_curve": (
         "The spread between US 10-year and 2-year Treasury yields reflects "
@@ -62,9 +81,35 @@ EXPLANATIONS = {
         "deeply negative funding often marks short squeezes."
     ),
     "oi_momentum": (
-        "24-hour change in aggregate futures open interest. Rising OI with "
-        "price strength confirms new money entering the trend; falling OI "
-        "suggests positions are closing."
+        "Change in aggregate futures open interest (4h preferred, 24h "
+        "fallback) read together with the price move over the same window. "
+        "Rising OI while price rises means new longs drive the move "
+        "(bullish); rising OI while price falls means new shorts drive it "
+        "(bearish); falling OI means the move is running on closing "
+        "positions and is losing fuel."
+    ),
+    "long_short": (
+        "Cross-exchange taker long/short volume ratio over the past 24h "
+        "(Coinglass). A strong tilt to one side means the crowd is leaning "
+        "that way — read contrarian at extremes, since crowded positioning "
+        "is fragile."
+    ),
+    "liquidations": (
+        "24h forced liquidations split into longs vs shorts across major "
+        "exchanges (Coinglass). A heavy long flush clears leverage below the "
+        "price (contrarian bounce setup); a heavy short squeeze spends the "
+        "upside fuel (pullback risk)."
+    ),
+    "relative_strength": (
+        "20-day return of the stock minus its sector SPDR ETF. Stocks "
+        "leading their sector tend to keep outperforming over short "
+        "horizons; laggards tend to stay weak."
+    ),
+    "event_risk": (
+        "Earnings proximity. Within five days of a scheduled report the "
+        "price can gap on results, so directional signals are less "
+        "dependable — this signal votes neutral to pull the score toward "
+        "the middle as a caution."
     ),
 }
 
@@ -78,6 +123,10 @@ STRATEGY_ORDER = [
     "yield_curve",
     "funding_regime",
     "oi_momentum",
+    "long_short",
+    "liquidations",
+    "relative_strength",
+    "event_risk",
     "rsi",
     "stochastic",
     "volatility",
@@ -94,6 +143,10 @@ WEIGHTS = {
     "yield_curve": 1.0,
     "funding_regime": 1.0,
     "oi_momentum": 1.0,
+    "long_short": 1.0,
+    "liquidations": 1.0,
+    "relative_strength": 1.0,
+    "event_risk": 1.0,
     "rsi": 1.0,
     "stochastic": 1.0,
     "volatility": 1.0,
@@ -116,6 +169,36 @@ _ADX_MILD = 20.0
 _STOCH_OVERSOLD = 20.0
 _STOCH_OVERBOUGHT = 80.0
 
+# Fear & Greed bands and 7-day sentiment momentum threshold.
+_FG_GREED = 75
+_FG_FEAR = 25
+_FG_MOMENTUM = 10.0
+
+# VIX bands and 5-day change thresholds (percent).
+_VIX_ELEVATED = 25.0
+_VIX_CALM = 15.0
+_VIX_SPIKE_PCT = 20.0
+_VIX_COOL_PCT = -15.0
+
+# Open interest: preferred 4h window, 24h fallback, with price confirmation.
+_OI_4H_MOVE = 2.0
+_OI_24H_MOVE = 5.0
+_OI_PRICE_CONFIRM = 0.2
+
+# Taker long/short volume ratio extremes (contrarian).
+_LS_CROWDED_LONGS = 1.2
+_LS_CROWDED_SHORTS = 1 / _LS_CROWDED_LONGS
+
+# Liquidation split: one-sided share thresholds and a calm floor vs OI.
+_LIQ_ONE_SIDED = 0.7
+_LIQ_CALM_VS_OI = 0.0005
+
+# Stock relative strength vs sector ETF over 20 days (percent points).
+_REL_STRENGTH = 2.0
+
+# Earnings gap-risk window (days).
+_EARNINGS_NEAR_DAYS = 5
+
 
 # ---- Fable5 indicator math (aligned lists; None while undefined) ----
 
@@ -127,6 +210,30 @@ def roc(closes: list[float], period: int) -> list[float | None]:
         if prev != 0:
             out[i] = (closes[i] / prev - 1) * 100
     return out
+
+
+def trailing_change_pct(
+    timestamps: list[int],
+    closes: list[float],
+    hours: float,
+) -> float | None:
+    """Close-to-close percent change over the trailing ``hours``.
+
+    Uses the newest bar at or before ``hours`` ago so the window matches
+    external stats (e.g. Coinglass 4h/24h open-interest changes) regardless
+    of the candle interval of the requested range.
+    """
+    if len(closes) < 2:
+        return None
+    target = timestamps[-1] - int(hours * 3_600_000)
+    ref: float | None = None
+    for i in range(len(timestamps) - 2, -1, -1):
+        if timestamps[i] <= target:
+            ref = closes[i]
+            break
+    if ref is None or ref == 0:
+        return None
+    return (closes[-1] / ref - 1) * 100
 
 
 def _sma_optional(values: list[float | None], period: int) -> list[float | None]:
@@ -360,12 +467,20 @@ def _trend_strength(timestamps, highs, lows, closes, start) -> dict:
 
 def _fear_greed_regime(context: dict) -> dict:
     fg = int(context["fear_greed_index"])
-    if fg >= 75:
+    change = context.get("fear_greed_change")
+    change_f = float(change) if change is not None else None
+    if fg >= _FG_GREED:
         signal = "bearish"
         reason = {"code": "fear_greed_extreme_greed", "params": {"index": str(fg)}}
-    elif fg <= 25:
+    elif fg <= _FG_FEAR:
         signal = "bullish"
         reason = {"code": "fear_greed_extreme_fear", "params": {"index": str(fg)}}
+    elif change_f is not None and change_f >= _FG_MOMENTUM:
+        signal = "bullish"
+        reason = {"code": "fear_greed_improving", "params": {"index": str(fg), "change": analysis._s(change_f)}}
+    elif change_f is not None and change_f <= -_FG_MOMENTUM:
+        signal = "bearish"
+        reason = {"code": "fear_greed_deteriorating", "params": {"index": str(fg), "change": analysis._s(change_f)}}
     else:
         signal = "neutral"
         reason = {"code": "fear_greed_neutral", "params": {"index": str(fg)}}
@@ -376,9 +491,14 @@ def _fear_greed_regime(context: dict) -> dict:
         "values": {
             "fear_greed_index": str(fg),
             "classification": context.get("fear_greed_classification"),
+            "change_7d": analysis._s(change_f),
         },
         "series": {},
     }
+
+
+def _is_precious_metal(context: dict | None) -> bool:
+    return bool(context) and str(context.get("base") or "").upper() in PRECIOUS_METALS
 
 
 def _vix_regime(context: dict | None) -> dict:
@@ -387,12 +507,29 @@ def _vix_regime(context: dict | None) -> dict:
     if not context or context.get("vix_level") is None:
         return _insufficient("vix_regime")
     vix = float(context["vix_level"])
-    if vix >= 25:
+    change = context.get("vix_change_pct")
+    change_f = float(change) if change is not None else None
+
+    if _is_precious_metal(context):
+        # Fear is a safe-haven bid for gold and its peers, not a sell signal.
+        if vix >= _VIX_ELEVATED or (change_f is not None and change_f >= _VIX_SPIKE_PCT):
+            signal = "bullish"
+            reason = {"code": "vix_haven_bid", "params": {"vix": analysis._s(vix)}}
+        else:
+            signal = "neutral"
+            reason = {"code": "vix_neutral", "params": {"vix": analysis._s(vix)}}
+    elif vix >= _VIX_ELEVATED:
         signal = "bearish"
         reason = {"code": "vix_elevated", "params": {"vix": analysis._s(vix)}}
-    elif vix <= 15:
+    elif vix <= _VIX_CALM:
         signal = "bullish"
         reason = {"code": "vix_calm", "params": {"vix": analysis._s(vix)}}
+    elif change_f is not None and change_f >= _VIX_SPIKE_PCT:
+        signal = "bearish"
+        reason = {"code": "vix_spiking", "params": {"vix": analysis._s(vix), "change": analysis._s(change_f)}}
+    elif change_f is not None and change_f <= _VIX_COOL_PCT:
+        signal = "bullish"
+        reason = {"code": "vix_cooling", "params": {"vix": analysis._s(vix), "change": analysis._s(change_f)}}
     else:
         signal = "neutral"
         reason = {"code": "vix_neutral", "params": {"vix": analysis._s(vix)}}
@@ -400,7 +537,7 @@ def _vix_regime(context: dict | None) -> dict:
         "signal": signal,
         "reason": reason,
         "explanation": EXPLANATIONS["vix_regime"],
-        "values": {"vix": analysis._s(vix)},
+        "values": {"vix": analysis._s(vix), "change_5d_pct": analysis._s(change_f)},
         "series": {},
     }
 
@@ -457,9 +594,21 @@ def _yield_curve(context: dict | None) -> dict:
     spread = context.get("yield_spread") if context else None
     us2y = context.get("us2y_yield") if context else None
     us10y = context.get("us10y_yield") if context else None
+    precious = _is_precious_metal(context)
     if spread is not None and us2y is not None and us10y is not None:
         spread_f = float(spread)
-        if spread_f < 0:
+        if precious:
+            # Recession signals attract safe-haven flows into precious metals.
+            if spread_f < 0:
+                signal = "bullish"
+                reason = {"code": "yield_pm_inverted", "params": {"spread": analysis._s(spread_f)}}
+            elif spread_f > 0.5:
+                signal = "neutral"
+                reason = {"code": "yield_pm_steep", "params": {"spread": analysis._s(spread_f)}}
+            else:
+                signal = "neutral"
+                reason = {"code": "yield_flat", "params": {"spread": analysis._s(spread_f)}}
+        elif spread_f < 0:
             signal = "bearish"
             reason = {"code": "yield_inverted", "params": {"spread": analysis._s(spread_f)}}
         elif spread_f > 0.5:
@@ -522,24 +671,178 @@ def _funding_regime(context: dict | None) -> dict:
     }
 
 
-def _oi_momentum(context: dict | None) -> dict:
-    if not context or context.get("open_interest_change_percent_24h") is None:
+def _oi_momentum(context: dict | None, timestamps: list[int], closes: list[float]) -> dict:
+    """Open-interest change read together with the price move over the same
+    window: OI expanding with the price move confirms it (new positions on the
+    winning side); OI contracting means the move runs on closing positions."""
+    if not context:
         return _insufficient("oi_momentum")
-    change = float(context["open_interest_change_percent_24h"])
-    if change >= 5.0:
-        signal = "bullish"
-        reason = {"code": "oi_rising", "params": {"change": analysis._s(change)}}
-    elif change <= -5.0:
+    oi_4h = context.get("open_interest_change_percent_4h")
+    oi_24h = context.get("open_interest_change_percent_24h")
+    if oi_4h is None and oi_24h is None:
+        return _insufficient("oi_momentum")
+
+    # Prefer the 4h window when it moves; fall back to 24h.
+    if oi_4h is not None and abs(float(oi_4h)) >= _OI_4H_MOVE:
+        change, threshold, hours = float(oi_4h), _OI_4H_MOVE, 4
+    elif oi_24h is not None:
+        change, threshold, hours = float(oi_24h), _OI_24H_MOVE, 24
+    else:
+        change, threshold, hours = float(oi_4h), _OI_4H_MOVE, 4
+
+    price_chg = trailing_change_pct(timestamps, closes, hours)
+    params = {
+        "change": analysis._s(change),
+        "hours": hours,
+        "price_change": analysis._s(price_chg),
+    }
+    if change >= threshold:
+        if price_chg is None:
+            signal, code = "bullish", "oi_rising"
+        elif price_chg > _OI_PRICE_CONFIRM:
+            signal, code = "bullish", "oi_confirming_up"
+        elif price_chg < -_OI_PRICE_CONFIRM:
+            signal, code = "bearish", "oi_confirming_down"
+        else:
+            signal, code = "neutral", "oi_stable"
+    elif change <= -threshold:
+        if price_chg is not None and abs(price_chg) > _OI_PRICE_CONFIRM:
+            signal, code = "neutral", "oi_unwinding"
+        elif price_chg is None:
+            signal, code = "bearish", "oi_falling"
+        else:
+            signal, code = "neutral", "oi_stable"
+    else:
+        signal, code = "neutral", "oi_stable"
+
+    return {
+        "signal": signal,
+        "reason": {"code": code, "params": params},
+        "explanation": EXPLANATIONS["oi_momentum"],
+        "values": {
+            "open_interest_change_percent_24h": analysis._s(float(oi_24h)) if oi_24h is not None else None,
+            "open_interest_change_percent_4h": analysis._s(float(oi_4h)) if oi_4h is not None else None,
+            "window_hours": str(hours),
+            "price_change_pct": analysis._s(price_chg),
+        },
+        "series": {},
+    }
+
+
+def _long_short(context: dict | None) -> dict:
+    if not context or context.get("long_short_ratio") is None:
+        return _insufficient("long_short")
+    ratio = float(context["long_short_ratio"])
+    if ratio >= _LS_CROWDED_LONGS:
         signal = "bearish"
-        reason = {"code": "oi_falling", "params": {"change": analysis._s(change)}}
+        reason = {"code": "ls_crowded_longs", "params": {"ratio": analysis._s(ratio)}}
+    elif ratio <= _LS_CROWDED_SHORTS:
+        signal = "bullish"
+        reason = {"code": "ls_crowded_shorts", "params": {"ratio": analysis._s(ratio)}}
     else:
         signal = "neutral"
-        reason = {"code": "oi_stable", "params": {"change": analysis._s(change)}}
+        reason = {"code": "ls_balanced", "params": {"ratio": analysis._s(ratio)}}
     return {
         "signal": signal,
         "reason": reason,
-        "explanation": EXPLANATIONS["oi_momentum"],
-        "values": {"open_interest_change_percent_24h": analysis._s(change)},
+        "explanation": EXPLANATIONS["long_short"],
+        "values": {"long_short_ratio": analysis._s(ratio)},
+        "series": {},
+    }
+
+
+def _liquidations(context: dict | None) -> dict:
+    if not context:
+        return _insufficient("liquidations")
+    long_liq = context.get("long_liquidation_usd_24h")
+    short_liq = context.get("short_liquidation_usd_24h")
+    if long_liq is None and short_liq is None:
+        return _insufficient("liquidations")
+    long_f = float(long_liq or 0.0)
+    short_f = float(short_liq or 0.0)
+    total = long_f + short_f
+
+    oi_usd = context.get("open_interest_usd")
+    calm = total <= 0
+    if not calm and oi_usd:
+        try:
+            calm = total / float(oi_usd) < _LIQ_CALM_VS_OI
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
+
+    params = {
+        "long_usd": analysis._s(long_f),
+        "short_usd": analysis._s(short_f),
+    }
+    if calm:
+        signal = "neutral"
+        reason = {"code": "liq_calm", "params": params}
+    else:
+        long_share = long_f / total
+        if long_share >= _LIQ_ONE_SIDED:
+            # Leveraged longs already flushed out: contrarian bounce setup.
+            signal = "bullish"
+            reason = {"code": "liq_long_flush", "params": params}
+        elif long_share <= 1 - _LIQ_ONE_SIDED:
+            # Short squeeze spent the upside fuel: pullback risk.
+            signal = "bearish"
+            reason = {"code": "liq_short_squeeze", "params": params}
+        else:
+            signal = "neutral"
+            reason = {"code": "liq_balanced", "params": params}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["liquidations"],
+        "values": {
+            "long_liquidation_usd_24h": analysis._s(long_f),
+            "short_liquidation_usd_24h": analysis._s(short_f),
+        },
+        "series": {},
+    }
+
+
+def _relative_strength(context: dict | None) -> dict:
+    if not context or context.get("sector_relative_return") is None:
+        return _insufficient("relative_strength")
+    rel = float(context["sector_relative_return"])
+    etf = context.get("sector_etf") or ""
+    params = {"rel": analysis._s(rel), "etf": etf}
+    if rel >= _REL_STRENGTH:
+        signal = "bullish"
+        reason = {"code": "rel_strength_leading", "params": params}
+    elif rel <= -_REL_STRENGTH:
+        signal = "bearish"
+        reason = {"code": "rel_strength_lagging", "params": params}
+    else:
+        signal = "neutral"
+        reason = {"code": "rel_strength_inline", "params": params}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["relative_strength"],
+        "values": {"sector_relative_return": analysis._s(rel), "sector_etf": etf},
+        "series": {},
+    }
+
+
+def _event_risk(context: dict | None) -> dict:
+    if not context or context.get("days_to_earnings") is None:
+        return _insufficient("event_risk")
+    days = int(context["days_to_earnings"])
+    if 0 <= days <= _EARNINGS_NEAR_DAYS:
+        # Neutral vote on purpose: it dilutes the score toward the middle
+        # while the gap risk of an imminent earnings report is live.
+        signal = "neutral"
+        reason = {"code": "earnings_near", "params": {"days": days}}
+    else:
+        signal = "none"
+        reason = {"code": "earnings_far", "params": {"days": days}}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["event_risk"],
+        "values": {"days_to_earnings": str(days)},
         "series": {},
     }
 
@@ -547,12 +850,17 @@ def _oi_momentum(context: dict | None) -> dict:
 # ---- composite outlook ----
 
 def compute_outlook(strategies: dict) -> dict:
-    """Blend the eight strategy signals into one direction outlook.
+    """Blend the available strategy signals into one direction outlook.
 
     Each strategy votes +1 (bullish), -1 (bearish) or 0 (neutral) with its
     fixed weight; "none" strategies are excluded. The score is the weighted
     vote share scaled to -100..+100; confidence is the weighted share of
     active strategies agreeing with the resulting direction.
+
+    ``buy_score`` and ``sell_score`` (0..100) are the shares of active
+    weight voting bullish resp. bearish. Unlike the net score they surface
+    contested markets: high buy AND high sell means the evidence is split,
+    not absent.
     """
     ts_values = strategies.get("trend_strength", {}).get("values", {})
     adx_raw = ts_values.get("adx")
@@ -573,6 +881,8 @@ def compute_outlook(strategies: dict) -> dict:
         return {
             "direction": "none",
             "score": 0,
+            "buy_score": 0,
+            "sell_score": 0,
             "confidence": "low",
             "regime": regime,
             "reason": {"code": "outlook_no_data", "params": {}},
@@ -583,6 +893,10 @@ def compute_outlook(strategies: dict) -> dict:
     total_weight = sum(c["weight"] for c in active)
     weighted = sum(vote[c["signal"]] * c["weight"] for c in active)
     score = round(100 * weighted / total_weight)
+    bullish_weight = sum(c["weight"] for c in active if c["signal"] == "bullish")
+    bearish_weight = sum(c["weight"] for c in active if c["signal"] == "bearish")
+    buy_score = round(100 * bullish_weight / total_weight)
+    sell_score = round(100 * bearish_weight / total_weight)
 
     if score >= _BULLISH_AT:
         direction = "bullish"
@@ -604,6 +918,8 @@ def compute_outlook(strategies: dict) -> dict:
     return {
         "direction": direction,
         "score": score,
+        "buy_score": buy_score,
+        "sell_score": sell_score,
         "confidence": confidence,
         "regime": regime,
         "reason": {
@@ -616,6 +932,15 @@ def compute_outlook(strategies: dict) -> dict:
 
 # ---- entry point ----
 
+def _context_asset_class(context: dict | None) -> str | None:
+    if not context:
+        return None
+    asset_class = context.get("asset_class")
+    if asset_class:
+        return str(asset_class)
+    return "crypto" if context.get("context_type") == "crypto" else None
+
+
 def analyze_fable5(
     candles: list[list],
     display_count: int,
@@ -624,7 +949,10 @@ def analyze_fable5(
     """Fable5 outlook over ``candles`` (oldest first, API candle shape).
 
     Same contract as ``analysis.analyze``: ``display_count`` trailing bars
-    form the display window, earlier bars are warm-up only.
+    form the display window, earlier bars are warm-up only. Context signals
+    join the vote per asset class, so an equity user never sees crypto
+    derivative slots and vice versa; without context (e.g. the walk-forward
+    track record) only the eight price strategies vote.
     """
     base = analysis.analyze(candles, display_count)
     timestamps = [int(c[0]) for c in candles]
@@ -638,11 +966,24 @@ def analyze_fable5(
         "momentum": _momentum(timestamps, closes, start),
         "stochastic": _stochastic_strategy(timestamps, highs, lows, closes, start),
         "trend_strength": _trend_strength(timestamps, highs, lows, closes, start),
-        "vix_regime": _vix_regime(context),
-        "yield_curve": _yield_curve(context),
-        "funding_regime": _funding_regime(context),
-        "oi_momentum": _oi_momentum(context),
     }
+
+    asset_class = _context_asset_class(context)
+    base_symbol = str(context.get("base") or "").upper() if context else ""
+    if context is not None:
+        strategies["vix_regime"] = _vix_regime(context)
+        # The treasury curve says little about oil; skip it for energy.
+        if not (asset_class == "commodity" and base_symbol in ENERGY_COMMODITIES):
+            strategies["yield_curve"] = _yield_curve(context)
+    if asset_class == "crypto":
+        strategies["funding_regime"] = _funding_regime(context)
+        strategies["oi_momentum"] = _oi_momentum(context, timestamps, closes)
+        strategies["long_short"] = _long_short(context)
+        strategies["liquidations"] = _liquidations(context)
+    if asset_class == "stock":
+        strategies["relative_strength"] = _relative_strength(context)
+        strategies["event_risk"] = _event_risk(context)
+
     return {
         "generated_at": base["generated_at"],
         "candles": base["candles"],

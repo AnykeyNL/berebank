@@ -221,8 +221,9 @@ async def get_fable5_outlooks(
 
     Computed from the stored daily candles (harvested in the background),
     so a market appears once enough history has been collected. Values:
-    direction, score (-100..+100), confidence and regime — same engine as
-    the per-market Fable5 analysis endpoint.
+    direction, score (-100..+100), buy_score / sell_score (0..100 shares of
+    signal weight voting bullish resp. bearish), confidence and regime —
+    same engine as the per-market Fable5 analysis endpoint.
     """
     global _fable5_outlooks_cache
     if _fable5_outlooks_cache and time.monotonic() - _fable5_outlooks_cache[0] < _FABLE5_OUTLOOKS_TTL:
@@ -237,11 +238,19 @@ async def get_fable5_outlooks(
         if len(candles) < 60:
             continue
         asset_class = market_data_service.get_market(market)["asset_class"]
-        context = crypto_macro if asset_class == "crypto" else macro
+        shared = crypto_macro if asset_class == "crypto" else macro
+        # Copy so the asset-class tags never leak into the shared macro cache.
+        context = (
+            {**shared, "asset_class": asset_class, "base": market.split("-", 1)[0]}
+            if shared is not None
+            else None
+        )
         outlook = fable5_analysis_service.analyze_fable5(candles, len(candles), context)["outlook"]
         outlooks[market] = {
             "direction": outlook["direction"],
             "score": outlook["score"],
+            "buy_score": outlook["buy_score"],
+            "sell_score": outlook["sell_score"],
             "confidence": outlook["confidence"],
             "regime": outlook["regime"],
         }
@@ -742,13 +751,16 @@ async def get_fable5_analysis(
     """Fable5 direction outlook for a market over the requested range.
 
     Blends the five analysis strategies plus dual-horizon momentum, a slow
-    stochastic oscillator and ADX trend strength — eight signals with fixed
-    importance weights — into a single outlook: direction
-    (bullish/bearish/neutral), a score from -100 to +100, a weighted-agreement
-    confidence level and per-strategy contributions. Includes a track record
-    (hit rate of past outlooks on this market, computed from stored daily
-    candles) once enough history has been harvested.
-    Ranges: 1d, 1w, 30d, 90d, 180d, 365d.
+    stochastic oscillator and ADX trend strength with asset-class specific
+    context signals (VIX and yield curve for stocks/funds/commodities; Fear &
+    Greed, liquidity, funding, price-confirmed open interest, long/short
+    positioning and liquidations for crypto; sector relative strength and
+    earnings proximity for stocks) — all with fixed importance weights — into
+    a single outlook: direction (bullish/bearish/neutral), a score from -100
+    to +100, a weighted-agreement confidence level and per-strategy
+    contributions. Includes a track record (hit rate of past outlooks on this
+    market, computed from stored daily candles) once enough history has been
+    harvested. Ranges: 1d, 1w, 30d, 90d, 180d, 365d.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -780,10 +792,19 @@ async def get_fable5_analysis(
             raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
 
     td_context = await get_market_context(market, market_info["asset_class"])
+    fable5_context = (
+        {
+            **td_context,
+            "asset_class": market_info["asset_class"],
+            "base": market.split("-", 1)[0],
+        }
+        if td_context is not None
+        else None
+    )
     result = {
         "market": market,
         "range": range_,
-        **fable5_analysis_service.analyze_fable5(candles, display_count, td_context),
+        **fable5_analysis_service.analyze_fable5(candles, display_count, fable5_context),
         "context": serialize_context(td_context),
         "track_record": _fable5_track_record(db, market),
     }

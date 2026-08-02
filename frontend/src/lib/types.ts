@@ -94,6 +94,9 @@ export interface OutlookContribution {
 export interface Outlook {
   direction: AnalysisSignal
   score: number // -100 (strongly bearish) to +100 (strongly bullish)
+  // Fable5 only: 0..100 shares of active signal weight voting bullish/bearish.
+  buy_score?: number
+  sell_score?: number
   confidence: OutlookConfidence
   regime: MarketRegime
   reason: { code: string; params: Record<string, string | number | null> }
@@ -135,7 +138,11 @@ export interface SupplementaryContext {
   stablecoin_supply_change_pct?: string | null
   funding_rate_avg?: string | null
   open_interest_change_percent_24h?: string | null
+  open_interest_change_percent_4h?: string | null
   open_interest_usd?: string | null
+  long_short_ratio?: string | null
+  long_liquidation_usd_24h?: string | null
+  short_liquidation_usd_24h?: string | null
 }
 
 export interface KimiAnalysis {
@@ -152,6 +159,9 @@ export interface KimiAnalysis {
 export interface OutlookSummary {
   direction: AnalysisSignal
   score: number
+  // Fable5 only: 0..100 shares of active signal weight voting bullish/bearish.
+  buy_score?: number
+  sell_score?: number
   confidence: OutlookConfidence
   regime: MarketRegime
 }
@@ -176,8 +186,14 @@ export interface Fable5Analysis {
     momentum: AnalysisStrategy
     stochastic: AnalysisStrategy
     trend_strength: AnalysisStrategy
-    vix_regime: AnalysisStrategy
-    yield_curve: AnalysisStrategy
+    vix_regime?: AnalysisStrategy
+    yield_curve?: AnalysisStrategy
+    funding_regime?: AnalysisStrategy
+    oi_momentum?: AnalysisStrategy
+    long_short?: AnalysisStrategy
+    liquidations?: AnalysisStrategy
+    relative_strength?: AnalysisStrategy
+    event_risk?: AnalysisStrategy
   }
   track_record: TrackRecord | null
   context: SupplementaryContext | null

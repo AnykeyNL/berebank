@@ -32,7 +32,19 @@ const DIRECTION_STYLES: Record<Outlook['direction'], string> = {
 const CONFIDENCE_ORDER: Outlook['confidence'][] = ['low', 'medium', 'high']
 
 // Strategies whose reason codes live in the fable5Analysis i18n namespace.
-const FABLE5_STRATEGIES = new Set(['momentum', 'stochastic', 'trend_strength', 'vix_regime', 'yield_curve', 'funding_regime', 'oi_momentum'])
+const FABLE5_STRATEGIES = new Set([
+  'momentum',
+  'stochastic',
+  'trend_strength',
+  'vix_regime',
+  'yield_curve',
+  'funding_regime',
+  'oi_momentum',
+  'long_short',
+  'liquidations',
+  'relative_strength',
+  'event_risk',
+])
 
 type GaugeZone = 'strong_down' | 'down' | 'neutral' | 'up' | 'strong_up'
 
@@ -143,7 +155,7 @@ function ConfidenceMeter({ confidence }: { confidence: Outlook['confidence'] }) 
   )
 }
 
-type SortKey = 'asset' | 'confidence' | 'score' | 'direction' | 'last'
+type SortKey = 'asset' | 'confidence' | 'score' | 'buy' | 'sell' | 'direction' | 'last'
 type SortDir = 'asc' | 'desc'
 
 const DIRECTION_RANK: Record<string, number> = { bullish: 3, neutral: 2, bearish: 1, none: 0 }
@@ -157,7 +169,7 @@ function AssetPicker() {
   const [outlooks, setOutlooks] = useState<Fable5Outlooks['outlooks']>({})
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState<'all' | AssetClass>('all')
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'score', dir: 'desc' })
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'buy', dir: 'desc' })
 
   useEffect(() => {
     api<Market[]>('/markets').then(setMarkets).catch(() => {})
@@ -186,6 +198,10 @@ function AssetPicker() {
           return outlook ? CONFIDENCE_RANK[outlook.confidence] : null
         case 'score':
           return outlook ? outlook.score : null
+        case 'buy':
+          return outlook?.buy_score ?? null
+        case 'sell':
+          return outlook?.sell_score ?? null
         case 'direction':
           return outlook ? DIRECTION_RANK[outlook.direction] : null
         case 'last': {
@@ -281,7 +297,23 @@ function AssetPicker() {
             'hidden w-12 justify-center sm:flex',
             t('fable5Analysis.outlook.confidenceLabel'),
           )}
-          {sortHeader('score', t('fable5Analysis.outlook.scoreLabel'), 'w-12 justify-end sm:w-14')}
+          {sortHeader(
+            'score',
+            t('fable5Analysis.outlook.scoreLabel'),
+            'hidden w-12 justify-end sm:flex sm:w-14',
+          )}
+          {sortHeader(
+            'buy',
+            t('fable5Analysis.table.buy'),
+            'w-9 justify-end sm:w-11',
+            t('fable5Analysis.table.buyTitle'),
+          )}
+          {sortHeader(
+            'sell',
+            t('fable5Analysis.table.sell'),
+            'w-9 justify-end sm:w-11',
+            t('fable5Analysis.table.sellTitle'),
+          )}
           {sortHeader('direction', t('fable5Analysis.table.outlook'), 'w-20 justify-center sm:w-24')}
           {sortHeader('last', t('trade.last'), 'w-16 justify-end sm:w-20')}
         </div>
@@ -306,7 +338,7 @@ function AssetPicker() {
                 {outlook && <ConfidenceDots confidence={outlook.confidence} />}
               </span>
               <span
-                className={`w-12 text-right font-mono text-xs sm:w-14 ${
+                className={`hidden w-12 text-right font-mono text-xs sm:block sm:w-14 ${
                   !outlook
                     ? ''
                     : outlook.score > 0
@@ -317,6 +349,12 @@ function AssetPicker() {
                 }`}
               >
                 {outlook ? (outlook.score > 0 ? `+${outlook.score}` : outlook.score) : ''}
+              </span>
+              <span className="w-9 text-right font-mono text-xs text-emerald-400 sm:w-11">
+                {outlook?.buy_score != null ? outlook.buy_score : ''}
+              </span>
+              <span className="w-9 text-right font-mono text-xs text-red-400 sm:w-11">
+                {outlook?.sell_score != null ? outlook.sell_score : ''}
               </span>
               <span className="flex w-20 justify-center sm:w-24">
                 {outlook ? (
@@ -395,9 +433,17 @@ export default function Fable5AnalysisPage() {
   if (!market) return <AssetPicker />
 
   function fable5Param(key: string, value: string | number | null): string {
-    if (key === 'bars_ago') return String(value ?? '—')
+    if (key === 'bars_ago' || key === 'days' || key === 'hours') return String(value ?? '—')
+    if (key === 'etf') return String(value || '—')
     const n = parseFloat(String(value))
     if (!Number.isFinite(n)) return '—'
+    if (key === 'long_usd' || key === 'short_usd') {
+      if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
+      if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
+      if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
+      return `$${n.toFixed(0)}`
+    }
+    if (key === 'ratio') return n.toFixed(2)
     if (key.startsWith('roc')) return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`
     return n.toFixed(1)
   }
@@ -490,6 +536,22 @@ export default function Fable5AnalysisPage() {
                 >
                   {t(`analyze.signals.${outlook.direction}`)}
                 </span>
+                {outlook.buy_score != null && outlook.sell_score != null && (
+                  <div className="mt-2 flex gap-2 text-xs font-medium">
+                    <span
+                      className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-400"
+                      title={t('fable5Analysis.table.buyTitle')}
+                    >
+                      {t('fable5Analysis.outlook.buyScore', { value: outlook.buy_score })}
+                    </span>
+                    <span
+                      className="rounded bg-red-500/10 px-2 py-0.5 text-red-400"
+                      title={t('fable5Analysis.table.sellTitle')}
+                    >
+                      {t('fable5Analysis.outlook.sellScore', { value: outlook.sell_score })}
+                    </span>
+                  </div>
+                )}
                 <p className="mt-2 max-w-md text-sm text-slate-300">
                   {t(`fable5Analysis.outlook.reasons.${outlook.reason.code}`, outlook.reason.params)}
                 </p>

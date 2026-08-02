@@ -217,12 +217,22 @@ async def get_fable5_analysis(market: str, range: str = "30d") -> dict:
     bullish/bearish/neutral verdict blended from eight technical-analysis
     signals (trend, MACD, dual-horizon momentum, ADX trend strength, RSI,
     slow stochastic, Bollinger volatility, and support/resistance with
-    volume) using fixed importance weights.
+    volume) plus asset-class specific context signals, all with fixed
+    importance weights. Crypto adds Fear & Greed sentiment momentum,
+    BTC-dominance/stablecoin liquidity, Coinglass funding, price-confirmed
+    open-interest momentum, cross-exchange long/short positioning and 24h
+    liquidation flows. Stocks add VIX level/change, the treasury yield
+    curve, 20-day sector relative strength and an earnings-proximity brake;
+    funds get the macro signals; precious-metal commodities read VIX and
+    the yield curve as safe-haven signals.
 
     Range is one of "1d", "1w", "30d", "90d", "180d" or "365d" (default
     "30d"). The outlook contains a direction, a score from -100 (strongly
     bearish) to +100 (strongly bullish) rendered as a five-zone gauge in the
-    web app, a confidence level (low/medium/high, from the weighted share of
+    web app, a buy_score and sell_score (0..100 shares of active signal
+    weight voting bullish resp. bearish — higher buy_score means more of the
+    weighted evidence favors buying; high values on both sides mean the
+    market is contested), a confidence level (low/medium/high, from the weighted share of
     signals agreeing with the verdict), the ADX market regime
     (trending/ranging, context only — weights never change), and
     per-strategy contributions showing each vote and weight. When enough

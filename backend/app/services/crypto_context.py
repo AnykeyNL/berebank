@@ -406,7 +406,11 @@ def serialize_context(context: dict[str, Any] | None) -> dict[str, Any] | None:
         "stablecoin_supply_change_pct": _fmt(context.get("stablecoin_supply_change_pct")),
         "funding_rate_avg": _fmt(context.get("funding_rate_avg")),
         "open_interest_change_percent_24h": _fmt(context.get("open_interest_change_percent_24h")),
+        "open_interest_change_percent_4h": _fmt(context.get("open_interest_change_percent_4h")),
         "open_interest_usd": _fmt(context.get("open_interest_usd")),
+        "long_short_ratio": _fmt(context.get("long_short_ratio")),
+        "long_liquidation_usd_24h": _fmt(context.get("long_liquidation_usd_24h")),
+        "short_liquidation_usd_24h": _fmt(context.get("short_liquidation_usd_24h")),
     }
 
 

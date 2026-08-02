@@ -12,6 +12,15 @@ function isCryptoContext(
   return context.context_type === 'crypto'
 }
 
+function compactUsd(value: string): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
+  return `$${n.toFixed(0)}`
+}
+
 export default function SupplementaryContextPanel({ context, namespace }: Props) {
   const { t } = useTranslation()
   if (!context) return null
@@ -63,6 +72,22 @@ export default function SupplementaryContextPanel({ context, namespace }: Props)
         label: t(`${namespace}.context.openInterestChange`),
         value: t(`${namespace}.context.openInterestChangeValue`, {
           change: context.open_interest_change_percent_24h,
+        }),
+      })
+    }
+    if (context.long_short_ratio != null) {
+      const ratio = Number(context.long_short_ratio)
+      rows.push({
+        label: t(`${namespace}.context.longShortRatio`),
+        value: Number.isFinite(ratio) ? ratio.toFixed(2) : context.long_short_ratio,
+      })
+    }
+    if (context.long_liquidation_usd_24h != null || context.short_liquidation_usd_24h != null) {
+      rows.push({
+        label: t(`${namespace}.context.liquidations`),
+        value: t(`${namespace}.context.liquidationsValue`, {
+          long: compactUsd(context.long_liquidation_usd_24h ?? '0'),
+          short: compactUsd(context.short_liquidation_usd_24h ?? '0'),
         }),
       })
     }
