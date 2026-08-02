@@ -65,6 +65,7 @@ function forecast(overrides: Partial<GTP56SolAnalysis> = {}): GTP56SolAnalysis {
     period_end: '2026-08-01T00:00:00Z',
     evidence_period_start: '2021-03-01T00:00:00Z',
     evidence_period_end: '2026-07-31T00:00:00Z',
+    context: null,
     ...overrides,
   }
 }
