@@ -27,6 +27,9 @@ from .oauth import oauth_provider
 from .routers.leaderboard import get_leaderboard as _get_leaderboard
 from .routers.markets import get_analysis as _get_analysis
 from .routers.markets import get_candles as _get_candles
+from .routers.markets import get_fable5_analysis as _get_fable5_analysis
+from .routers.markets import get_gtp56sol_analysis as _get_gtp56sol_analysis
+from .routers.markets import get_kimi_analysis as _get_kimi_analysis
 from .routers.markets import get_news as _get_news
 from .routers.markets import list_markets as _list_markets
 from .routers.orders import list_orders as _list_orders
@@ -177,6 +180,93 @@ async def analyze_market(market: str, range: str = "30d") -> dict:
         return await _get_analysis(market, user=user, range_=range)
     except Exception as exc:
         raise ToolError(_http_detail(exc))
+
+
+@mcp.tool()
+async def get_kimi_analysis(market: str, range: str = "30d") -> dict:
+    """KimiK3 direction outlook for a market (e.g. BTC-EUR): a single
+    bullish/bearish/neutral verdict blended from six technical-analysis
+    strategies (trend, RSI, MACD, Bollinger volatility, support/resistance
+    with volume, and ADX trend strength).
+
+    Range is one of "1d", "1w", "30d", "90d", "180d" or "365d" (default
+    "30d"). The outlook contains a direction, a score from -100 (strongly
+    bearish) to +100 (strongly bullish), a confidence level
+    (low/medium/high, based on how many strategies agree), the market
+    regime (trending/ranging) used for weighting, and per-strategy
+    contributions showing each vote. When enough daily history has been
+    harvested, a track_record shows how often past outlooks on this market
+    were followed by a move in the indicated direction within 5 days
+    (hit_rate_pct, samples, average forward returns). Educational
+    indication from a paper-money simulation, not financial advice.
+    """
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        try:
+            return await _get_kimi_analysis(market, user=user, db=db, range_=range)
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
+    finally:
+        db.close()
+
+
+@mcp.tool()
+async def get_fable5_analysis(market: str, range: str = "30d") -> dict:
+    """Fable5 direction outlook for a market (e.g. BTC-EUR): a single
+    bullish/bearish/neutral verdict blended from eight technical-analysis
+    signals (trend, MACD, dual-horizon momentum, ADX trend strength, RSI,
+    slow stochastic, Bollinger volatility, and support/resistance with
+    volume) using fixed importance weights.
+
+    Range is one of "1d", "1w", "30d", "90d", "180d" or "365d" (default
+    "30d"). The outlook contains a direction, a score from -100 (strongly
+    bearish) to +100 (strongly bullish) rendered as a five-zone gauge in the
+    web app, a confidence level (low/medium/high, from the weighted share of
+    signals agreeing with the verdict), the ADX market regime
+    (trending/ranging, context only — weights never change), and
+    per-strategy contributions showing each vote and weight. When enough
+    daily history has been harvested, a track_record shows how often past
+    outlooks on this market were followed by a move in the indicated
+    direction within 5 days (hit_rate_pct, samples, average forward
+    returns). Educational indication from a paper-money simulation, not
+    financial advice.
+    """
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        try:
+            return await _get_fable5_analysis(market, user=user, db=db, range_=range)
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
+    finally:
+        db.close()
+
+
+@mcp.tool()
+async def get_gtp56sol_analysis(market: str, horizon: str = "1w") -> dict:
+    """Explainable historical-pattern probabilities for a market.
+
+    Horizon is "1d", "1w" (default), or "1m", meaning respectively 1, 5,
+    or 21 forward trading-session bars rather than calendar days. The result
+    reports Up/Sideways/Down probabilities, similar historical evidence,
+    walk-forward validation, direction, and conservative confidence. When
+    the requested asset lacks enough history, evidence may include a bounded
+    set of other markets from the same asset class only. This is an
+    educational indication in a paper-money simulation, not financial advice
+    or a guarantee of future results.
+    """
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        try:
+            return await _get_gtp56sol_analysis(
+                market, user=user, db=db, horizon=horizon
+            )
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
+    finally:
+        db.close()
 
 
 @mcp.tool()

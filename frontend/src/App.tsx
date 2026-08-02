@@ -6,6 +6,9 @@ import LoginPage from './pages/LoginPage'
 import PortfolioPage from './pages/PortfolioPage'
 import TradePage from './pages/TradePage'
 import AnalyzePage from './pages/AnalyzePage'
+import KimiAnalysisPage from './pages/KimiAnalysisPage'
+import GTP56SolAnalysisPage from './pages/GTP56SolAnalysisPage'
+import Fable5AnalysisPage from './pages/Fable5AnalysisPage'
 import TradeHistoryPage from './pages/TradeHistoryPage'
 import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
@@ -40,7 +43,15 @@ export default function App() {
         <Route path="/" element={<PortfolioPage />} />
         <Route path="/trade" element={<TradePage />} />
         <Route path="/trade/:market" element={<TradePage />} />
+        <Route path="/technical-analysis" element={<AnalyzePage />} />
+        <Route path="/technical-analysis/:market" element={<AnalyzePage />} />
         <Route path="/analyze/:market" element={<AnalyzePage />} />
+        <Route path="/kimi-analysis" element={<KimiAnalysisPage />} />
+        <Route path="/kimi-analysis/:market" element={<KimiAnalysisPage />} />
+        <Route path="/gtp56sol-analysis" element={<GTP56SolAnalysisPage />} />
+        <Route path="/gtp56sol-analysis/:market" element={<GTP56SolAnalysisPage />} />
+        <Route path="/fable5-analysis" element={<Fable5AnalysisPage />} />
+        <Route path="/fable5-analysis/:market" element={<Fable5AnalysisPage />} />
         <Route path="/history" element={<TradeHistoryPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/news" element={<NewsPage />} />

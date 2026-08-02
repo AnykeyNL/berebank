@@ -511,6 +511,64 @@ def _levels_volume(timestamps, highs, lows, closes, volumes, start) -> dict:
     }
 
 
+_BASE_STRATEGIES = ("trend", "rsi", "macd", "volatility", "levels_volume")
+_OUTLOOK_BULLISH_AT = 20
+_OUTLOOK_BEARISH_AT = -20
+
+
+def compute_technical_outlook(strategies: dict) -> dict:
+    """Blend the five base strategy signals into one direction outlook.
+
+    Each active strategy votes +1 (bullish), -1 (bearish) or 0 (neutral);
+    "none" strategies are excluded. The score is the average vote scaled to
+    -100..+100; confidence reflects agreement with the resulting direction.
+    """
+    contributions = [
+        {"strategy": key, "signal": strategies[key].get("signal", "none"), "weight": 1.0}
+        for key in _BASE_STRATEGIES
+        if key in strategies
+    ]
+    active = [c for c in contributions if c["signal"] != "none"]
+    if not active:
+        return {
+            "direction": "none",
+            "score": 0,
+            "confidence": "low",
+            "regime": "neutral",
+            "reason": {"code": "outlook_no_data", "params": {}},
+            "contributions": contributions,
+        }
+
+    vote = {"bullish": 1.0, "bearish": -1.0, "neutral": 0.0}
+    total_weight = len(active)
+    weighted = sum(vote[c["signal"]] for c in active)
+    score = round(100 * weighted / total_weight)
+
+    if score >= _OUTLOOK_BULLISH_AT:
+        direction = "bullish"
+    elif score <= _OUTLOOK_BEARISH_AT:
+        direction = "bearish"
+    else:
+        direction = "neutral"
+
+    agreeing = sum(1 for c in active if c["signal"] == direction)
+    agreement = agreeing / len(active)
+    confidence = "high" if agreement >= 0.8 else "medium" if agreement >= 0.6 else "low"
+
+    counts = {s: sum(1 for c in active if c["signal"] == s) for s in ("bullish", "bearish", "neutral")}
+    return {
+        "direction": direction,
+        "score": score,
+        "confidence": confidence,
+        "regime": "neutral",
+        "reason": {
+            "code": f"outlook_{direction}",
+            "params": {**counts, "total": len(active)},
+        },
+        "contributions": contributions,
+    }
+
+
 # ---- entry point ----
 
 def analyze(candles: list[list], display_count: int) -> dict:

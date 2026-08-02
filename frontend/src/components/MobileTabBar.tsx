@@ -78,7 +78,7 @@ const sheetLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-amber-500/15 text-amber-400' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
   }`
 
-const MORE_ROUTES = ['/news', '/ai', '/admin', '/profile']
+const MORE_ROUTES = ['/news', '/technical-analysis', '/kimi-analysis', '/gtp56sol-analysis', '/fable5-analysis', '/ai', '/admin', '/profile']
 
 export default function MobileTabBar() {
   const { user, logout } = useAuth()
@@ -130,6 +130,18 @@ export default function MobileTabBar() {
             <nav className="space-y-0.5">
               <NavLink to="/news" className={sheetLinkClass}>
                 {t('nav.news')}
+              </NavLink>
+              <NavLink to="/technical-analysis" className={sheetLinkClass}>
+                {t('nav.technical')}
+              </NavLink>
+              <NavLink to="/kimi-analysis" className={sheetLinkClass}>
+                {t('nav.kimi')}
+              </NavLink>
+              <NavLink to="/gtp56sol-analysis" className={sheetLinkClass}>
+                {t('nav.gtp56sol')}
+              </NavLink>
+              <NavLink to="/fable5-analysis" className={sheetLinkClass}>
+                {t('nav.fable5')}
               </NavLink>
               <NavLink to="/ai" className={sheetLinkClass}>
                 {t('nav.ai')}

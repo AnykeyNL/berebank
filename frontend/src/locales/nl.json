@@ -24,6 +24,10 @@
     "historyShort": "Historie",
     "leaderboard": "Klassement",
     "news": "Nieuws",
+    "kimi": "KimiK3-analyse",
+    "gtp56sol": "GTP56Sol-analyse",
+    "fable5": "Fable5-analyse",
+    "technical": "Technische analyse",
     "ai": "AI / MCP",
     "admin": "Beheer",
     "more": "Meer",
@@ -295,9 +299,16 @@
     "high": "Hoog"
   },
 
+  "analysisLinks": {
+    "label": "Andere analyse"
+  },
+
   "analyze": {
-    "analyzeButton": "Analyseren",
-    "pageTitle": "Analyseer {{market}}",
+    "analyzeButton": "Technisch",
+    "listTitle": "Technische analyse",
+    "pickAsset": "Kies een asset",
+    "changeAsset": "Ander asset",
+    "pageTitle": "Technisch · {{market}}",
     "backToTrade": "Terug naar handelen",
     "range": "Periode",
     "overlaysLabel": "Grafiekoverlays",
@@ -312,6 +323,20 @@
     "howItWorks": "Hoe werkt dit?",
     "hideExplanation": "Uitleg verbergen",
     "disclaimer": "Deze signalen worden berekend uit historische koersen, voor educatieve doeleinden in deze simulatie. Het zijn indicaties, geen voorspellingen of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen.",
+    "table": {
+      "asset": "Asset",
+      "outlook": "Verwachting",
+      "collecting": "Verzamelen…"
+    },
+    "outlook": {
+      "scoreLabel": "Score",
+      "confidenceLabel": "Betrouwbaarheid",
+      "confidenceLevels": {
+        "low": "Laag",
+        "medium": "Gemiddeld",
+        "high": "Hoog"
+      }
+    },
     "signals": {
       "bullish": "Bullish",
       "bearish": "Bearish",
@@ -385,6 +410,262 @@
       "between_levels": "De koers beweegt tussen steun op {{support}} en weerstand op {{resistance}} (volume {{volume_state}}).",
       "no_levels": "Geen duidelijke steun- of weerstandsniveaus gevonden in deze periode."
     }
+  },
+  "kimiAnalysis": {
+    "pageTitle": "KimiK3-analyse",
+    "button": "KimiK3",
+    "pickAsset": "Kies een asset om te analyseren",
+    "changeAsset": "Andere asset",
+    "backToTrade": "Terug naar handelen",
+    "classicLink": "Technisch",
+    "range": "Periode",
+    "loadError": "Kon de KimiK3-analyse niet laden",
+    "updated": "Bijgewerkt {{time}} · ververst elke minuut",
+    "outlook": {
+      "title": "Richtingverwachting",
+      "scoreLabel": "Score",
+      "scoreMin": "-100 bearish",
+      "scoreMax": "+100 bullish",
+      "confidenceLabel": "Betrouwbaarheid",
+      "confidenceLevels": {
+        "high": "Hoog",
+        "medium": "Gemiddeld",
+        "low": "Laag"
+      },
+      "regimeNote": {
+        "trending": "Sterke trend gedetecteerd — trendindicatoren tellen dubbel.",
+        "ranging": "Zijwaartse markt gedetecteerd — momentum- en volatiliteitsindicatoren tellen dubbel.",
+        "neutral": "Geen sterk regime — alle indicatoren wegen even zwaar."
+      },
+      "reasons": {
+        "outlook_bullish": "{{bullish}} van {{total}} indicatoren wijzen omhoog.",
+        "outlook_bearish": "{{bearish}} van {{total}} indicatoren wijzen omlaag.",
+        "outlook_neutral": "Indicatoren zijn verdeeld: {{bullish}} omhoog, {{bearish}} omlaag, {{neutral}} neutraal.",
+        "outlook_no_data": "Niet genoeg koersgeschiedenis in deze periode voor een verwachting."
+      }
+    },
+    "why": "Waarom deze verwachting?",
+    "hideWhy": "Onderbouwing verbergen",
+    "weight": "gewicht ×{{weight}}",
+    "table": {
+      "asset": "Asset",
+      "outlook": "Verwachting",
+      "collecting": "Historie wordt verzameld"
+    },
+    "strategyNames": {
+      "trend": "Trend (voortschrijdende gemiddelden)",
+      "rsi": "Momentum (RSI)",
+      "macd": "Momentum (MACD)",
+      "volatility": "Volatiliteit (Bollinger Bands)",
+      "levels_volume": "Steun / weerstand & volume",
+      "trend_strength": "Trendsterkte (ADX)"
+    },
+    "reasons": {
+      "insufficient_data": "Niet genoeg koersgeschiedenis in deze periode voor deze analyse.",
+      "adx_strong_up": "Sterke opwaartse trend (ADX {{adx}}) — kopers hebben de overhand (+DI boven -DI).",
+      "adx_strong_down": "Sterke neerwaartse trend (ADX {{adx}}) — verkopers hebben de overhand (-DI boven +DI).",
+      "adx_weak_up": "Zwakke opwaartse trend (ADX {{adx}}) — kopers hebben een licht voordeel.",
+      "adx_weak_down": "Zwakke neerwaartse trend (ADX {{adx}}) — verkopers hebben een licht voordeel.",
+      "adx_ranging": "Geen trend (ADX {{adx}}, onder 20) — de markt beweegt zijwaarts."
+    },
+    "trackRecord": {
+      "title": "Track record op {{market}}",
+      "summary": "{{hitRate}}% van de KimiK3-verwachtingen werd binnen {{days}} dagen gevolgd door een beweging in de verwachte richting.",
+      "samples": "{{samples}} directionele signalen tussen {{from}} en {{to}}",
+      "avgBullish": "Gem. beweging na bullish: {{value}}%",
+      "avgBearish": "Gem. beweging na bearish: {{value}}%",
+      "noHistory": "Het track record verschijnt zodra er genoeg dagelijkse koershistorie is verzameld — kom later terug."
+    },
+    "disclaimer": "De KimiK3-verwachting combineert technische indicatoren uit historische koersen, voor educatieve doeleinden in deze simulatie. Het is een indicatie, geen voorspelling of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen."
+  },
+  "fable5Analysis": {
+    "pageTitle": "Fable5-analyse",
+    "button": "Fable5",
+    "pickAsset": "Kies een asset om te analyseren",
+    "changeAsset": "Andere asset",
+    "backToTrade": "Terug naar handelen",
+    "classicLink": "Technisch",
+    "range": "Periode",
+    "loadError": "Kon de Fable5-analyse niet laden",
+    "updated": "Bijgewerkt {{time}} · ververst elke minuut",
+    "gauge": {
+      "label": "Richtingmeter",
+      "zones": {
+        "strong_down": "Sterk omlaag",
+        "down": "Neigt omlaag",
+        "neutral": "Geen duidelijke richting",
+        "up": "Neigt omhoog",
+        "strong_up": "Sterk omhoog"
+      }
+    },
+    "outlook": {
+      "title": "Richtingverwachting",
+      "scoreLabel": "Score",
+      "scoreMin": "-100 bearish",
+      "scoreMax": "+100 bullish",
+      "confidenceLabel": "Betrouwbaarheid",
+      "confidenceLevels": {
+        "high": "Hoog",
+        "medium": "Gemiddeld",
+        "low": "Laag"
+      },
+      "regimeNote": {
+        "trending": "De ADX toont een sterke trend — trendvolgende signalen zijn nu betrouwbaarder.",
+        "ranging": "De ADX toont een zijwaartse markt — de koers blijft vaak binnen een bandbreedte.",
+        "neutral": "Geen sterke trend of zijwaarts regime gedetecteerd."
+      },
+      "reasons": {
+        "outlook_bullish": "{{bullish}} van {{total}} signalen wijzen omhoog, gewogen naar belang.",
+        "outlook_bearish": "{{bearish}} van {{total}} signalen wijzen omlaag, gewogen naar belang.",
+        "outlook_neutral": "Signalen zijn verdeeld: {{bullish}} omhoog, {{bearish}} omlaag, {{neutral}} neutraal.",
+        "outlook_no_data": "Niet genoeg koersgeschiedenis in deze periode voor een verwachting."
+      }
+    },
+    "why": "Waarom deze verwachting?",
+    "hideWhy": "Onderbouwing verbergen",
+    "weight": "gewicht ×{{weight}}",
+    "table": {
+      "asset": "Asset",
+      "outlook": "Verwachting",
+      "collecting": "Historie wordt verzameld"
+    },
+    "strategyNames": {
+      "trend": "Trend (voortschrijdende gemiddelden)",
+      "macd": "Momentum (MACD)",
+      "momentum": "Momentum (koersverandering)",
+      "trend_strength": "Trendsterkte (ADX)",
+      "rsi": "Momentum (RSI)",
+      "stochastic": "Stochastische oscillator",
+      "volatility": "Volatiliteit (Bollinger Bands)",
+      "levels_volume": "Steun / weerstand & volume"
+    },
+    "reasons": {
+      "insufficient_data": "Niet genoeg koersgeschiedenis in deze periode voor deze analyse.",
+      "momentum_up": "De koers staat hoger dan 10 en 20 candles geleden ({{roc10}}% en {{roc20}}%).",
+      "momentum_down": "De koers staat lager dan 10 en 20 candles geleden ({{roc10}}% en {{roc20}}%).",
+      "momentum_mixed": "Korte- en langeretermijnmomentum spreken elkaar tegen ({{roc10}}% vs {{roc20}}%).",
+      "stoch_oversold": "Stochastic %K op {{k}} — oversold, een opleving wordt waarschijnlijker.",
+      "stoch_overbought": "Stochastic %K op {{k}} — overbought, een terugval wordt waarschijnlijker.",
+      "stoch_bull_cross": "%K kruiste {{bars_ago}} candles geleden boven %D — momentum draait omhoog.",
+      "stoch_bear_cross": "%K kruiste {{bars_ago}} candles geleden onder %D — momentum draait omlaag.",
+      "stoch_neutral": "Stochastic in de middenzone (%K {{k}}, %D {{d}}) — geen signaal.",
+      "adx_strong_up": "Sterke opwaartse trend (ADX {{adx}}) — kopers hebben de overhand.",
+      "adx_strong_down": "Sterke neerwaartse trend (ADX {{adx}}) — verkopers hebben de overhand.",
+      "adx_mild_up": "Zwakke opwaartse trend (ADX {{adx}}) — kopers hebben een licht voordeel.",
+      "adx_mild_down": "Zwakke neerwaartse trend (ADX {{adx}}) — verkopers hebben een licht voordeel.",
+      "adx_ranging": "Geen trend (ADX {{adx}}, onder 20) — de markt beweegt zijwaarts."
+    },
+    "trackRecord": {
+      "title": "Track record op {{market}}",
+      "summary": "{{hitRate}}% van de Fable5-verwachtingen werd binnen {{days}} dagen gevolgd door een beweging in de verwachte richting.",
+      "samples": "{{samples}} directionele signalen tussen {{from}} en {{to}}",
+      "avgBullish": "Gem. beweging na bullish: {{value}}%",
+      "avgBearish": "Gem. beweging na bearish: {{value}}%",
+      "noHistory": "Het track record verschijnt zodra er genoeg dagelijkse koershistorie is verzameld — kom later terug."
+    },
+    "disclaimer": "De Fable5-verwachting combineert acht technische signalen met vaste gewichten, berekend uit historische koersen, voor educatieve doeleinden in deze simulatie. Het is een indicatie, geen voorspelling of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen."
+  },
+  "gtp56solAnalysis": {
+    "brand": "GTP56Sol analysis",
+    "button": "GTP56Sol",
+    "lastPrice": "Laatste koers",
+    "refreshNote": "Verwachtingen gebruiken afgeronde dagelijkse sessies en verversen maximaal elke 5 minuten.",
+    "picker": {
+      "intro": "Kies een asset voor drie eenvoudige verwachtingen op basis van historische patronen.",
+      "searchLabel": "Assets zoeken",
+      "searchPlaceholder": "Zoek op naam of ticker…",
+      "filterLabel": "Filter op assetklasse",
+      "filters": {
+        "all": "Alle assets",
+        "crypto": "Crypto",
+        "stock": "Aandelen",
+        "fund": "Fondsen",
+        "commodity": "Grondstoffen"
+      },
+      "loading": "Assets laden…",
+      "loadError": "Kon de assetlijst niet laden.",
+      "emptyAvailable": "Er zijn momenteel geen assets beschikbaar.",
+      "noMatches": "Geen overeenkomende assets."
+    },
+    "links": {
+      "label": "Analyselinks",
+      "trade": "Terug naar Handelen",
+      "changeAsset": "Andere asset",
+      "classic": "Technisch",
+      "kimi": "KimiK3"
+    },
+    "horizons": {
+      "label": "Verwachtingsperiodes voor historische patronen",
+      "1d": "Volgende sessie",
+      "1w": "Volgende week",
+      "1m": "Volgende maand",
+      "sessionOne": "1 handelssessiebalk",
+      "sessionMany": "{{count}} handelssessiebalken"
+    },
+    "direction": {
+      "bullish": "Waarschijnlijk omhoog",
+      "bearish": "Waarschijnlijk omlaag",
+      "neutral": "Geen duidelijke richting"
+    },
+    "confidence": {
+      "label": "Betrouwbaarheid: {{level}}",
+      "low": "Laag",
+      "medium": "Gemiddeld",
+      "high": "Hoog"
+    },
+    "probabilities": {
+      "label": "Uitkomstkansen",
+      "up": "Omhoog",
+      "sideways": "Zijwaarts",
+      "down": "Omlaag"
+    },
+    "drivers": {
+      "historical_probability_leader": "Vergelijkbare historische situaties bewogen het vaakst {{outcome}} ({{probability}}).",
+      "technical_vote_balance": "Technische signalen wijzen {{balance}}.",
+      "walk_forward_evidence": "Walk-forward-controles waren {{directional_accuracy}} nauwkeurig over {{evaluated_samples}} validatiemetingen.",
+      "voteUpOne": "één punt omhoog",
+      "voteUpMany": "{{value}} punten omhoog",
+      "voteDownOne": "één punt omlaag",
+      "voteDownMany": "{{value}} punten omlaag",
+      "voteBalanced": "gelijk verdeeld",
+      "unavailable": "Aanvullende historische onderbouwing is niet beschikbaar."
+    },
+    "sourceScope": {
+      "asset": "historie van deze asset",
+      "asset_class": "fallback uit dezelfde assetklasse",
+      "unknown": "bron niet beschikbaar"
+    },
+    "evidence": {
+      "compact": "{{raw}} ruwe / {{effective}} effectieve metingen · {{similarity}} gemiddelde gelijkenis · {{accuracy}} vs {{baseline}} basislijn · {{scope}} · data {{dataStart}} – {{dataEnd}} · gegenereerd {{generated}}",
+      "show": "Methodiek en onderbouwing tonen",
+      "hide": "Methodiek en onderbouwing verbergen",
+      "methodology": "De kansen vergelijken de huidige situatie met de meest gelijkende historische situaties en hun latere uitkomst per handelssessie.",
+      "pool": "{{pool}} bruikbare historische situaties; walk-forward-validatie gebruikte {{validation}} ruwe / {{effectiveValidation}} effectieve metingen.",
+      "fallback": "Fallback uit dezelfde assetklasse: deze verwachting gebruikt ook historie van assets uit dezelfde klasse omdat deze asset weinig eigen historie heeft.",
+      "periods": "Assetdata: {{dataStart}} – {{dataEnd}}. Onderbouwing: {{evidenceStart}} – {{evidenceEnd}}. Gegenereerd: {{generated}}.",
+      "noValidation": "Er zijn nog geen onafhankelijke walk-forward-validatiemetingen, dus nauwkeurigheid is niet beschikbaar."
+    },
+    "states": {
+      "loading": "Verwachting laden…",
+      "error": "Kon deze periode niet laden",
+      "refreshWarning": "Verversen mislukt. De vorige verwachting wordt getoond.",
+      "retry": "Opnieuw proberen",
+      "retryLabel": "{{title}} opnieuw proberen",
+      "insufficient_history": "Nog niet genoeg afgeronde historie",
+      "stale": "Deze verwachting is verouderd",
+      "unavailable": "Deze verwachting is momenteel niet beschikbaar",
+      "probabilitiesUnavailable": "De kansen voor deze verwachting zijn niet beschikbaar",
+      "noProbabilities": "Er worden pas uitkomstpercentages getoond zodra er voldoende betrouwbare onderbouwing is."
+    },
+    "table": {
+      "asset": "Asset",
+      "confidence": "Vertrouwen",
+      "score": "Score",
+      "outlook": "Verwachting",
+      "collecting": "Historie verzamelen",
+      "collectingHint": "De weekverwachting verschijnt zodra er genoeg dagelijkse historie is verzameld."
+    },
+    "disclaimer": "Educatieve verwachtingen op basis van historische patronen voor de de BereBank-simulatie met nepgeld. Uitkomsten zijn onzeker en er wordt geen echt geld gebruikt."
   },
   "orderForm": {
     "amountLabel": "Aantal ({{asset}})",
@@ -493,6 +774,25 @@
     "rssFeedAddFailed": "RSS-feed toevoegen mislukt",
     "rssFeedFetched": "Feed opgehaald",
     "rssFeedFetchFailed": "Feed ophalen mislukt",
-    "rssFeedDeleteConfirm": "Deze RSS-feed verwijderen? Opgeslagen artikelen van deze feed worden ook verwijderd."
+    "rssFeedDeleteConfirm": "Deze RSS-feed verwijderen? Opgeslagen artikelen van deze feed worden ook verwijderd.",
+    "candleHistory": "Analyse-koersgeschiedenis",
+    "candleHistoryStatus": "Opgeslagen geschiedenis",
+    "candleHistoryMarkets": "Markten met data",
+    "candleHistoryRows": "Dagelijkse candle-rijen",
+    "candleHistoryRange": "Datumbereik",
+    "candleHistoryGtpDeep": "GTP56Sol diepe backfills",
+    "candleHistoryLastHarvest": "Laatste achtergrond-harvest",
+    "candleHistoryNote": "Dagelijkse OHLCV-candles voeden KimiK3, Fable5 en GTP56Sol. Exporteer vanuit dev en importeer op productie om te wachten op de harvester en GTP56Sol-backfills over te slaan.",
+    "candleHistoryTransfer": "Exporteren / importeren",
+    "candleHistoryIncludeSettings": "GTP56Sol backfill-status meenemen (aanbevolen)",
+    "candleHistoryExport": "Exporteer JSON",
+    "candleHistoryExporting": "Exporteren…",
+    "candleHistoryExported": "Koersgeschiedenis gedownload.",
+    "candleHistoryExportFailed": "Exporteren mislukt",
+    "candleHistoryImport": "Importeer JSON",
+    "candleHistoryImporting": "Importeren…",
+    "candleHistoryImportConfirm": "Koersgeschiedenis uit dit bestand importeren? Bestaande rijen voor dezelfde markt en dag worden bijgewerkt.",
+    "candleHistoryImported": "{{markets}} markten geïmporteerd ({{rows}} rijen geschreven, {{settings}} GTP56Sol-instellingen).",
+    "candleHistoryImportFailed": "Importeren mislukt"
   }
 }

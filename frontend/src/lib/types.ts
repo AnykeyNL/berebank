@@ -82,6 +82,140 @@ export interface Analysis {
   }
 }
 
+export type OutlookConfidence = 'high' | 'medium' | 'low'
+export type MarketRegime = 'trending' | 'ranging' | 'neutral'
+
+export interface OutlookContribution {
+  strategy: string
+  signal: AnalysisSignal
+  weight: number
+}
+
+export interface Outlook {
+  direction: AnalysisSignal
+  score: number // -100 (strongly bearish) to +100 (strongly bullish)
+  confidence: OutlookConfidence
+  regime: MarketRegime
+  reason: { code: string; params: Record<string, string | number | null> }
+  contributions: OutlookContribution[]
+}
+
+export interface TrackRecord {
+  hit_rate_pct: string
+  samples: number
+  forward_days: number
+  avg_bullish_return_pct: string | null
+  avg_bearish_return_pct: string | null
+  from: string
+  to: string
+}
+
+export interface KimiAnalysis {
+  market: string
+  range: AnalysisRange
+  generated_at: string
+  candles: Candle[]
+  outlook: Outlook
+  strategies: Analysis['strategies'] & { trend_strength: AnalysisStrategy }
+  track_record: TrackRecord | null
+}
+
+export interface OutlookSummary {
+  direction: AnalysisSignal
+  score: number
+  confidence: OutlookConfidence
+  regime: MarketRegime
+}
+
+export interface KimiOutlooks {
+  generated_at: string
+  outlooks: Record<string, OutlookSummary>
+}
+
+export interface TechnicalOutlooks {
+  generated_at: string
+  outlooks: Record<string, OutlookSummary>
+}
+
+export interface Fable5Analysis {
+  market: string
+  range: AnalysisRange
+  generated_at: string
+  candles: Candle[]
+  outlook: Outlook
+  strategies: Analysis['strategies'] & {
+    momentum: AnalysisStrategy
+    stochastic: AnalysisStrategy
+    trend_strength: AnalysisStrategy
+  }
+  track_record: TrackRecord | null
+}
+
+export interface Fable5Outlooks {
+  generated_at: string
+  outlooks: Record<string, OutlookSummary>
+}
+
+export type GTP56SolStatus = 'ok' | 'insufficient_history' | 'stale' | 'unavailable'
+export type GTP56SolHorizon = '1d' | '1w' | '1m'
+export type GTP56SolDirection = 'bullish' | 'bearish' | 'neutral'
+export type GTP56SolConfidence = 'low' | 'medium' | 'high'
+export type GTP56SolSourceScope = 'asset' | 'asset_class'
+
+export interface GTP56SolProbabilities {
+  up: string
+  sideways: string
+  down: string
+}
+
+export interface GTP56SolDriver {
+  code: 'historical_probability_leader' | 'technical_vote_balance' | 'walk_forward_evidence'
+  params: Record<string, string | number | null>
+}
+
+export interface GTP56SolValidationEvidence {
+  evaluated_samples: number
+  effective_evaluated_samples: number
+  directional_accuracy: string | null
+  majority_baseline_accuracy: string | null
+  period_start: string | null
+  period_end: string | null
+}
+
+export interface GTP56SolAnalysis {
+  market: string
+  asset_class: AssetClass
+  generated_at: string
+  status: GTP56SolStatus
+  horizon: GTP56SolHorizon
+  source_scope: GTP56SolSourceScope
+  probabilities: GTP56SolProbabilities | null
+  direction: GTP56SolDirection
+  confidence: GTP56SolConfidence
+  drivers: GTP56SolDriver[]
+  sample_count: number
+  effective_sample_count: number
+  candidate_pool_size: number
+  average_similarity: string | null
+  validation: GTP56SolValidationEvidence
+  period_start: string | null
+  period_end: string | null
+  evidence_period_start: string | null
+  evidence_period_end: string | null
+}
+
+export interface GTP56SolOutlookSummary {
+  direction: GTP56SolDirection
+  score: number
+  confidence: GTP56SolConfidence
+}
+
+export interface GTP56SolOutlooks {
+  generated_at: string
+  horizon: GTP56SolHorizon
+  outlooks: Record<string, GTP56SolOutlookSummary>
+}
+
 export interface PriceUpdate {
   market: string
   last: string | null
@@ -212,4 +346,20 @@ export interface RssFeedStatus {
     last_poll: string | null
     last_error: string | null
   }
+}
+
+export interface CandleHistoryStatus {
+  market_count: number
+  candle_count: number
+  first_day: string | null
+  last_day: string | null
+  gtp56sol_deep_markets: number
+  last_harvest: string | null
+}
+
+export interface CandleHistoryImportResult {
+  markets_imported: number
+  rows_written: number
+  settings_imported: number
+  skipped_invalid: number
 }

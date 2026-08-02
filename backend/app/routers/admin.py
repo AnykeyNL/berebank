@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import json
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,8 @@ from ..schemas import (
     AdminUserCreate,
     AdminUserOut,
     AdminUserUpdate,
+    CandleHistoryImportOut,
+    CandleHistoryStatusOut,
     RssFeedCreate,
     RssFeedOut,
     RssFeedStatusOut,
@@ -17,6 +21,8 @@ from ..schemas import (
 )
 from ..security import hash_password, require_bank_manager
 from ..services.bitvavo import bitvavo_service
+from ..services.candle_history_transfer import export_history, history_status, import_history
+from ..services.candle_store import candle_harvest_service
 from ..services.rss_aggregator import rss_aggregator_service
 from ..services.twelvedata import twelvedata_service
 
@@ -208,3 +214,54 @@ async def fetch_rss_feed(feed_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Feed fetch failed: {exc}")
     db.refresh(feed)
     return RssFeedOut.model_validate(feed)
+
+
+@router.get("/candle-history/status", response_model=CandleHistoryStatusOut)
+def get_candle_history_status(db: Session = Depends(get_db)):
+    """Stored daily candle summary used by KimiK3, Fable5 and GTP56Sol."""
+    return CandleHistoryStatusOut(
+        **history_status(db),
+        last_harvest=candle_harvest_service.last_run,
+    )
+
+
+@router.get("/candle-history/export")
+def export_candle_history(
+    include_gtp56sol_settings: bool = Query(default=True),
+    db: Session = Depends(get_db),
+):
+    """Download persisted daily candles (and optional GTP56Sol backfill state)."""
+    payload = export_history(db, include_gtp56sol_settings=include_gtp56sol_settings)
+    exported_at = payload["exported_at"].replace(":", "-")
+    filename = f"berebank-candle-history-{exported_at}.json"
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/candle-history/import", response_model=CandleHistoryImportOut)
+async def import_candle_history(
+    file: UploadFile,
+    include_settings: bool = Query(default=True),
+    db: Session = Depends(get_db),
+):
+    """Upsert daily candles from a prior export file."""
+    if file.content_type not in (None, "application/json", "text/plain", "application/octet-stream"):
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Expected a JSON export file")
+    raw = await file.read()
+    if len(raw) > 100 * 1024 * 1024:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Export file exceeds 100 MB limit")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Export root must be a JSON object")
+    try:
+        result = import_history(db, payload, include_settings=include_settings)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    return CandleHistoryImportOut(**result)

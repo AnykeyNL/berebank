@@ -55,6 +55,18 @@ export default function Layout() {
       <NavLink to="/news" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
         {t('nav.news')}
       </NavLink>
+      <NavLink to="/technical-analysis" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
+        {t('nav.technical')}
+      </NavLink>
+      <NavLink to="/kimi-analysis" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
+        {t('nav.kimi')}
+      </NavLink>
+      <NavLink to="/gtp56sol-analysis" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
+        {t('nav.gtp56sol')}
+      </NavLink>
+      <NavLink to="/fable5-analysis" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
+        {t('nav.fable5')}
+      </NavLink>
       <NavLink to="/ai" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
         {t('nav.ai')}
       </NavLink>

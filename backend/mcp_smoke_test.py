@@ -157,9 +157,14 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools = {t.name for t in (await session.list_tools()).tools}
-            expected = {"list_markets", "get_candles", "get_news", "get_portfolio", "list_orders",
-                        "list_trades", "get_trade_history", "get_leaderboard", "place_order",
-                        "cancel_order"}
+            expected = {
+                "list_markets", "get_candles", "analyze_market",
+                "get_kimi_analysis", "get_fable5_analysis",
+                "get_gtp56sol_analysis", "get_news",
+                "get_portfolio", "get_portfolio_history", "list_orders",
+                "list_trades", "get_trade_history", "get_leaderboard",
+                "place_order", "cancel_order",
+            }
             assert expected <= tools, f"missing tools: {expected - tools}"
             print("tools listed:", sorted(tools))
 
@@ -171,6 +176,13 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             r = await session.call_tool("get_candles", {"market": "BTC-EUR"})
             assert not r.isError, tool_text(r)
             print("get_candles OK")
+
+            r = await session.call_tool("get_gtp56sol_analysis", {
+                "market": "BTC-EUR", "horizon": "1w",
+            })
+            assert not r.isError, tool_text(r)
+            assert "probabilities" in tool_text(r)
+            print("get_gtp56sol_analysis OK")
 
             r = await session.call_tool("get_news", {"market": "AAPL-EUR", "limit": 3})
             assert not r.isError, tool_text(r)

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CandlestickSeries,
@@ -15,9 +15,229 @@ import {
 import { api } from '../lib/api'
 import { usePrices } from '../lib/usePrices'
 import { chartPriceFormat, fmtDateTime, fmtPct, fmtPrice } from '../lib/format'
-import type { Analysis, AnalysisRange, AnalysisStrategy, Market } from '../lib/types'
-import AnalysisCard, { IndicatorChart } from '../components/AnalysisCard'
+import type {
+  Analysis,
+  AnalysisRange,
+  AnalysisStrategy,
+  AssetClass,
+  Market,
+  OutlookConfidence,
+  TechnicalOutlooks,
+} from '../lib/types'
+import AnalysisCard, { IndicatorChart, SignalBadge } from '../components/AnalysisCard'
+import AnalysisCrossLinks from '../components/AnalysisCrossLinks'
 import AssetClassIcon from '../components/AssetClassIcon'
+
+const CONFIDENCE_ORDER: OutlookConfidence[] = ['low', 'medium', 'high']
+const DIRECTION_RANK: Record<string, number> = { bullish: 3, neutral: 2, bearish: 1, none: 0 }
+const CONFIDENCE_RANK: Record<OutlookConfidence, number> = { high: 3, medium: 2, low: 1 }
+
+type SortKey = 'asset' | 'confidence' | 'score' | 'direction' | 'last'
+type SortDir = 'asc' | 'desc'
+
+function ConfidenceDots({ confidence }: { confidence: OutlookConfidence }) {
+  const { t } = useTranslation()
+  const active = CONFIDENCE_ORDER.indexOf(confidence)
+  return (
+    <span
+      className="hidden items-center gap-0.5 sm:flex"
+      title={`${t('analyze.outlook.confidenceLabel')}: ${t(`analyze.outlook.confidenceLevels.${confidence}`)}`}
+    >
+      {[0, 1, 2].map((i) => (
+        <span key={i} className={`h-1.5 w-1.5 rounded-full ${i <= active ? 'bg-amber-400' : 'bg-slate-700'}`} />
+      ))}
+    </span>
+  )
+}
+
+function AssetPicker() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { prices } = usePrices()
+  const [markets, setMarkets] = useState<Market[]>([])
+  const [outlooks, setOutlooks] = useState<TechnicalOutlooks['outlooks']>({})
+  const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState<'all' | AssetClass>('all')
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'score', dir: 'desc' })
+
+  useEffect(() => {
+    api<Market[]>('/markets').then(setMarkets).catch(() => {})
+    api<TechnicalOutlooks>('/markets/technical-outlooks')
+      .then((data) => setOutlooks(data.outlooks))
+      .catch(() => {})
+  }, [])
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return markets
+      .filter((m) => classFilter === 'all' || m.asset_class === classFilter)
+      .filter((m) => {
+        if (!q) return true
+        return `${m.market} ${m.base} ${m.name ?? ''} ${m.listing ?? ''}`.toLowerCase().includes(q)
+      })
+  }, [markets, search, classFilter])
+
+  const sortedRows = useMemo(() => {
+    const value = (m: Market): number | string | null => {
+      const outlook = outlooks[m.market]
+      switch (sort.key) {
+        case 'asset':
+          return m.base
+        case 'confidence':
+          return outlook ? CONFIDENCE_RANK[outlook.confidence] : null
+        case 'score':
+          return outlook ? outlook.score : null
+        case 'direction':
+          return outlook ? DIRECTION_RANK[outlook.direction] : null
+        case 'last': {
+          const last = prices[m.market]?.last ?? m.last
+          return last !== null ? parseFloat(last) : null
+        }
+      }
+    }
+    const mult = sort.dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      const va = value(a)
+      const vb = value(b)
+      if (va === null && vb === null) return 0
+      if (va === null) return 1
+      if (vb === null) return -1
+      const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : va - (vb as number)
+      return cmp * mult
+    })
+  }, [rows, outlooks, prices, sort])
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: key === 'asset' ? 'asc' : 'desc' },
+    )
+  }
+
+  function sortHeader(key: SortKey, label: ReactNode, className: string, title?: string) {
+    const active = sort.key === key
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(key)}
+        aria-pressed={active}
+        title={title}
+        className={`flex items-center gap-0.5 uppercase tracking-wide transition-colors hover:text-slate-300 ${
+          active ? 'text-slate-300' : ''
+        } ${className}`}
+      >
+        <span className="truncate">{label}</span>
+        {active && <span aria-hidden="true">{sort.dir === 'asc' ? '↑' : '↓'}</span>}
+      </button>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60">
+      <div className="border-b border-slate-800 p-3">
+        <h2 className="px-1 pb-2 text-lg font-bold">{t('analyze.listTitle')}</h2>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('trade.searchPlaceholder')}
+          aria-label={t('analyze.pickAsset')}
+          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm outline-none focus:border-amber-500"
+        />
+        <div className="mt-2 flex gap-1">
+          {(['all', 'crypto', 'stock', 'fund', 'commodity'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setClassFilter(c)}
+              title={t(`trade.filter.${c}`)}
+              aria-label={t(`trade.filter.${c}`)}
+              aria-pressed={classFilter === c}
+              className={`flex flex-1 items-center justify-center rounded-md py-1.5 transition-colors ${
+                classFilter === c
+                  ? 'bg-amber-500/15 text-amber-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              {c === 'all' ? (
+                <span className="text-xs font-medium">{t('trade.filter.all')}</span>
+              ) : (
+                <AssetClassIcon assetClass={c} className="h-5 w-5" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="max-h-[60vh] overflow-y-auto">
+        <div className="flex items-center gap-2 border-b border-slate-800/60 px-4 py-1.5 text-[10px] text-slate-500">
+          {sortHeader('asset', t('analyze.table.asset'), 'flex-1')}
+          {sortHeader(
+            'confidence',
+            <span className="flex items-center gap-0.5" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="h-1.5 w-1.5 rounded-full bg-current" />
+              ))}
+            </span>,
+            'hidden w-12 justify-center sm:flex',
+            t('analyze.outlook.confidenceLabel'),
+          )}
+          {sortHeader('score', t('analyze.outlook.scoreLabel'), 'w-12 justify-end sm:w-14')}
+          {sortHeader('direction', t('analyze.table.outlook'), 'w-20 justify-center sm:w-24')}
+          {sortHeader('last', t('trade.last'), 'w-16 justify-end sm:w-20')}
+        </div>
+        {sortedRows.map((m) => {
+          const last = prices[m.market]?.last ?? m.last
+          const outlook = outlooks[m.market]
+          return (
+            <button
+              key={m.market}
+              type="button"
+              onClick={() => navigate(`/technical-analysis/${m.market}`)}
+              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors hover:bg-slate-800/50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <AssetClassIcon assetClass={m.asset_class} className="h-3.5 w-3.5 shrink-0" />
+                  {m.base}
+                </span>
+                {m.name && <span className="block truncate text-xs text-slate-500">{m.name}</span>}
+              </span>
+              <span className="hidden w-12 justify-center sm:flex">
+                {outlook && <ConfidenceDots confidence={outlook.confidence} />}
+              </span>
+              <span
+                className={`w-12 text-right font-mono text-xs sm:w-14 ${
+                  !outlook
+                    ? ''
+                    : outlook.score > 0
+                      ? 'text-emerald-400'
+                      : outlook.score < 0
+                        ? 'text-red-400'
+                        : 'text-slate-400'
+                }`}
+              >
+                {outlook ? (outlook.score > 0 ? `+${outlook.score}` : outlook.score) : ''}
+              </span>
+              <span className="flex w-20 justify-center sm:w-24">
+                {outlook ? (
+                  <SignalBadge signal={outlook.direction} />
+                ) : (
+                  <span
+                    className="truncate text-[10px] uppercase tracking-wide text-slate-600"
+                    title={t('kimiAnalysis.trackRecord.noHistory')}
+                  >
+                    {t('analyze.table.collecting')}
+                  </span>
+                )}
+              </span>
+              <span className="w-16 text-right font-mono text-xs sm:w-20">{fmtPrice(last)}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 const RANGES: AnalysisRange[] = ['1d', '1w', '30d', '90d', '180d', '365d']
 
@@ -156,7 +376,7 @@ function AnalysisChart({ analysis, overlays }: { analysis: Analysis; overlays: S
 }
 
 /** Format backend reason params into human-readable values for i18n interpolation. */
-function formatReasonParams(
+export function formatReasonParams(
   params: Record<string, string | number | null>,
   t: (key: string) => string,
 ): Record<string, string | number> {
@@ -183,7 +403,7 @@ function formatReasonParams(
 export default function AnalyzePage() {
   const { t } = useTranslation()
   const { market: marketParam } = useParams()
-  const market = (marketParam ?? 'BTC-EUR').toUpperCase()
+  const market = (marketParam ?? '').toUpperCase()
   const { prices } = usePrices()
 
   const [range, setRange] = useState<AnalysisRange>('30d')
@@ -193,10 +413,12 @@ export default function AnalyzePage() {
   const [overlays, setOverlays] = useState<Set<Overlay>>(new Set(['sma', 'levels']))
 
   useEffect(() => {
+    if (!market) return
     api<Market[]>('/markets').then(setMarkets).catch(() => {})
-  }, [])
+  }, [market])
 
   useEffect(() => {
+    if (!market) return
     let cancelled = false
     setAnalysis(null)
     setError(false)
@@ -287,15 +509,23 @@ export default function AnalyzePage() {
   const btnActive = 'bg-slate-700 text-slate-100'
   const btnIdle = 'text-slate-400 hover:text-slate-200'
 
+  if (!market) return <AssetPicker />
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Link to={`/trade/${market}`} className="text-xs text-amber-400 hover:text-amber-300">
-              ← {t('analyze.backToTrade')}
-            </Link>
+            <div className="flex items-center gap-3 text-xs">
+              <Link to={`/trade/${market}`} className="text-amber-400 hover:text-amber-300">
+                ← {t('analyze.backToTrade')}
+              </Link>
+              <Link to="/technical-analysis" className="text-slate-400 hover:text-slate-200">
+                {t('analyze.changeAsset')}
+              </Link>
+              <AnalysisCrossLinks market={market} current="technical" />
+            </div>
             <h2 className="mt-1 flex items-center gap-2 text-xl font-bold">
               {marketInfo && <AssetClassIcon assetClass={marketInfo.asset_class} className="h-5 w-5" />}
               {t('analyze.pageTitle', { market })}

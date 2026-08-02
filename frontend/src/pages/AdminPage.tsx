@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api } from '../lib/api'
+import { api, downloadApiFile, uploadApiFile } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { fmtDateTime, fmtEur } from '../lib/format'
-import type { AdminUser, RssFeedStatus, Settings } from '../lib/types'
+import type { AdminUser, CandleHistoryImportResult, CandleHistoryStatus, RssFeedStatus, Settings } from '../lib/types'
 
 export default function AdminPage() {
   return (
@@ -13,6 +13,7 @@ export default function AdminPage() {
       <BitvavoSettings />
       <TwelveDataSettings />
       <RssFeedSettings />
+      <CandleHistoryTransfer />
     </div>
   )
 }
@@ -805,6 +806,149 @@ function RssFeedSettings() {
           </div>
         </div>
       )}
+    </section>
+  )
+}
+
+function CandleHistoryTransfer() {
+  const { t } = useTranslation()
+  const [status, setStatus] = useState<CandleHistoryStatus | null>(null)
+  const [includeSettings, setIncludeSettings] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<'export' | 'import' | null>(null)
+
+  const load = useCallback(() => {
+    api<CandleHistoryStatus>('/admin/candle-history/status').then(setStatus).catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function onExport() {
+    setMessage(null)
+    setError(null)
+    setBusy('export')
+    try {
+      const { blob, filename } = await downloadApiFile(
+        `/admin/candle-history/export?include_gtp56sol_settings=${includeSettings}`,
+      )
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+      setMessage(t('admin.candleHistoryExported'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.candleHistoryExportFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function onImport(e: FormEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!window.confirm(t('admin.candleHistoryImportConfirm'))) return
+    setMessage(null)
+    setError(null)
+    setBusy('import')
+    try {
+      const result = await uploadApiFile<CandleHistoryImportResult>(
+        `/admin/candle-history/import?include_settings=${includeSettings}`,
+        file,
+      )
+      setMessage(
+        t('admin.candleHistoryImported', {
+          markets: result.markets_imported,
+          rows: result.rows_written,
+          settings: result.settings_imported,
+        }),
+      )
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.candleHistoryImportFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="mb-4 text-xl font-bold">{t('admin.candleHistory')}</h2>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="mb-3 font-semibold">{t('admin.candleHistoryStatus')}</h3>
+          {status ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.candleHistoryMarkets')}</dt>
+                <dd className="font-mono">{status.market_count}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.candleHistoryRows')}</dt>
+                <dd className="font-mono">{status.candle_count}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.candleHistoryRange')}</dt>
+                <dd className="font-mono text-right">
+                  {status.first_day && status.last_day
+                    ? `${status.first_day} → ${status.last_day}`
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.candleHistoryGtpDeep')}</dt>
+                <dd className="font-mono">{status.gtp56sol_deep_markets}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.candleHistoryLastHarvest')}</dt>
+                <dd className="font-mono text-right">
+                  {status.last_harvest ? fmtDateTime(status.last_harvest) : '—'}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-slate-400">{t('common.loading')}</p>
+          )}
+          <p className="mt-4 text-xs text-slate-500">{t('admin.candleHistoryNote')}</p>
+        </div>
+        <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="font-semibold">{t('admin.candleHistoryTransfer')}</h3>
+          <label className="flex items-start gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={includeSettings}
+              onChange={(e) => setIncludeSettings(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>{t('admin.candleHistoryIncludeSettings')}</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onExport}
+              disabled={busy !== null}
+              className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+            >
+              {busy === 'export' ? t('admin.candleHistoryExporting') : t('admin.candleHistoryExport')}
+            </button>
+            <label className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 has-[:disabled]:opacity-50">
+              {busy === 'import' ? t('admin.candleHistoryImporting') : t('admin.candleHistoryImport')}
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                disabled={busy !== null}
+                onChange={onImport}
+              />
+            </label>
+          </div>
+          {message && <p className="text-sm text-emerald-400">{message}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
+        </div>
+      </div>
     </section>
   )
 }

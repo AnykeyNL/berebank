@@ -236,3 +236,19 @@ class RssFeedUpdate(BaseModel):
 class RssFeedStatusOut(BaseModel):
     feeds: list[RssFeedOut]
     aggregator: dict
+
+
+class CandleHistoryStatusOut(BaseModel):
+    market_count: int
+    candle_count: int
+    first_day: str | None
+    last_day: str | None
+    gtp56sol_deep_markets: int
+    last_harvest: datetime | None = None
+
+
+class CandleHistoryImportOut(BaseModel):
+    markets_imported: int
+    rows_written: int
+    settings_imported: int
+    skipped_invalid: int

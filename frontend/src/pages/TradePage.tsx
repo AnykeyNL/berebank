@@ -293,10 +293,31 @@ export default function TradePage() {
               <PriceStat label={t('trade.ask')} value={fmtPrice(selectedPrice?.ask ?? selectedMarket?.ask)} />
               <button
                 type="button"
-                onClick={() => navigate(`/analyze/${selected}`)}
+                onClick={() => navigate(`/technical-analysis/${selected}`)}
                 className="self-center rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800"
               >
                 {t('analyze.analyzeButton')}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/kimi-analysis/${selected}`)}
+                className="self-center rounded-md border border-amber-600/50 px-3 py-1.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/10"
+              >
+                {t('kimiAnalysis.button')}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/gtp56sol-analysis/${selected}`)}
+                className="self-center rounded-md border border-cyan-700/60 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              >
+                {t('gtp56solAnalysis.button')}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/fable5-analysis/${selected}`)}
+                className="self-center rounded-md border border-violet-600/50 px-3 py-1.5 text-xs font-medium text-violet-300 transition-colors hover:bg-violet-500/10"
+              >
+                {t('fable5Analysis.button')}
               </button>
               {newsAvailable && (
                 <button

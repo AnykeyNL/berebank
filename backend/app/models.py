@@ -97,6 +97,22 @@ class PortfolioSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
+class MarketCandle(Base):
+    """Daily OHLCV candle per market, harvested for the KimiK3 track record."""
+
+    __tablename__ = "market_candles"
+    __table_args__ = (UniqueConstraint("market", "day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    market: Mapped[str] = mapped_column(String(20), index=True)
+    day: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # UTC day start
+    open: Mapped[Decimal] = mapped_column(Money)
+    high: Mapped[Decimal] = mapped_column(Money)
+    low: Mapped[Decimal] = mapped_column(Money)
+    close: Mapped[Decimal] = mapped_column(Money)
+    volume: Mapped[Decimal] = mapped_column(Money, default=Decimal("0"))
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
 

@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -21,6 +21,11 @@ function copyAgentsMd() {
 // only ever talks to its own origin (same pattern as nginx in production).
 export default defineConfig({
   plugins: [copyAgentsMd(), react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    globals: true,
+  },
   server: {
     // Listen on all interfaces so other devices on the LAN can reach the dev server
     host: true,

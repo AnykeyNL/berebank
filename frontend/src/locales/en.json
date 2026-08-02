@@ -24,6 +24,10 @@
     "historyShort": "History",
     "leaderboard": "Leaderboard",
     "news": "News",
+    "kimi": "KimiK3 Analysis",
+    "gtp56sol": "GTP56Sol Analysis",
+    "fable5": "Fable5 Analysis",
+    "technical": "Technical Analysis",
     "ai": "AI / MCP",
     "admin": "Admin",
     "more": "More",
@@ -295,9 +299,16 @@
     "high": "High"
   },
 
+  "analysisLinks": {
+    "label": "Other analysis"
+  },
+
   "analyze": {
-    "analyzeButton": "Analyze",
-    "pageTitle": "Analyze {{market}}",
+    "analyzeButton": "Technical",
+    "listTitle": "Technical Analysis",
+    "pickAsset": "Pick an asset",
+    "changeAsset": "Change asset",
+    "pageTitle": "Technical · {{market}}",
     "backToTrade": "Back to trading",
     "range": "Period",
     "overlaysLabel": "Chart overlays",
@@ -312,6 +323,20 @@
     "howItWorks": "How this works",
     "hideExplanation": "Hide explanation",
     "disclaimer": "These signals are calculated from historical prices for educational purposes in this simulation. They are indications, not predictions or financial advice — no indicator can reliably foresee the market.",
+    "table": {
+      "asset": "Asset",
+      "outlook": "Outlook",
+      "collecting": "Collecting…"
+    },
+    "outlook": {
+      "scoreLabel": "Score",
+      "confidenceLabel": "Confidence",
+      "confidenceLevels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      }
+    },
     "signals": {
       "bullish": "Bullish",
       "bearish": "Bearish",
@@ -385,6 +410,262 @@
       "between_levels": "Price is between support at {{support}} and resistance at {{resistance}} (volume {{volume_state}}).",
       "no_levels": "No clear support or resistance levels found in this period."
     }
+  },
+  "kimiAnalysis": {
+    "pageTitle": "KimiK3 analysis",
+    "button": "KimiK3",
+    "pickAsset": "Choose an asset to analyze",
+    "changeAsset": "Change asset",
+    "backToTrade": "Back to trading",
+    "classicLink": "Technical",
+    "range": "Period",
+    "loadError": "Could not load the KimiK3 analysis",
+    "updated": "Updated {{time}} · refreshes every minute",
+    "outlook": {
+      "title": "Direction outlook",
+      "scoreLabel": "Score",
+      "scoreMin": "-100 bearish",
+      "scoreMax": "+100 bullish",
+      "confidenceLabel": "Confidence",
+      "confidenceLevels": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "regimeNote": {
+        "trending": "Strong trend detected — trend indicators count double.",
+        "ranging": "Sideways market detected — momentum and volatility indicators count double.",
+        "neutral": "No strong regime — all indicators weigh equally."
+      },
+      "reasons": {
+        "outlook_bullish": "{{bullish}} of {{total}} indicators point up.",
+        "outlook_bearish": "{{bearish}} of {{total}} indicators point down.",
+        "outlook_neutral": "Indicators are mixed: {{bullish}} up, {{bearish}} down, {{neutral}} neutral.",
+        "outlook_no_data": "Not enough price history in this period for an outlook."
+      }
+    },
+    "why": "Why this outlook?",
+    "hideWhy": "Hide breakdown",
+    "weight": "weight ×{{weight}}",
+    "table": {
+      "asset": "Asset",
+      "outlook": "Outlook",
+      "collecting": "Collecting history"
+    },
+    "strategyNames": {
+      "trend": "Trend (moving averages)",
+      "rsi": "Momentum (RSI)",
+      "macd": "Momentum (MACD)",
+      "volatility": "Volatility (Bollinger Bands)",
+      "levels_volume": "Support / resistance & volume",
+      "trend_strength": "Trend strength (ADX)"
+    },
+    "reasons": {
+      "insufficient_data": "Not enough price history in this period for this analysis.",
+      "adx_strong_up": "Strong uptrend (ADX {{adx}}) — buyers are in control (+DI above -DI).",
+      "adx_strong_down": "Strong downtrend (ADX {{adx}}) — sellers are in control (-DI above +DI).",
+      "adx_weak_up": "Mild uptrend (ADX {{adx}}) — buyers have a slight edge.",
+      "adx_weak_down": "Mild downtrend (ADX {{adx}}) — sellers have a slight edge.",
+      "adx_ranging": "No trend (ADX {{adx}}, below 20) — the market is moving sideways."
+    },
+    "trackRecord": {
+      "title": "Track record on {{market}}",
+      "summary": "{{hitRate}}% of KimiK3 outlooks were followed by a move in the predicted direction within {{days}} days.",
+      "samples": "{{samples}} directional signals between {{from}} and {{to}}",
+      "avgBullish": "Avg move after bullish: {{value}}%",
+      "avgBearish": "Avg move after bearish: {{value}}%",
+      "noHistory": "The track record appears once enough daily price history has been collected — check back soon."
+    },
+    "disclaimer": "The KimiK3 outlook blends technical indicators calculated from historical prices, for educational purposes in this simulation. It is an indication, not a prediction or financial advice — no indicator can reliably foresee the market."
+  },
+  "fable5Analysis": {
+    "pageTitle": "Fable5 analysis",
+    "button": "Fable5",
+    "pickAsset": "Choose an asset to analyze",
+    "changeAsset": "Change asset",
+    "backToTrade": "Back to trading",
+    "classicLink": "Technical",
+    "range": "Period",
+    "loadError": "Could not load the Fable5 analysis",
+    "updated": "Updated {{time}} · refreshes every minute",
+    "gauge": {
+      "label": "Direction gauge",
+      "zones": {
+        "strong_down": "Strong down",
+        "down": "Leaning down",
+        "neutral": "No clear direction",
+        "up": "Leaning up",
+        "strong_up": "Strong up"
+      }
+    },
+    "outlook": {
+      "title": "Direction outlook",
+      "scoreLabel": "Score",
+      "scoreMin": "-100 bearish",
+      "scoreMax": "+100 bullish",
+      "confidenceLabel": "Confidence",
+      "confidenceLevels": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "regimeNote": {
+        "trending": "The ADX shows a strong trend — trend-following signals are more dependable now.",
+        "ranging": "The ADX shows a sideways market — the price tends to stay within a band.",
+        "neutral": "No strong trend or sideways regime detected."
+      },
+      "reasons": {
+        "outlook_bullish": "{{bullish}} of {{total}} signals point up, weighted by importance.",
+        "outlook_bearish": "{{bearish}} of {{total}} signals point down, weighted by importance.",
+        "outlook_neutral": "Signals are mixed: {{bullish}} up, {{bearish}} down, {{neutral}} neutral.",
+        "outlook_no_data": "Not enough price history in this period for an outlook."
+      }
+    },
+    "why": "Why this outlook?",
+    "hideWhy": "Hide breakdown",
+    "weight": "weight ×{{weight}}",
+    "table": {
+      "asset": "Asset",
+      "outlook": "Outlook",
+      "collecting": "Collecting history"
+    },
+    "strategyNames": {
+      "trend": "Trend (moving averages)",
+      "macd": "Momentum (MACD)",
+      "momentum": "Momentum (rate of change)",
+      "trend_strength": "Trend strength (ADX)",
+      "rsi": "Momentum (RSI)",
+      "stochastic": "Stochastic oscillator",
+      "volatility": "Volatility (Bollinger Bands)",
+      "levels_volume": "Support / resistance & volume"
+    },
+    "reasons": {
+      "insufficient_data": "Not enough price history in this period for this analysis.",
+      "momentum_up": "Price is above where it was 10 and 20 bars ago ({{roc10}}% and {{roc20}}%).",
+      "momentum_down": "Price is below where it was 10 and 20 bars ago ({{roc10}}% and {{roc20}}%).",
+      "momentum_mixed": "Short- and longer-term momentum disagree ({{roc10}}% vs {{roc20}}%).",
+      "stoch_oversold": "Stochastic %K at {{k}} — oversold, a bounce becomes likelier.",
+      "stoch_overbought": "Stochastic %K at {{k}} — overbought, a pullback becomes likelier.",
+      "stoch_bull_cross": "%K crossed above %D {{bars_ago}} bars ago — momentum turning up.",
+      "stoch_bear_cross": "%K crossed below %D {{bars_ago}} bars ago — momentum turning down.",
+      "stoch_neutral": "Stochastic in the middle zone (%K {{k}}, %D {{d}}) — no signal.",
+      "adx_strong_up": "Strong uptrend (ADX {{adx}}) — buyers are in control.",
+      "adx_strong_down": "Strong downtrend (ADX {{adx}}) — sellers are in control.",
+      "adx_mild_up": "Mild uptrend (ADX {{adx}}) — buyers have a slight edge.",
+      "adx_mild_down": "Mild downtrend (ADX {{adx}}) — sellers have a slight edge.",
+      "adx_ranging": "No trend (ADX {{adx}}, below 20) — the market is moving sideways."
+    },
+    "trackRecord": {
+      "title": "Track record on {{market}}",
+      "summary": "{{hitRate}}% of Fable5 outlooks were followed by a move in the predicted direction within {{days}} days.",
+      "samples": "{{samples}} directional signals between {{from}} and {{to}}",
+      "avgBullish": "Avg move after bullish: {{value}}%",
+      "avgBearish": "Avg move after bearish: {{value}}%",
+      "noHistory": "The track record appears once enough daily price history has been collected — check back soon."
+    },
+    "disclaimer": "The Fable5 outlook blends eight technical signals with fixed weights, calculated from historical prices, for educational purposes in this simulation. It is an indication, not a prediction or financial advice — no indicator can reliably foresee the market."
+  },
+  "gtp56solAnalysis": {
+    "brand": "GTP56Sol analysis",
+    "button": "GTP56Sol",
+    "lastPrice": "Last price",
+    "refreshNote": "Forecasts use completed daily sessions and refresh at most every 5 minutes.",
+    "picker": {
+      "intro": "Choose an asset for three simple historical-pattern forecasts.",
+      "searchLabel": "Search assets",
+      "searchPlaceholder": "Search by name or ticker…",
+      "filterLabel": "Filter by asset class",
+      "filters": {
+        "all": "All assets",
+        "crypto": "Crypto",
+        "stock": "Stocks",
+        "fund": "Funds",
+        "commodity": "Commodities"
+      },
+      "loading": "Loading assets…",
+      "loadError": "Could not load the asset list.",
+      "emptyAvailable": "No assets are currently available.",
+      "noMatches": "No matching assets."
+    },
+    "links": {
+      "label": "Analysis links",
+      "trade": "Back to Trade",
+      "changeAsset": "Change asset",
+      "classic": "Technical",
+      "kimi": "KimiK3"
+    },
+    "horizons": {
+      "label": "Historical-pattern forecast horizons",
+      "1d": "Next session",
+      "1w": "Next week",
+      "1m": "Next month",
+      "sessionOne": "1 trading-session bar",
+      "sessionMany": "{{count}} trading-session bars"
+    },
+    "direction": {
+      "bullish": "Likely up",
+      "bearish": "Likely down",
+      "neutral": "No clear direction"
+    },
+    "confidence": {
+      "label": "Confidence: {{level}}",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "probabilities": {
+      "label": "Outcome probabilities",
+      "up": "Up",
+      "sideways": "Sideways",
+      "down": "Down"
+    },
+    "drivers": {
+      "historical_probability_leader": "Similar historical setups most often moved {{outcome}} ({{probability}}).",
+      "technical_vote_balance": "Technical signals show {{balance}}.",
+      "walk_forward_evidence": "Walk-forward checks were {{directional_accuracy}} accurate across {{evaluated_samples}} validation samples.",
+      "voteUpOne": "one point upward",
+      "voteUpMany": "{{value}} points upward",
+      "voteDownOne": "one point downward",
+      "voteDownMany": "{{value}} points downward",
+      "voteBalanced": "an even balance",
+      "unavailable": "Additional historical evidence is unavailable."
+    },
+    "sourceScope": {
+      "asset": "asset history",
+      "asset_class": "same-class fallback",
+      "unknown": "source unavailable"
+    },
+    "evidence": {
+      "compact": "{{raw}} raw / {{effective}} effective samples · {{similarity}} average similarity · {{accuracy}} vs {{baseline}} baseline · {{scope}} · data {{dataStart}} – {{dataEnd}} · generated {{generated}}",
+      "show": "Show methodology and evidence",
+      "hide": "Hide methodology and evidence",
+      "methodology": "Probabilities compare the current setup with the nearest historical setups and their later trading-session outcomes.",
+      "pool": "{{pool}} eligible historical setups; walk-forward validation used {{validation}} raw / {{effectiveValidation}} effective samples.",
+      "fallback": "Same-class fallback: this forecast also uses histories from assets in the same asset class because this asset has limited history.",
+      "periods": "Asset data: {{dataStart}} – {{dataEnd}}. Evidence: {{evidenceStart}} – {{evidenceEnd}}. Generated: {{generated}}.",
+      "noValidation": "There are no independent walk-forward validation samples yet, so accuracy is unavailable."
+    },
+    "states": {
+      "loading": "Loading forecast…",
+      "error": "Could not load this horizon",
+      "refreshWarning": "Refresh failed. Showing the previous forecast.",
+      "retry": "Retry",
+      "retryLabel": "Retry {{title}}",
+      "insufficient_history": "Not enough completed history yet",
+      "stale": "This forecast is stale",
+      "unavailable": "This forecast is currently unavailable",
+      "probabilitiesUnavailable": "Forecast probabilities are unavailable",
+      "noProbabilities": "No outcome percentages are shown until reliable evidence is available."
+    },
+    "table": {
+      "asset": "Asset",
+      "confidence": "Confidence",
+      "score": "Score",
+      "outlook": "Outlook",
+      "collecting": "Collecting history",
+      "collectingHint": "The next-week forecast appears once enough daily history has been collected."
+    },
+    "disclaimer": "Educational historical-pattern forecasts for the de BereBank paper-money simulation. Outcomes are uncertain and no real money is used."
   },
   "orderForm": {
     "amountLabel": "Amount ({{asset}})",
@@ -493,6 +774,25 @@
     "rssFeedAddFailed": "Failed to add RSS feed",
     "rssFeedFetched": "Feed fetched",
     "rssFeedFetchFailed": "Feed fetch failed",
-    "rssFeedDeleteConfirm": "Remove this RSS feed? Saved articles from this feed will also be deleted."
+    "rssFeedDeleteConfirm": "Remove this RSS feed? Saved articles from this feed will also be deleted.",
+    "candleHistory": "Analysis candle history",
+    "candleHistoryStatus": "Stored history",
+    "candleHistoryMarkets": "Markets with data",
+    "candleHistoryRows": "Daily candle rows",
+    "candleHistoryRange": "Date range",
+    "candleHistoryGtpDeep": "GTP56Sol deep backfills",
+    "candleHistoryLastHarvest": "Last background harvest",
+    "candleHistoryNote": "Daily OHLCV candles power KimiK3, Fable5 and GTP56Sol. Export from dev and import on production to skip waiting for the background harvester and GTP56Sol backfills.",
+    "candleHistoryTransfer": "Export / import",
+    "candleHistoryIncludeSettings": "Include GTP56Sol deep-backfill state (recommended)",
+    "candleHistoryExport": "Export JSON",
+    "candleHistoryExporting": "Exporting…",
+    "candleHistoryExported": "Candle history downloaded.",
+    "candleHistoryExportFailed": "Export failed",
+    "candleHistoryImport": "Import JSON",
+    "candleHistoryImporting": "Importing…",
+    "candleHistoryImportConfirm": "Import candle history from this file? Existing rows for the same market and day will be updated.",
+    "candleHistoryImported": "Imported {{markets}} markets ({{rows}} rows written, {{settings}} GTP56Sol settings).",
+    "candleHistoryImportFailed": "Import failed"
   }
 }

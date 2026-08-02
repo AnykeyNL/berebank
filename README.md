@@ -98,8 +98,12 @@ assistants such as Claude or Cursor to their account.
   up to 30 days before re-login (refresh tokens), and disabling the account cuts access
   immediately.
 - **Read access** (always available to active users): `list_markets`, `get_candles`,
+  `analyze_market`, `get_kimi_analysis`, `get_gtp56sol_analysis`, `get_news`,
   `get_portfolio`, `get_portfolio_history`, `list_orders`, `list_trades`,
-  `get_trade_history`, `get_leaderboard`.
+  `get_trade_history`, `get_leaderboard`. GTP56Sol independently forecasts
+  Up/Sideways/Down probabilities for `1d`, `1w`, or `1m` horizons (1, 5, or
+  21 trading-session bars) from completed stored daily candles and exposes
+  similar-history plus walk-forward evidence.
 - **Trading** (`place_order`, `cancel_order`) is only allowed when the user enables
   **Allow trading via MCP** in the *MCP access* section of their profile page. The setting
   is off by default and is checked on every call, so turning it off applies immediately.
