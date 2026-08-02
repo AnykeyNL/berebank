@@ -188,13 +188,15 @@ async def get_kimi_outlooks(
         return _kimi_outlooks_cache[1]
 
     macro = await get_macro_context()
+    from ..services.crypto_context import get_macro_context as get_crypto_macro_context
+    crypto_macro = await get_crypto_macro_context()
     outlooks: dict[str, dict] = {}
     for market in market_data_service.markets:
         candles = load_recent_daily_candles(db, market)
         if len(candles) < 60:
             continue
         asset_class = market_data_service.get_market(market)["asset_class"]
-        context = macro if asset_class != "crypto" else None
+        context = crypto_macro if asset_class == "crypto" else macro
         outlook = kimi_analysis_service.analyze_kimi(candles, len(candles), context)["outlook"]
         outlooks[market] = {
             "direction": outlook["direction"],
@@ -227,13 +229,15 @@ async def get_fable5_outlooks(
         return _fable5_outlooks_cache[1]
 
     macro = await get_macro_context()
+    from ..services.crypto_context import get_macro_context as get_crypto_macro_context
+    crypto_macro = await get_crypto_macro_context()
     outlooks: dict[str, dict] = {}
     for market in market_data_service.markets:
         candles = load_recent_daily_candles(db, market)
         if len(candles) < 60:
             continue
         asset_class = market_data_service.get_market(market)["asset_class"]
-        context = macro if asset_class != "crypto" else None
+        context = crypto_macro if asset_class == "crypto" else macro
         outlook = fable5_analysis_service.analyze_fable5(candles, len(candles), context)["outlook"]
         outlooks[market] = {
             "direction": outlook["direction"],
@@ -643,9 +647,7 @@ async def get_gtp56sol_analysis(
                     continue
                 fallback = fallback_rows or None
 
-            td_context = None
-            if market_info["asset_class"] != "crypto":
-                td_context = await get_market_context(market, market_info["asset_class"])
+            td_context = await get_market_context(market, market_info["asset_class"])
 
             forecast_payload = await _run_gtp56sol_forecast(
                 candles,

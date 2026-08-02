@@ -417,5 +417,24 @@ snapshot = gtp56sol_analysis.build_feature_snapshot(candles, context=ctx)
 check("context adds macro features", snapshot["vix_normalized"] is not None)
 check("earnings proximity on current bar", snapshot["earnings_proximity"] == 1.0)
 
+crypto_ctx = {
+    "context_type": "crypto",
+    "fear_greed_by_day": {"2024-06-01": 60.0},
+    "fear_greed_index": 60,
+    "btc_dominance": 51.0,
+    "btc_correlation": 0.75,
+    "stablecoin_supply_change_pct": 2.0,
+}
+crypto_snapshot = gtp56sol_analysis.build_feature_snapshot(candles, context=crypto_ctx)
+check("crypto context maps fear & greed", crypto_snapshot["vix_normalized"] is not None)
+check("crypto context maps correlation", crypto_snapshot["earnings_proximity"] == 0.75)
+drivers = gtp56sol_analysis._drivers(
+    crypto_snapshot,
+    {"up": 0.4, "sideways": 0.3, "down": 0.3},
+    {"evaluated_samples": 10, "directional_accuracy": 0.6},
+    crypto_ctx,
+)
+check("crypto drivers emitted", any(d["code"] == "macro_fear_greed" for d in drivers))
+
 print(f"\n{passed} passed, {failed} failed")
 raise SystemExit(1 if failed else 0)

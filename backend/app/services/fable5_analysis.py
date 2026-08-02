@@ -40,10 +40,31 @@ EXPLANATIONS = {
         "volatility. Elevated VIX (25+) often coincides with risk-off "
         "conditions; subdued VIX (15 or below) suggests calmer markets."
     ),
+    "fear_greed_regime": (
+        "The Crypto Fear & Greed Index blends volatility, momentum, social "
+        "media and surveys into a 0–100 score. Extreme fear (25 or below) "
+        "often marks capitulation; extreme greed (75+) can signal overheated "
+        "conditions."
+    ),
     "yield_curve": (
         "The spread between US 10-year and 2-year Treasury yields reflects "
         "growth expectations. An inverted curve (2Y above 10Y) is a classic "
         "recession warning; a steep positive spread supports risk appetite."
+    ),
+    "crypto_liquidity": (
+        "BTC dominance tracks Bitcoin's share of total crypto market cap; "
+        "rising dominance often drains altcoin liquidity. Stablecoin supply "
+        "measures dry powder on the sidelines — growth supports risk appetite."
+    ),
+    "funding_regime": (
+        "Aggregated perpetual funding rates across major exchanges. "
+        "Extremely positive funding means crowded longs (contrarian bearish); "
+        "deeply negative funding often marks short squeezes."
+    ),
+    "oi_momentum": (
+        "24-hour change in aggregate futures open interest. Rising OI with "
+        "price strength confirms new money entering the trend; falling OI "
+        "suggests positions are closing."
     ),
 }
 
@@ -55,6 +76,8 @@ STRATEGY_ORDER = [
     "trend_strength",
     "vix_regime",
     "yield_curve",
+    "funding_regime",
+    "oi_momentum",
     "rsi",
     "stochastic",
     "volatility",
@@ -69,6 +92,8 @@ WEIGHTS = {
     "trend_strength": 1.5,
     "vix_regime": 1.0,
     "yield_curve": 1.0,
+    "funding_regime": 1.0,
+    "oi_momentum": 1.0,
     "rsi": 1.0,
     "stochastic": 1.0,
     "volatility": 1.0,
@@ -333,7 +358,32 @@ def _trend_strength(timestamps, highs, lows, closes, start) -> dict:
     }
 
 
+def _fear_greed_regime(context: dict) -> dict:
+    fg = int(context["fear_greed_index"])
+    if fg >= 75:
+        signal = "bearish"
+        reason = {"code": "fear_greed_extreme_greed", "params": {"index": str(fg)}}
+    elif fg <= 25:
+        signal = "bullish"
+        reason = {"code": "fear_greed_extreme_fear", "params": {"index": str(fg)}}
+    else:
+        signal = "neutral"
+        reason = {"code": "fear_greed_neutral", "params": {"index": str(fg)}}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["fear_greed_regime"],
+        "values": {
+            "fear_greed_index": str(fg),
+            "classification": context.get("fear_greed_classification"),
+        },
+        "series": {},
+    }
+
+
 def _vix_regime(context: dict | None) -> dict:
+    if context and context.get("fear_greed_index") is not None:
+        return _fear_greed_regime(context)
     if not context or context.get("vix_level") is None:
         return _insufficient("vix_regime")
     vix = float(context["vix_level"])
@@ -355,7 +405,55 @@ def _vix_regime(context: dict | None) -> dict:
     }
 
 
+def _crypto_liquidity(context: dict) -> dict:
+    votes: list[float] = []
+    dom_change = context.get("btc_dominance_change_pct")
+    stable_change = context.get("stablecoin_supply_change_pct")
+    if dom_change is not None:
+        dom_f = float(dom_change)
+        if dom_f > 0.5:
+            votes.append(-1.0)
+        elif dom_f < -0.5:
+            votes.append(1.0)
+    if stable_change is not None:
+        stable_f = float(stable_change)
+        if stable_f > 2.0:
+            votes.append(1.0)
+        elif stable_f < -2.0:
+            votes.append(-1.0)
+    if not votes:
+        return _insufficient("yield_curve")
+    avg = sum(votes) / len(votes)
+    if avg > 0.25:
+        signal = "bullish"
+        code = "crypto_liquidity_supportive"
+    elif avg < -0.25:
+        signal = "bearish"
+        code = "crypto_liquidity_tight"
+    else:
+        signal = "neutral"
+        code = "crypto_liquidity_mixed"
+    return {
+        "signal": signal,
+        "reason": {
+            "code": code,
+            "params": {
+                "dominance_change_pct": analysis._s(float(dom_change)) if dom_change is not None else None,
+                "stablecoin_change_pct": analysis._s(float(stable_change)) if stable_change is not None else None,
+            },
+        },
+        "explanation": EXPLANATIONS["crypto_liquidity"],
+        "values": {
+            "btc_dominance": analysis._s(context.get("btc_dominance")),
+            "stablecoin_supply_change_pct": analysis._s(stable_change),
+        },
+        "series": {},
+    }
+
+
 def _yield_curve(context: dict | None) -> dict:
+    if context and context.get("context_type") == "crypto":
+        return _crypto_liquidity(context)
     spread = context.get("yield_spread") if context else None
     us2y = context.get("us2y_yield") if context else None
     us10y = context.get("us10y_yield") if context else None
@@ -400,6 +498,50 @@ def _yield_curve(context: dict | None) -> dict:
             "series": {},
         }
     return _insufficient("yield_curve")
+
+
+def _funding_regime(context: dict | None) -> dict:
+    if not context or context.get("funding_rate_avg") is None:
+        return _insufficient("funding_regime")
+    funding = float(context["funding_rate_avg"])
+    if funding >= 0.05:
+        signal = "bearish"
+        reason = {"code": "funding_crowded_longs", "params": {"funding": analysis._s(funding)}}
+    elif funding <= -0.02:
+        signal = "bullish"
+        reason = {"code": "funding_crowded_shorts", "params": {"funding": analysis._s(funding)}}
+    else:
+        signal = "neutral"
+        reason = {"code": "funding_neutral", "params": {"funding": analysis._s(funding)}}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["funding_regime"],
+        "values": {"funding_rate_avg": analysis._s(funding)},
+        "series": {},
+    }
+
+
+def _oi_momentum(context: dict | None) -> dict:
+    if not context or context.get("open_interest_change_percent_24h") is None:
+        return _insufficient("oi_momentum")
+    change = float(context["open_interest_change_percent_24h"])
+    if change >= 5.0:
+        signal = "bullish"
+        reason = {"code": "oi_rising", "params": {"change": analysis._s(change)}}
+    elif change <= -5.0:
+        signal = "bearish"
+        reason = {"code": "oi_falling", "params": {"change": analysis._s(change)}}
+    else:
+        signal = "neutral"
+        reason = {"code": "oi_stable", "params": {"change": analysis._s(change)}}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["oi_momentum"],
+        "values": {"open_interest_change_percent_24h": analysis._s(change)},
+        "series": {},
+    }
 
 
 # ---- composite outlook ----
@@ -498,6 +640,8 @@ def analyze_fable5(
         "trend_strength": _trend_strength(timestamps, highs, lows, closes, start),
         "vix_regime": _vix_regime(context),
         "yield_curve": _yield_curve(context),
+        "funding_regime": _funding_regime(context),
+        "oi_momentum": _oi_momentum(context),
     }
     return {
         "generated_at": base["generated_at"],

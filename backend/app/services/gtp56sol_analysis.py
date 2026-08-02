@@ -13,7 +13,7 @@ from statistics import fmean, median
 
 from app.services import analysis
 
-ENGINE_VERSION = "2"
+ENGINE_VERSION = "3"
 HORIZONS = {"1d": 1, "1w": 5, "1m": 21}
 MIN_SAMPLES = 30
 MAX_NEIGHBORS = 100
@@ -47,6 +47,8 @@ FEATURE_NAMES = (
     "yield_spread",
     "earnings_proximity",
     "insider_activity",
+    "funding_normalized",
+    "oi_change_24h",
 )
 
 
@@ -717,17 +719,55 @@ def _drivers(
             },
         },
     ]
-    if context and context.get("vix_level") is not None:
+    if context and context.get("context_type") == "crypto":
+        if context.get("fear_greed_index") is not None:
+            drivers.append({
+                "code": "macro_fear_greed",
+                "params": {
+                    "index": context.get("fear_greed_index"),
+                    "classification": context.get("fear_greed_classification"),
+                },
+            })
+        if context.get("btc_dominance") is not None:
+            drivers.append({
+                "code": "macro_btc_dominance",
+                "params": {"dominance": _s(float(context["btc_dominance"]))},
+            })
+        if context.get("btc_correlation") is not None:
+            drivers.append({
+                "code": "macro_btc_correlation",
+                "params": {"correlation": _s(float(context["btc_correlation"]))},
+            })
+        if context.get("stablecoin_supply_change_pct") is not None:
+            drivers.append({
+                "code": "macro_stablecoin_supply",
+                "params": {
+                    "change_pct": _s(float(context["stablecoin_supply_change_pct"])),
+                },
+            })
+        if context.get("funding_rate_avg") is not None:
+            drivers.append({
+                "code": "macro_funding_rate",
+                "params": {"funding": _s(float(context["funding_rate_avg"]))},
+            })
+        if context.get("open_interest_change_percent_24h") is not None:
+            drivers.append({
+                "code": "macro_open_interest",
+                "params": {
+                    "change": _s(float(context["open_interest_change_percent_24h"])),
+                },
+            })
+    elif context and context.get("vix_level") is not None:
         drivers.append({
             "code": "macro_vix_context",
             "params": {"vix": _s(float(context["vix_level"]))},
         })
-    if context and context.get("yield_spread") is not None:
+    if context and context.get("context_type") != "crypto" and context.get("yield_spread") is not None:
         drivers.append({
             "code": "macro_yield_spread",
             "params": {"spread": _s(float(context["yield_spread"]))},
         })
-    elif context and context.get("us2y_yield") is not None:
+    elif context and context.get("context_type") != "crypto" and context.get("us2y_yield") is not None:
         drivers.append({
             "code": "macro_us2y_yield",
             "params": {"us2y": _s(float(context["us2y_yield"]))},

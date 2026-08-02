@@ -325,8 +325,12 @@ async def _fetch_market_context(
 
 
 async def get_market_context(market: str, asset_class: str) -> dict[str, Any] | None:
-    """Full supplementary context for a non-crypto market."""
-    if asset_class == "crypto" or twelvedata_service.api_key is None:
+    """Full supplementary context for stocks, funds, commodities and crypto."""
+    if asset_class == "crypto":
+        from .crypto_context import get_market_context as get_crypto_market_context
+
+        return await get_crypto_market_context(market)
+    if twelvedata_service.api_key is None:
         return None
     macro = await get_macro_context()
     if macro is None:
@@ -352,6 +356,10 @@ def serialize_context(context: dict[str, Any] | None) -> dict[str, Any] | None:
     """API-safe subset without internal series maps."""
     if not context:
         return None
+    if context.get("context_type") == "crypto":
+        from .crypto_context import serialize_context as serialize_crypto_context
+
+        return serialize_crypto_context(context)
     return {
         "macro_regime": context.get("macro_regime"),
         "vix_level": _fmt(context.get("vix_level")),
@@ -376,12 +384,18 @@ def macro_features_at(
     current_only: bool = False,
 ) -> dict[str, float | None]:
     """Normalized macro/event features for GTP56Sol snapshots."""
+    if context and context.get("context_type") == "crypto":
+        from .crypto_context import macro_features_at as crypto_macro_features_at
+
+        return crypto_macro_features_at(context, timestamp_ms, current_only=current_only)
     if not context:
         return {
             "vix_normalized": None,
             "yield_spread": None,
             "earnings_proximity": None,
             "insider_activity": None,
+            "funding_normalized": None,
+            "oi_change_24h": None,
         }
     if current_only:
         vix = context.get("vix_level")
@@ -405,6 +419,8 @@ def macro_features_at(
         "yield_spread": spread,
         "earnings_proximity": earnings,
         "insider_activity": insider_activity if current_only else 0.0,
+        "funding_normalized": None,
+        "oi_change_24h": None,
     }
 
 

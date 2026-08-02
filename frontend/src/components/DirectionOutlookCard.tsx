@@ -95,6 +95,31 @@ function driverText(
       return t('gtp56solAnalysis.drivers.macro_vix_context', {
         vix: String(params.vix ?? '—'),
       })
+    case 'macro_fear_greed':
+      return t('gtp56solAnalysis.drivers.macro_fear_greed', {
+        index: String(params.index ?? '—'),
+        classification: String(params.classification ?? ''),
+      })
+    case 'macro_btc_dominance':
+      return t('gtp56solAnalysis.drivers.macro_btc_dominance', {
+        dominance: String(params.dominance ?? '—'),
+      })
+    case 'macro_btc_correlation':
+      return t('gtp56solAnalysis.drivers.macro_btc_correlation', {
+        correlation: String(params.correlation ?? '—'),
+      })
+    case 'macro_stablecoin_supply':
+      return t('gtp56solAnalysis.drivers.macro_stablecoin_supply', {
+        change_pct: String(params.change_pct ?? '—'),
+      })
+    case 'macro_funding_rate':
+      return t('gtp56solAnalysis.drivers.macro_funding_rate', {
+        funding: String(params.funding ?? '—'),
+      })
+    case 'macro_open_interest':
+      return t('gtp56solAnalysis.drivers.macro_open_interest', {
+        change: String(params.change ?? '—'),
+      })
     case 'macro_yield_spread':
       return t('gtp56solAnalysis.drivers.macro_yield_spread', {
         spread: String(params.spread ?? '—'),

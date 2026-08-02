@@ -181,6 +181,11 @@ def compute_outlook(strategies: dict, context: dict | None = None) -> dict:
     adx_raw = ts_values.get("adx")
     regime = regime_for(float(adx_raw) if adx_raw else None)
     earnings_near = bool(context and context.get("earnings_near"))
+    funding_extreme = False
+    if context and context.get("context_type") == "crypto":
+        funding = context.get("funding_rate_avg")
+        if funding is not None and abs(float(funding)) >= 0.05:
+            funding_extreme = True
 
     contributions = []
     for key in STRATEGY_ORDER:
@@ -196,6 +201,7 @@ def compute_outlook(strategies: dict, context: dict | None = None) -> dict:
                 regime == "ranging"
                 and key in _MEAN_REVERSION
                 and not earnings_near
+                and not funding_extreme
             ):
                 weight = 2.0
         contributions.append({"strategy": key, "signal": signal, "weight": weight})
@@ -226,6 +232,35 @@ def compute_outlook(strategies: dict, context: dict | None = None) -> dict:
     if insider in ("bullish", "bearish") and abs(score) <= 15:
         score = min(100, score + 12) if insider == "bullish" else max(-100, score - 12)
 
+    if context and context.get("context_type") == "crypto":
+        stable_change = context.get("stablecoin_supply_change_pct")
+        if stable_change is not None and abs(score) <= 15:
+            stable_f = float(stable_change)
+            if stable_f > 3.0:
+                score = min(100, score + 10)
+            elif stable_f < -3.0:
+                score = max(-100, score - 10)
+        correlation = context.get("btc_correlation")
+        if correlation is not None and abs(score) <= 20 and float(correlation) >= 0.85:
+            if macro_regime == "risk_off":
+                score = max(-100, score - 8)
+            elif macro_regime == "risk_on":
+                score = min(100, score + 8)
+        funding = context.get("funding_rate_avg")
+        if funding is not None and abs(score) <= 15:
+            funding_f = float(funding)
+            if funding_f >= 0.05:
+                score = max(-100, score - 10)
+            elif funding_f <= -0.02:
+                score = min(100, score + 10)
+        oi_change = context.get("open_interest_change_percent_24h")
+        if oi_change is not None and abs(score) <= 15:
+            oi_f = float(oi_change)
+            if oi_f >= 8.0:
+                score = min(100, score + 8)
+            elif oi_f <= -8.0:
+                score = max(-100, score - 8)
+
     if score >= _BULLISH_AT:
         direction = "bullish"
     elif score <= _BEARISH_AT:
@@ -241,6 +276,8 @@ def compute_outlook(strategies: dict, context: dict | None = None) -> dict:
     reason_params = {**counts, "total": len(active), "regime": regime}
     if earnings_near:
         reason_params["earnings_near"] = True
+    if funding_extreme:
+        reason_params["funding_extreme"] = True
     if macro_regime and macro_regime != "neutral":
         reason_params["macro_regime"] = macro_regime
     return {

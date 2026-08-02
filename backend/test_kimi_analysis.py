@@ -148,6 +148,13 @@ tie = strategies({
 out_insider = kimi_analysis.compute_outlook(tie, {"insider_signal": "bullish"})
 check("insider tie-breaker nudges score up", out_insider["score"] > kimi_analysis.compute_outlook(tie)["score"])
 
+out_crypto = kimi_analysis.compute_outlook(tie, {
+    "context_type": "crypto",
+    "macro_regime": "risk_off",
+    "stablecoin_supply_change_pct": -4.0,
+})
+check("crypto stablecoin drain nudges score down", out_crypto["score"] < kimi_analysis.compute_outlook(tie)["score"])
+
 print("analyze_kimi")
 up_candles = make_candles([100.0 * math.exp(0.002 * i) for i in range(140)])
 result = kimi_analysis.analyze_kimi(up_candles, 80)

@@ -46,4 +46,6 @@ CORS_ORIGINS = os.environ.get(
     "BEREBANK_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",")
 
+COINGLASS_API_KEY = os.environ.get("BEREBANK_COINGLASS_API_KEY", "")
+
 MIN_ORDER_EUR = 5  # Bitvavo minimum order size

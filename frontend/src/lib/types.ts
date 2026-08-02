@@ -111,19 +111,31 @@ export interface TrackRecord {
 }
 
 export interface SupplementaryContext {
+  context_type?: 'crypto' | null
   macro_regime: 'risk_on' | 'risk_off' | 'neutral' | null
-  vix_level: string | null
-  vix_change_pct: string | null
-  us2y_yield: string | null
-  us10y_yield: string | null
-  yield_spread: string | null
-  days_to_earnings: number | null
-  earnings_near: boolean
-  insider_signal: 'bullish' | 'bearish' | 'neutral' | 'none' | null
-  insider_buys: number
-  insider_sells: number
-  sector_etf: string | null
-  sector_relative_return: string | null
+  vix_level?: string | null
+  vix_change_pct?: string | null
+  us2y_yield?: string | null
+  us10y_yield?: string | null
+  yield_spread?: string | null
+  days_to_earnings?: number | null
+  earnings_near?: boolean
+  insider_signal?: 'bullish' | 'bearish' | 'neutral' | 'none' | null
+  insider_buys?: number
+  insider_sells?: number
+  sector_etf?: string | null
+  sector_relative_return?: string | null
+  fear_greed_index?: number | null
+  fear_greed_classification?: string | null
+  fear_greed_change?: string | null
+  btc_dominance?: string | null
+  btc_dominance_change_pct?: string | null
+  btc_correlation?: string | null
+  stablecoin_supply_usd?: string | null
+  stablecoin_supply_change_pct?: string | null
+  funding_rate_avg?: string | null
+  open_interest_change_percent_24h?: string | null
+  open_interest_usd?: string | null
 }
 
 export interface KimiAnalysis {
@@ -195,6 +207,13 @@ export interface GTP56SolDriver {
     | 'walk_forward_evidence'
     | 'macro_vix_context'
     | 'macro_yield_spread'
+    | 'macro_us2y_yield'
+    | 'macro_fear_greed'
+    | 'macro_btc_dominance'
+    | 'macro_btc_correlation'
+    | 'macro_stablecoin_supply'
+    | 'macro_funding_rate'
+    | 'macro_open_interest'
     | 'earnings_near'
     | 'insider_activity'
   params: Record<string, string | number | null>
@@ -351,6 +370,12 @@ export interface Settings {
     prices_cached: number
     last_update: number | null
     usd_eur: string | null
+    error: string | null
+  }
+  coinglass_api_key_masked: string | null
+  coinglass: {
+    configured: boolean
+    last_update: number | null
     error: string | null
   }
 }

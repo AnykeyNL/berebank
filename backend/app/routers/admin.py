@@ -25,6 +25,7 @@ from ..services.candle_history_transfer import export_history, history_status, i
 from ..services.candle_store import candle_harvest_service
 from ..services.rss_aggregator import rss_aggregator_service
 from ..services.twelvedata import twelvedata_service
+from ..services.coinglass import coinglass_service
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_bank_manager)])
 
@@ -139,6 +140,8 @@ def get_settings(db: Session = Depends(get_db)):
         connection=bitvavo_service.status(),
         twelvedata_api_key_masked=_mask(_get_setting(db, "twelvedata_api_key")),
         twelvedata=twelvedata_service.status(),
+        coinglass_api_key_masked=_mask(_get_setting(db, "coinglass_api_key")),
+        coinglass=coinglass_service.status(),
     )
 
 
@@ -150,10 +153,14 @@ async def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
         _set_setting(db, "bitvavo_api_secret", body.bitvavo_api_secret)
     if body.twelvedata_api_key is not None:
         _set_setting(db, "twelvedata_api_key", body.twelvedata_api_key)
+    if body.coinglass_api_key is not None:
+        _set_setting(db, "coinglass_api_key", body.coinglass_api_key)
     db.commit()
     if body.twelvedata_api_key is not None:
         # Apply the new key immediately so the stock/fund feed (re)starts.
         await twelvedata_service.restart(body.twelvedata_api_key)
+    if body.coinglass_api_key is not None:
+        coinglass_service.set_api_key(body.coinglass_api_key)
     return get_settings(db)
 
 

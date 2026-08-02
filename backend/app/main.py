@@ -8,7 +8,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, select, text
 
-from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
+from .config import ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS, COINGLASS_API_KEY, COINGLASS_API_KEY
 from .database import Base, SessionLocal, engine
 from .mcp_server import mcp
 from .models import Account, AppSetting, User
@@ -21,6 +21,7 @@ from .services.rss_aggregator import rss_aggregator_service
 from .services.snapshots import portfolio_snapshot_service
 from .services.trading import load_open_limit_markets, match_limit_orders
 from .services.twelvedata import twelvedata_service
+from .services.coinglass import coinglass_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("berebank")
@@ -95,11 +96,14 @@ async def lifespan(app: FastAPI):
         load_open_limit_markets(db)
         td_key_setting = db.get(AppSetting, "twelvedata_api_key")
         td_key = td_key_setting.value if td_key_setting else None
+        cg_key_setting = db.get(AppSetting, "coinglass_api_key")
+        cg_key = (cg_key_setting.value if cg_key_setting else None) or COINGLASS_API_KEY or None
     finally:
         db.close()
     market_data_service.add_listener(_limit_order_listener)
     bitvavo_service.start()
     twelvedata_service.start(td_key)
+    coinglass_service.set_api_key(cg_key)
     rss_aggregator_service.start()
     portfolio_snapshot_service.start()
     candle_harvest_service.start()

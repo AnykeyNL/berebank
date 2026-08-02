@@ -159,7 +159,7 @@ check("confidence high when all active weight agrees", out["confidence"] == "hig
 print("analyze_fable5")
 up_candles = make_candles([100.0 * math.exp(0.002 * i) for i in range(140)])
 result = fable5_analysis.analyze_fable5(up_candles, 80)
-check("ten strategies", set(result["strategies"]) == set(fable5_analysis.STRATEGY_ORDER))
+check("twelve strategies", set(result["strategies"]) == set(fable5_analysis.STRATEGY_ORDER))
 check("uptrend -> bullish outlook", result["outlook"]["direction"] == "bullish")
 check("momentum bullish in uptrend", result["strategies"]["momentum"]["signal"] == "bullish")
 check("trend_strength bullish in uptrend", result["strategies"]["trend_strength"]["signal"] == "bullish")
@@ -203,8 +203,26 @@ check("elevated VIX bearish", fable5_analysis._vix_regime(ctx_high)["signal"] ==
 check("calm VIX bullish", fable5_analysis._vix_regime(ctx_low)["signal"] == "bullish")
 check("inverted curve bearish", fable5_analysis._yield_curve(ctx_inv)["signal"] == "bearish")
 check("steep curve bullish", fable5_analysis._yield_curve(ctx_low)["signal"] == "bullish")
+
+print("crypto macro strategies")
+ctx_fg_greed = {"context_type": "crypto", "fear_greed_index": 80}
+ctx_fg_fear = {"context_type": "crypto", "fear_greed_index": 15}
+check("extreme greed bearish", fable5_analysis._vix_regime(ctx_fg_greed)["signal"] == "bearish")
+check("extreme fear bullish", fable5_analysis._vix_regime(ctx_fg_fear)["signal"] == "bullish")
+ctx_liq = {
+    "context_type": "crypto",
+    "btc_dominance": 54.0,
+    "btc_dominance_change_pct": -1.0,
+    "stablecoin_supply_change_pct": 4.0,
+}
+check("supportive crypto liquidity", fable5_analysis._yield_curve(ctx_liq)["signal"] == "bullish")
+result = fable5_analysis.analyze_fable5(
+    make_candles([100.0 * math.exp(0.002 * i) for i in range(140)]), 80, ctx_fg_fear
+)
+check("twelve strategies with crypto context", len(result["strategies"]) == 12)
+
 result = fable5_analysis.analyze_fable5(make_candles([100.0 * math.exp(0.002 * i) for i in range(140)]), 80, ctx_low)
-check("ten strategies with context", len(result["strategies"]) == 10)
+check("twelve strategies with context", len(result["strategies"]) == 12)
 
 print(f"\n{passed} passed, {failed} failed")
 raise SystemExit(1 if failed else 0)

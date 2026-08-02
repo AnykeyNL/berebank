@@ -203,12 +203,15 @@ class SettingsOut(BaseModel):
     connection: dict
     twelvedata_api_key_masked: str | None = None
     twelvedata: dict = {}
+    coinglass_api_key_masked: str | None = None
+    coinglass: dict = {}
 
 
 class SettingsUpdate(BaseModel):
     bitvavo_api_key: str | None = None
     bitvavo_api_secret: str | None = None
     twelvedata_api_key: str | None = None
+    coinglass_api_key: str | None = None
 
 
 class RssFeedOut(BaseModel):

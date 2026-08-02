@@ -32,7 +32,7 @@ const DIRECTION_STYLES: Record<Outlook['direction'], string> = {
 const CONFIDENCE_ORDER: Outlook['confidence'][] = ['low', 'medium', 'high']
 
 // Strategies whose reason codes live in the fable5Analysis i18n namespace.
-const FABLE5_STRATEGIES = new Set(['momentum', 'stochastic', 'trend_strength', 'vix_regime', 'yield_curve'])
+const FABLE5_STRATEGIES = new Set(['momentum', 'stochastic', 'trend_strength', 'vix_regime', 'yield_curve', 'funding_regime', 'oi_momentum'])
 
 type GaugeZone = 'strong_down' | 'down' | 'neutral' | 'up' | 'strong_up'
 
