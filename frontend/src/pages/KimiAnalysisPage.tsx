@@ -17,6 +17,7 @@ import type {
 import { SignalBadge } from '../components/AnalysisCard'
 import AnalysisCrossLinks from '../components/AnalysisCrossLinks'
 import AssetClassIcon from '../components/AssetClassIcon'
+import SupplementaryContextPanel from '../components/SupplementaryContextPanel'
 import { formatReasonParams } from './AnalyzePage'
 
 const RANGES: AnalysisRange[] = ['1d', '1w', '30d', '90d', '180d', '365d']
@@ -479,6 +480,8 @@ export default function KimiAnalysisPage() {
               {t('kimiAnalysis.updated', { time: fmtDateTime(analysis.generated_at) })}
             </p>
           </div>
+
+          <SupplementaryContextPanel context={analysis.context} namespace="kimiAnalysis" />
 
           {/* Track record */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">

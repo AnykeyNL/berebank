@@ -31,6 +31,7 @@ from ..services.candle_store import (
 )
 from ..services.market_data import market_data_service
 from ..services.rss_aggregator import fetch_articles_for_market, get_markets_with_articles, merge_news_items
+from ..services.td_context import get_macro_context, get_market_context, serialize_context
 from ..services.twelvedata import twelvedata_service
 
 router = APIRouter(prefix="/markets", tags=["markets"])
@@ -171,7 +172,7 @@ def get_technical_outlooks(
 
 
 @router.get("/kimi-outlooks")
-def get_kimi_outlooks(
+async def get_kimi_outlooks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -186,12 +187,15 @@ def get_kimi_outlooks(
     if _kimi_outlooks_cache and time.monotonic() - _kimi_outlooks_cache[0] < _KIMI_OUTLOOKS_TTL:
         return _kimi_outlooks_cache[1]
 
+    macro = await get_macro_context()
     outlooks: dict[str, dict] = {}
     for market in market_data_service.markets:
         candles = load_recent_daily_candles(db, market)
         if len(candles) < 60:
             continue
-        outlook = kimi_analysis_service.analyze_kimi(candles, len(candles))["outlook"]
+        asset_class = market_data_service.get_market(market)["asset_class"]
+        context = macro if asset_class != "crypto" else None
+        outlook = kimi_analysis_service.analyze_kimi(candles, len(candles), context)["outlook"]
         outlooks[market] = {
             "direction": outlook["direction"],
             "score": outlook["score"],
@@ -207,7 +211,7 @@ def get_kimi_outlooks(
 
 
 @router.get("/fable5-outlooks")
-def get_fable5_outlooks(
+async def get_fable5_outlooks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -222,12 +226,15 @@ def get_fable5_outlooks(
     if _fable5_outlooks_cache and time.monotonic() - _fable5_outlooks_cache[0] < _FABLE5_OUTLOOKS_TTL:
         return _fable5_outlooks_cache[1]
 
+    macro = await get_macro_context()
     outlooks: dict[str, dict] = {}
     for market in market_data_service.markets:
         candles = load_recent_daily_candles(db, market)
         if len(candles) < 60:
             continue
-        outlook = fable5_analysis_service.analyze_fable5(candles, len(candles))["outlook"]
+        asset_class = market_data_service.get_market(market)["asset_class"]
+        context = macro if asset_class != "crypto" else None
+        outlook = fable5_analysis_service.analyze_fable5(candles, len(candles), context)["outlook"]
         outlooks[market] = {
             "direction": outlook["direction"],
             "score": outlook["score"],
@@ -510,6 +517,7 @@ async def _run_gtp56sol_forecast(
     fallback,
     *,
     forecast_func=None,
+    context=None,
 ) -> dict:
     """Run pure forecast work off-loop with bounded process concurrency."""
     forecast_func = forecast_func or gtp56sol_analysis_service.forecast
@@ -519,6 +527,7 @@ async def _run_gtp56sol_forecast(
             candles,
             horizon,
             fallback_candles_by_market=fallback,
+            context=context,
         )
 
 
@@ -634,15 +643,21 @@ async def get_gtp56sol_analysis(
                     continue
                 fallback = fallback_rows or None
 
+            td_context = None
+            if market_info["asset_class"] != "crypto":
+                td_context = await get_market_context(market, market_info["asset_class"])
+
             forecast_payload = await _run_gtp56sol_forecast(
                 candles,
                 horizon,
                 fallback,
+                context=td_context,
             )
             result = {
                 "market": market,
                 "asset_class": market_info["asset_class"],
                 "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "context": serialize_context(td_context),
                 **forecast_payload,
             }
             # Expired and input-obsolete entries are safe but unnecessary.
@@ -703,10 +718,12 @@ async def get_kimi_analysis(
         except Exception as exc:
             raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
 
+    td_context = await get_market_context(market, market_info["asset_class"])
     result = {
         "market": market,
         "range": range_,
-        **kimi_analysis_service.analyze_kimi(candles, display_count),
+        **kimi_analysis_service.analyze_kimi(candles, display_count, td_context),
+        "context": serialize_context(td_context),
         "track_record": _kimi_track_record(db, market),
     }
     _kimi_cache[cache_key] = (time.monotonic(), result)
@@ -760,10 +777,12 @@ async def get_fable5_analysis(
         except Exception as exc:
             raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
 
+    td_context = await get_market_context(market, market_info["asset_class"])
     result = {
         "market": market,
         "range": range_,
-        **fable5_analysis_service.analyze_fable5(candles, display_count),
+        **fable5_analysis_service.analyze_fable5(candles, display_count, td_context),
+        "context": serialize_context(td_context),
         "track_record": _fable5_track_record(db, market),
     }
     _fable5_cache[cache_key] = (time.monotonic(), result)

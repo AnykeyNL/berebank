@@ -437,6 +437,11 @@
         "ranging": "Sideways market detected — momentum and volatility indicators count double.",
         "neutral": "No strong regime — all indicators weigh equally."
       },
+      "contextNote": {
+        "earnings_near": "Earnings are near — mean-reversion signals are not doubled.",
+        "macro_risk_off": "Macro context is risk-off — neutral technical scores were adjusted down.",
+        "macro_risk_on": "Macro context is risk-on — neutral technical scores were adjusted up."
+      },
       "reasons": {
         "outlook_bullish": "{{bullish}} of {{total}} indicators point up.",
         "outlook_bearish": "{{bearish}} of {{total}} indicators point down.",
@@ -476,7 +481,29 @@
       "avgBearish": "Avg move after bearish: {{value}}%",
       "noHistory": "The track record appears once enough daily price history has been collected — check back soon."
     },
-    "disclaimer": "The KimiK3 outlook blends technical indicators calculated from historical prices, for educational purposes in this simulation. It is an indication, not a prediction or financial advice — no indicator can reliably foresee the market."
+    "disclaimer": "The KimiK3 outlook blends technical indicators calculated from historical prices, for educational purposes in this simulation. It is an indication, not a prediction or financial advice — no indicator can reliably foresee the market.",
+    "context": {
+      "title": "Market context (Twelve Data)",
+      "subtitle": "Macro, earnings and insider data for non-crypto assets.",
+      "vix": "VIX level",
+      "yieldSpread": "10Y–2Y yield spread",
+      "macroRegime": "Macro regime",
+      "macroRegimes": {
+        "risk_on": "Risk-on",
+        "risk_off": "Risk-off",
+        "neutral": "Neutral"
+      },
+      "earnings": "Earnings",
+      "daysToEarnings": "{{days}} days to report",
+      "earningsNear": "Report within 5 days",
+      "insider": "Insider activity (90d)",
+      "insiderSignals": {
+        "bullish": "Net buying ({{buys}} buys vs {{sells}} sells)",
+        "bearish": "Net selling ({{sells}} sells vs {{buys}} buys)",
+        "neutral": "Mixed insider activity ({{buys}} buys, {{sells}} sells)"
+      },
+      "sector": "vs {{etf}} sector (20d)"
+    }
   },
   "fable5Analysis": {
     "pageTitle": "Fable5 analysis",
@@ -534,6 +561,8 @@
       "macd": "Momentum (MACD)",
       "momentum": "Momentum (rate of change)",
       "trend_strength": "Trend strength (ADX)",
+      "vix_regime": "Macro volatility (VIX)",
+      "yield_curve": "Treasury yield curve",
       "rsi": "Momentum (RSI)",
       "stochastic": "Stochastic oscillator",
       "volatility": "Volatility (Bollinger Bands)",
@@ -553,7 +582,16 @@
       "adx_strong_down": "Strong downtrend (ADX {{adx}}) — sellers are in control.",
       "adx_mild_up": "Mild uptrend (ADX {{adx}}) — buyers have a slight edge.",
       "adx_mild_down": "Mild downtrend (ADX {{adx}}) — sellers have a slight edge.",
-      "adx_ranging": "No trend (ADX {{adx}}, below 20) — the market is moving sideways."
+      "adx_ranging": "No trend (ADX {{adx}}, below 20) — the market is moving sideways.",
+      "vix_elevated": "VIX at {{vix}} — elevated fear, risk-off conditions.",
+      "vix_calm": "VIX at {{vix}} — subdued volatility supports risk appetite.",
+      "vix_neutral": "VIX at {{vix}} — volatility in a normal range.",
+      "yield_inverted": "Yield curve inverted (spread {{spread}}%) — recession warning.",
+      "yield_steep": "Steep yield curve (spread {{spread}}%) — growth-friendly backdrop.",
+      "yield_flat": "Flat yield curve (spread {{spread}}%).",
+      "yield_2y_elevated": "2Y Treasury yield at {{us2y}}% — elevated short rates tighten financial conditions.",
+      "yield_2y_low": "2Y Treasury yield at {{us2y}}% — low short rates support risk appetite.",
+      "yield_2y_neutral": "2Y Treasury yield at {{us2y}}% — short rates in a moderate range."
     },
     "trackRecord": {
       "title": "Track record on {{market}}",
@@ -563,7 +601,29 @@
       "avgBearish": "Avg move after bearish: {{value}}%",
       "noHistory": "The track record appears once enough daily price history has been collected — check back soon."
     },
-    "disclaimer": "The Fable5 outlook blends eight technical signals with fixed weights, calculated from historical prices, for educational purposes in this simulation. It is an indication, not a prediction or financial advice — no indicator can reliably foresee the market."
+    "disclaimer": "The Fable5 outlook blends ten technical and macro signals with fixed weights, calculated from historical prices and Twelve Data context, for educational purposes in this simulation. It is an indication, not a prediction or financial advice — no indicator can reliably foresee the market.",
+    "context": {
+      "title": "Market context (Twelve Data)",
+      "subtitle": "Macro, earnings and insider data for non-crypto assets.",
+      "vix": "VIX level",
+      "yieldSpread": "10Y–2Y yield spread",
+      "macroRegime": "Macro regime",
+      "macroRegimes": {
+        "risk_on": "Risk-on",
+        "risk_off": "Risk-off",
+        "neutral": "Neutral"
+      },
+      "earnings": "Earnings",
+      "daysToEarnings": "{{days}} days to report",
+      "earningsNear": "Report within 5 days",
+      "insider": "Insider activity (90d)",
+      "insiderSignals": {
+        "bullish": "Net buying ({{buys}} buys vs {{sells}} sells)",
+        "bearish": "Net selling ({{sells}} sells vs {{buys}} buys)",
+        "neutral": "Mixed insider activity ({{buys}} buys, {{sells}} sells)"
+      },
+      "sector": "vs {{etf}} sector (20d)"
+    }
   },
   "gtp56solAnalysis": {
     "brand": "GTP56Sol analysis",
@@ -623,6 +683,11 @@
       "historical_probability_leader": "Similar historical setups most often moved {{outcome}} ({{probability}}).",
       "technical_vote_balance": "Technical signals show {{balance}}.",
       "walk_forward_evidence": "Walk-forward checks were {{directional_accuracy}} accurate across {{evaluated_samples}} validation samples.",
+      "macro_vix_context": "Current VIX is {{vix}} — included in nearest-neighbor matching.",
+      "macro_yield_spread": "10Y–2Y yield spread is {{spread}}% — included in pattern matching.",
+      "macro_us2y_yield": "2Y Treasury yield is {{us2y}}% — included in pattern matching.",
+      "earnings_near": "Earnings within {{days}} days — event proximity feature is active.",
+      "insider_activity": "Insider signal: {{signal}} ({{buys}} buys, {{sells}} sells in 90d).",
       "voteUpOne": "one point upward",
       "voteUpMany": "{{value}} points upward",
       "voteDownOne": "one point downward",
@@ -665,7 +730,29 @@
       "collecting": "Collecting history",
       "collectingHint": "The next-week forecast appears once enough daily history has been collected."
     },
-    "disclaimer": "Educational historical-pattern forecasts for the de BereBank paper-money simulation. Outcomes are uncertain and no real money is used."
+    "disclaimer": "Educational historical-pattern forecasts for the de BereBank paper-money simulation. Outcomes are uncertain and no real money is used.",
+    "context": {
+      "title": "Market context (Twelve Data)",
+      "subtitle": "Macro, earnings and insider features used in nearest-neighbor matching.",
+      "vix": "VIX level",
+      "yieldSpread": "10Y–2Y yield spread",
+      "macroRegime": "Macro regime",
+      "macroRegimes": {
+        "risk_on": "Risk-on",
+        "risk_off": "Risk-off",
+        "neutral": "Neutral"
+      },
+      "earnings": "Earnings",
+      "daysToEarnings": "{{days}} days to report",
+      "earningsNear": "Report within 5 days",
+      "insider": "Insider activity (90d)",
+      "insiderSignals": {
+        "bullish": "Net buying ({{buys}} buys vs {{sells}} sells)",
+        "bearish": "Net selling ({{sells}} sells vs {{buys}} buys)",
+        "neutral": "Mixed insider activity ({{buys}} buys, {{sells}} sells)"
+      },
+      "sector": "vs {{etf}} sector (20d)"
+    }
   },
   "orderForm": {
     "amountLabel": "Amount ({{asset}})",

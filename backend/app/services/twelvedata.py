@@ -12,6 +12,7 @@ import asyncio
 import calendar
 import logging
 import time
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Awaitable, Callable
 
@@ -384,6 +385,161 @@ class TwelveDataService:
                 "language": row.get("language") or [],
             })
         return items
+
+    # ---- supplementary fundamentals / macro ----
+
+    async def _get_json(
+        self,
+        path: str,
+        params: dict,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> dict:
+        if self.api_key is None:
+            raise RuntimeError("Twelve Data API key not configured")
+        params = {**params, "apikey": self.api_key}
+        if client is not None:
+            resp = await client.get(path, params=params)
+        else:
+            async with httpx.AsyncClient(base_url=TWELVEDATA_REST_URL, timeout=30) as own:
+                resp = await own.get(path, params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, dict) and data.get("status") == "error":
+            raise RuntimeError(f"{path} error: {data.get('message', data)}")
+        return data
+
+    async def fetch_symbol_time_series(
+        self,
+        symbol: str,
+        *,
+        interval: str = "1day",
+        outputsize: int = 30,
+        client: httpx.AsyncClient | None = None,
+    ) -> list[tuple[int, float]]:
+        """Daily closes as ``(timestamp_ms, close)`` oldest first."""
+        try:
+            data = await self._get_json(
+                "/time_series",
+                {
+                    "symbol": symbol,
+                    "interval": interval,
+                    "outputsize": outputsize,
+                    "timezone": "UTC",
+                },
+                client=client,
+            )
+        except (httpx.HTTPStatusError, RuntimeError) as exc:
+            logger.warning("Twelve Data time_series unavailable for %s: %s", symbol, exc)
+            return []
+        if "values" not in data:
+            return []
+        rows: list[tuple[int, float]] = []
+        for row in data["values"]:
+            raw = row["datetime"]
+            fmt = "%Y-%m-%d %H:%M:%S" if " " in raw else "%Y-%m-%d"
+            ts = calendar.timegm(time.strptime(raw[:19], fmt))
+            close = _dec(row.get("close"))
+            if close is not None:
+                rows.append((int(ts) * 1000, float(close)))
+        rows.sort(key=lambda item: item[0])
+        return rows
+
+    async def fetch_first_time_series(
+        self,
+        symbols: list[str],
+        *,
+        interval: str = "1day",
+        outputsize: int = 30,
+        client: httpx.AsyncClient | None = None,
+    ) -> tuple[str | None, list[tuple[int, float]]]:
+        """Try ``symbols`` in order; return the first symbol with data."""
+        for symbol in symbols:
+            rows = await self.fetch_symbol_time_series(
+                symbol,
+                interval=interval,
+                outputsize=outputsize,
+                client=client,
+            )
+            if rows:
+                return symbol, rows
+        return None, []
+
+    async def fetch_bond_symbols(
+        self,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> list[str]:
+        """Bond tickers from the Twelve Data catalog (plan-dependent)."""
+        try:
+            data = await self._get_json("/bonds", {}, client=client)
+        except (httpx.HTTPStatusError, RuntimeError) as exc:
+            logger.warning("Twelve Data bonds catalog unavailable: %s", exc)
+            return []
+        items = data.get("result", {}).get("list") or []
+        return [
+            item["symbol"]
+            for item in items
+            if isinstance(item, dict) and item.get("symbol")
+        ]
+
+    async def fetch_next_earnings(
+        self,
+        symbol: str,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> dict | None:
+        """Upcoming earnings row for a US ticker, or None."""
+        start = date.today().isoformat()
+        end = (date.today() + timedelta(days=120)).isoformat()
+        calendar_rows = await self.fetch_earnings_calendar(start, end, client=client)
+        upcoming: list[dict] = []
+        for day_str, rows in calendar_rows.items():
+            if day_str < start:
+                continue
+            for row in rows:
+                if row.get("symbol") == symbol:
+                    upcoming.append({**row, "date": day_str})
+        if not upcoming:
+            return None
+        upcoming.sort(key=lambda row: row["date"])
+        return upcoming[0]
+
+    async def fetch_insider_transactions(
+        self,
+        symbol: str,
+        *,
+        outputsize: int = 20,
+        client: httpx.AsyncClient | None = None,
+    ) -> list[dict]:
+        """Recent insider transactions for a US stock (newest first)."""
+        data = await self._get_json(
+            "/insider_transactions",
+            {"symbol": symbol, "outputsize": outputsize},
+            client=client,
+        )
+        items = data.get("insider_transactions") or data.get("transactions") or []
+        return items if isinstance(items, list) else []
+
+    async def fetch_earnings_calendar(
+        self,
+        start_date: str,
+        end_date: str,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> dict[str, list[dict]]:
+        """Earnings grouped by date (``YYYY-MM-DD`` → rows)."""
+        try:
+            data = await self._get_json(
+                "/earnings_calendar",
+                {"start_date": start_date, "end_date": end_date},
+                client=client,
+            )
+        except (httpx.HTTPStatusError, RuntimeError) as exc:
+            logger.warning("Twelve Data earnings_calendar unavailable: %s", exc)
+            return {}
+        earnings = data.get("earnings")
+        return earnings if isinstance(earnings, dict) else {}
 
 
 twelvedata_service = TwelveDataService()

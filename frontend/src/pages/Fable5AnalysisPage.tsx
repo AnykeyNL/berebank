@@ -17,6 +17,7 @@ import type {
 import { SignalBadge } from '../components/AnalysisCard'
 import AnalysisCrossLinks from '../components/AnalysisCrossLinks'
 import AssetClassIcon from '../components/AssetClassIcon'
+import SupplementaryContextPanel from '../components/SupplementaryContextPanel'
 import { formatReasonParams } from './AnalyzePage'
 
 const RANGES: AnalysisRange[] = ['1d', '1w', '30d', '90d', '180d', '365d']
@@ -31,7 +32,7 @@ const DIRECTION_STYLES: Record<Outlook['direction'], string> = {
 const CONFIDENCE_ORDER: Outlook['confidence'][] = ['low', 'medium', 'high']
 
 // Strategies whose reason codes live in the fable5Analysis i18n namespace.
-const FABLE5_STRATEGIES = new Set(['momentum', 'stochastic', 'trend_strength'])
+const FABLE5_STRATEGIES = new Set(['momentum', 'stochastic', 'trend_strength', 'vix_regime', 'yield_curve'])
 
 type GaugeZone = 'strong_down' | 'down' | 'neutral' | 'up' | 'strong_up'
 
@@ -541,6 +542,8 @@ export default function Fable5AnalysisPage() {
               {t('fable5Analysis.updated', { time: fmtDateTime(analysis.generated_at) })}
             </p>
           </div>
+
+          <SupplementaryContextPanel context={analysis.context} namespace="fable5Analysis" />
 
           {/* Track record */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">

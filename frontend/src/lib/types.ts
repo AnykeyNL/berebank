@@ -110,6 +110,22 @@ export interface TrackRecord {
   to: string
 }
 
+export interface SupplementaryContext {
+  macro_regime: 'risk_on' | 'risk_off' | 'neutral' | null
+  vix_level: string | null
+  vix_change_pct: string | null
+  us2y_yield: string | null
+  us10y_yield: string | null
+  yield_spread: string | null
+  days_to_earnings: number | null
+  earnings_near: boolean
+  insider_signal: 'bullish' | 'bearish' | 'neutral' | 'none' | null
+  insider_buys: number
+  insider_sells: number
+  sector_etf: string | null
+  sector_relative_return: string | null
+}
+
 export interface KimiAnalysis {
   market: string
   range: AnalysisRange
@@ -118,6 +134,7 @@ export interface KimiAnalysis {
   outlook: Outlook
   strategies: Analysis['strategies'] & { trend_strength: AnalysisStrategy }
   track_record: TrackRecord | null
+  context: SupplementaryContext | null
 }
 
 export interface OutlookSummary {
@@ -147,8 +164,11 @@ export interface Fable5Analysis {
     momentum: AnalysisStrategy
     stochastic: AnalysisStrategy
     trend_strength: AnalysisStrategy
+    vix_regime: AnalysisStrategy
+    yield_curve: AnalysisStrategy
   }
   track_record: TrackRecord | null
+  context: SupplementaryContext | null
 }
 
 export interface Fable5Outlooks {
@@ -169,7 +189,14 @@ export interface GTP56SolProbabilities {
 }
 
 export interface GTP56SolDriver {
-  code: 'historical_probability_leader' | 'technical_vote_balance' | 'walk_forward_evidence'
+  code:
+    | 'historical_probability_leader'
+    | 'technical_vote_balance'
+    | 'walk_forward_evidence'
+    | 'macro_vix_context'
+    | 'macro_yield_spread'
+    | 'earnings_near'
+    | 'insider_activity'
   params: Record<string, string | number | null>
 }
 
@@ -202,6 +229,7 @@ export interface GTP56SolAnalysis {
   period_end: string | null
   evidence_period_start: string | null
   evidence_period_end: string | null
+  context: SupplementaryContext | null
 }
 
 export interface GTP56SolOutlookSummary {

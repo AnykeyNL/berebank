@@ -165,17 +165,22 @@ def _trend_strength(timestamps, highs, lows, closes, start) -> dict:
     }
 
 
-def compute_outlook(strategies: dict) -> dict:
+def compute_outlook(strategies: dict, context: dict | None = None) -> dict:
     """Blend strategy signals into one direction outlook.
 
     Each strategy votes +1 (bullish), -1 (bearish) or 0 (neutral); "none"
     strategies are excluded. The score is the weighted vote share scaled to
     -100..+100; confidence reflects what fraction of active strategies
     agrees with the resulting direction.
+
+    Optional ``context`` (Twelve Data supplementary data) adjusts weighting
+    near earnings, applies macro regime nudges, and uses insider activity as
+    a tie-breaker when the technical score is close to neutral.
     """
     ts_values = strategies.get("trend_strength", {}).get("values", {})
     adx_raw = ts_values.get("adx")
     regime = regime_for(float(adx_raw) if adx_raw else None)
+    earnings_near = bool(context and context.get("earnings_near"))
 
     contributions = []
     for key in STRATEGY_ORDER:
@@ -187,7 +192,11 @@ def compute_outlook(strategies: dict) -> dict:
         if signal != "none":
             if regime == "trending" and key in _TREND_FOLLOWING:
                 weight = 2.0
-            elif regime == "ranging" and key in _MEAN_REVERSION:
+            elif (
+                regime == "ranging"
+                and key in _MEAN_REVERSION
+                and not earnings_near
+            ):
                 weight = 2.0
         contributions.append({"strategy": key, "signal": signal, "weight": weight})
 
@@ -207,6 +216,16 @@ def compute_outlook(strategies: dict) -> dict:
     weighted = sum(vote[c["signal"]] * c["weight"] for c in active)
     score = round(100 * weighted / total_weight)
 
+    macro_regime = context.get("macro_regime") if context else None
+    if macro_regime == "risk_off" and -20 <= score <= 20:
+        score = max(-100, score - 15)
+    elif macro_regime == "risk_on" and -20 <= score <= 20:
+        score = min(100, score + 15)
+
+    insider = context.get("insider_signal") if context else None
+    if insider in ("bullish", "bearish") and abs(score) <= 15:
+        score = min(100, score + 12) if insider == "bullish" else max(-100, score - 12)
+
     if score >= _BULLISH_AT:
         direction = "bullish"
     elif score <= _BEARISH_AT:
@@ -219,6 +238,11 @@ def compute_outlook(strategies: dict) -> dict:
     confidence = "high" if agreement >= 0.8 else "medium" if agreement >= 0.6 else "low"
 
     counts = {s: sum(1 for c in active if c["signal"] == s) for s in ("bullish", "bearish", "neutral")}
+    reason_params = {**counts, "total": len(active), "regime": regime}
+    if earnings_near:
+        reason_params["earnings_near"] = True
+    if macro_regime and macro_regime != "neutral":
+        reason_params["macro_regime"] = macro_regime
     return {
         "direction": direction,
         "score": score,
@@ -226,13 +250,17 @@ def compute_outlook(strategies: dict) -> dict:
         "regime": regime,
         "reason": {
             "code": f"outlook_{direction}",
-            "params": {**counts, "total": len(active), "regime": regime},
+            "params": reason_params,
         },
         "contributions": contributions,
     }
 
 
-def analyze_kimi(candles: list[list], display_count: int) -> dict:
+def analyze_kimi(
+    candles: list[list],
+    display_count: int,
+    context: dict | None = None,
+) -> dict:
     """KimiK3 outlook over ``candles`` (oldest first, API candle shape).
 
     Same contract as ``analysis.analyze``: ``display_count`` trailing bars
@@ -252,6 +280,6 @@ def analyze_kimi(candles: list[list], display_count: int) -> dict:
     return {
         "generated_at": base["generated_at"],
         "candles": base["candles"],
-        "outlook": compute_outlook(strategies),
+        "outlook": compute_outlook(strategies, context),
         "strategies": strategies,
     }

@@ -35,6 +35,16 @@ EXPLANATIONS = {
         "is ranging (no trend), above 25 the trend is strong. The +DI and "
         "-DI lines show which side drives it."
     ),
+    "vix_regime": (
+        "The CBOE Volatility Index (VIX) measures expected US equity "
+        "volatility. Elevated VIX (25+) often coincides with risk-off "
+        "conditions; subdued VIX (15 or below) suggests calmer markets."
+    ),
+    "yield_curve": (
+        "The spread between US 10-year and 2-year Treasury yields reflects "
+        "growth expectations. An inverted curve (2Y above 10Y) is a classic "
+        "recession warning; a steep positive spread supports risk appetite."
+    ),
 }
 
 # Fixed vote order so contributions render consistently.
@@ -43,6 +53,8 @@ STRATEGY_ORDER = [
     "macd",
     "momentum",
     "trend_strength",
+    "vix_regime",
+    "yield_curve",
     "rsi",
     "stochastic",
     "volatility",
@@ -55,6 +67,8 @@ WEIGHTS = {
     "macd": 1.5,
     "momentum": 1.5,
     "trend_strength": 1.5,
+    "vix_regime": 1.0,
+    "yield_curve": 1.0,
     "rsi": 1.0,
     "stochastic": 1.0,
     "volatility": 1.0,
@@ -319,6 +333,75 @@ def _trend_strength(timestamps, highs, lows, closes, start) -> dict:
     }
 
 
+def _vix_regime(context: dict | None) -> dict:
+    if not context or context.get("vix_level") is None:
+        return _insufficient("vix_regime")
+    vix = float(context["vix_level"])
+    if vix >= 25:
+        signal = "bearish"
+        reason = {"code": "vix_elevated", "params": {"vix": analysis._s(vix)}}
+    elif vix <= 15:
+        signal = "bullish"
+        reason = {"code": "vix_calm", "params": {"vix": analysis._s(vix)}}
+    else:
+        signal = "neutral"
+        reason = {"code": "vix_neutral", "params": {"vix": analysis._s(vix)}}
+    return {
+        "signal": signal,
+        "reason": reason,
+        "explanation": EXPLANATIONS["vix_regime"],
+        "values": {"vix": analysis._s(vix)},
+        "series": {},
+    }
+
+
+def _yield_curve(context: dict | None) -> dict:
+    spread = context.get("yield_spread") if context else None
+    us2y = context.get("us2y_yield") if context else None
+    us10y = context.get("us10y_yield") if context else None
+    if spread is not None and us2y is not None and us10y is not None:
+        spread_f = float(spread)
+        if spread_f < 0:
+            signal = "bearish"
+            reason = {"code": "yield_inverted", "params": {"spread": analysis._s(spread_f)}}
+        elif spread_f > 0.5:
+            signal = "bullish"
+            reason = {"code": "yield_steep", "params": {"spread": analysis._s(spread_f)}}
+        else:
+            signal = "neutral"
+            reason = {"code": "yield_flat", "params": {"spread": analysis._s(spread_f)}}
+        return {
+            "signal": signal,
+            "reason": reason,
+            "explanation": EXPLANATIONS["yield_curve"],
+            "values": {
+                "spread": analysis._s(spread_f),
+                "us2y": analysis._s(float(us2y)),
+                "us10y": analysis._s(float(us10y)),
+            },
+            "series": {},
+        }
+    if us2y is not None:
+        us2y_f = float(us2y)
+        if us2y_f >= 4.5:
+            signal = "bearish"
+            reason = {"code": "yield_2y_elevated", "params": {"us2y": analysis._s(us2y_f)}}
+        elif us2y_f <= 3.0:
+            signal = "bullish"
+            reason = {"code": "yield_2y_low", "params": {"us2y": analysis._s(us2y_f)}}
+        else:
+            signal = "neutral"
+            reason = {"code": "yield_2y_neutral", "params": {"us2y": analysis._s(us2y_f)}}
+        return {
+            "signal": signal,
+            "reason": reason,
+            "explanation": EXPLANATIONS["yield_curve"],
+            "values": {"us2y": analysis._s(us2y_f)},
+            "series": {},
+        }
+    return _insufficient("yield_curve")
+
+
 # ---- composite outlook ----
 
 def compute_outlook(strategies: dict) -> dict:
@@ -391,7 +474,11 @@ def compute_outlook(strategies: dict) -> dict:
 
 # ---- entry point ----
 
-def analyze_fable5(candles: list[list], display_count: int) -> dict:
+def analyze_fable5(
+    candles: list[list],
+    display_count: int,
+    context: dict | None = None,
+) -> dict:
     """Fable5 outlook over ``candles`` (oldest first, API candle shape).
 
     Same contract as ``analysis.analyze``: ``display_count`` trailing bars
@@ -409,6 +496,8 @@ def analyze_fable5(candles: list[list], display_count: int) -> dict:
         "momentum": _momentum(timestamps, closes, start),
         "stochastic": _stochastic_strategy(timestamps, highs, lows, closes, start),
         "trend_strength": _trend_strength(timestamps, highs, lows, closes, start),
+        "vix_regime": _vix_regime(context),
+        "yield_curve": _yield_curve(context),
     }
     return {
         "generated_at": base["generated_at"],

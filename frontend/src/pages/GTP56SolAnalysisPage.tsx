@@ -5,6 +5,7 @@ import AssetClassIcon from '../components/AssetClassIcon'
 import { SignalBadge } from '../components/AnalysisCard'
 import AnalysisCrossLinks from '../components/AnalysisCrossLinks'
 import DirectionOutlookCard from '../components/DirectionOutlookCard'
+import SupplementaryContextPanel from '../components/SupplementaryContextPanel'
 import { api } from '../lib/api'
 import { fmtPrice } from '../lib/format'
 import type {
@@ -448,6 +449,11 @@ export default function GTP56SolAnalysisPage() {
           />
         ))}
       </section>
+
+      <SupplementaryContextPanel
+        context={states['1w'].result?.context}
+        namespace="gtp56solAnalysis"
+      />
 
       <p className="text-xs text-slate-500">{t('gtp56solAnalysis.disclaimer')}</p>
     </div>

@@ -126,6 +126,28 @@ out = kimi_analysis.compute_outlook(partial)
 check("single active strategy decides", out["direction"] == "bullish" and out["score"] == 100)
 check("confidence high when 1/1 agrees", out["confidence"] == "high")
 
+print("supplementary context")
+ranging = strategies({k: "bullish" for k in kimi_analysis.STRATEGY_ORDER}, adx_value=10.0)
+out_plain = kimi_analysis.compute_outlook(ranging)
+out_earnings = kimi_analysis.compute_outlook(ranging, {"earnings_near": True})
+w_plain = {c["strategy"]: c["weight"] for c in out_plain["contributions"]}
+w_earnings = {c["strategy"]: c["weight"] for c in out_earnings["contributions"]}
+check("earnings_near suppresses rsi doubling", w_plain["rsi"] == 2.0 and w_earnings["rsi"] == 1.0)
+
+neutral = strategies({
+    "trend": "bullish", "rsi": "bearish", "macd": "neutral",
+    "volatility": "neutral", "levels_volume": "neutral", "trend_strength": "neutral",
+})
+out_macro = kimi_analysis.compute_outlook(neutral, {"macro_regime": "risk_off"})
+check("risk_off nudges neutral score down", out_macro["score"] <= -5)
+
+tie = strategies({
+    "trend": "bullish", "rsi": "bearish", "macd": "neutral",
+    "volatility": "neutral", "levels_volume": "neutral", "trend_strength": "neutral",
+})
+out_insider = kimi_analysis.compute_outlook(tie, {"insider_signal": "bullish"})
+check("insider tie-breaker nudges score up", out_insider["score"] > kimi_analysis.compute_outlook(tie)["score"])
+
 print("analyze_kimi")
 up_candles = make_candles([100.0 * math.exp(0.002 * i) for i in range(140)])
 result = kimi_analysis.analyze_kimi(up_candles, 80)

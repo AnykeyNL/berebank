@@ -75,6 +75,8 @@ _FUNDS_US = [
     "SCHD",
     # Tech
     "XLK", "VGT", "SOXX", "IGV", "ARKK",
+    # Sector SPDRs (relative-performance context for equity analysis)
+    "XLE", "XLF", "XLV", "XLY", "XLP", "XLI", "XLB", "XLRE", "XLU", "XLC",
     # Bitcoin & commodities
     "IBIT", "GLD",
 ]

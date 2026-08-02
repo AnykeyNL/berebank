@@ -401,5 +401,21 @@ if has_fold_predictor:
 else:
     check("walk-forward fold ignores future candidates", False)
 
+print("supplementary features")
+check("engine version bumped", gtp56sol_analysis.ENGINE_VERSION == "2")
+check("twenty feature dimensions", len(gtp56sol_analysis.FEATURE_NAMES) == 20)
+ctx = {
+    "vix_by_day": {"2024-06-01": 18.0},
+    "yield_spread_by_day": {"2024-06-01": 0.3},
+    "vix_level": 18.0,
+    "yield_spread": 0.3,
+    "earnings_near": True,
+    "insider_signal": "bullish",
+}
+candles = patterned_candles(120)
+snapshot = gtp56sol_analysis.build_feature_snapshot(candles, context=ctx)
+check("context adds macro features", snapshot["vix_normalized"] is not None)
+check("earnings proximity on current bar", snapshot["earnings_proximity"] == 1.0)
+
 print(f"\n{passed} passed, {failed} failed")
 raise SystemExit(1 if failed else 0)

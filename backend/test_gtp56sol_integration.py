@@ -159,7 +159,7 @@ if has_handler:
             len(rows),
         )
 
-    def fake_forecast(candles, horizon, fallback_candles_by_market=None):
+    def fake_forecast(candles, horizon, fallback_candles_by_market=None, *, context=None):
         calls.append((candles[-1][0], horizon, fallback_candles_by_market))
         return {"status": "insufficient_history", "horizon": horizon}
 
@@ -248,7 +248,7 @@ if has_sufficiency and has_threadpool:
         loaded_markets.append(market)
         return original_loader(session, market, now=now)
 
-    def recording_forecast(candles, horizon, fallback_candles_by_market=None):
+    def recording_forecast(candles, horizon, fallback_candles_by_market=None, *, context=None):
         forecast_calls.append({
             "primary": candles,
             "horizon": horizon,
@@ -455,12 +455,15 @@ if has_recent_loader and has_threadpool:
         class KimiOnlyMarketData:
             markets = {"KIMI-EUR": {"asset_class": "crypto"}}
 
+            def get_market(self, market):
+                return self.markets.get(market)
+
         markets.load_recent_daily_candles = recording_recent_loader
         markets.market_data_service = KimiOnlyMarketData()
         markets._kimi_outlooks_cache = None
         markets._kimi_track_record_cache.clear()
         try:
-            markets.get_kimi_outlooks(user=object(), db=db)
+            asyncio.run(markets.get_kimi_outlooks(user=object(), db=db))
             markets._kimi_track_record(db, "KIMI-EUR")
             check(
                 "Kimi list and track record each receive exactly 400 latest rows",

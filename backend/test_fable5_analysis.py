@@ -159,7 +159,7 @@ check("confidence high when all active weight agrees", out["confidence"] == "hig
 print("analyze_fable5")
 up_candles = make_candles([100.0 * math.exp(0.002 * i) for i in range(140)])
 result = fable5_analysis.analyze_fable5(up_candles, 80)
-check("eight strategies", set(result["strategies"]) == set(fable5_analysis.STRATEGY_ORDER))
+check("ten strategies", set(result["strategies"]) == set(fable5_analysis.STRATEGY_ORDER))
 check("uptrend -> bullish outlook", result["outlook"]["direction"] == "bullish")
 check("momentum bullish in uptrend", result["strategies"]["momentum"]["signal"] == "bullish")
 check("trend_strength bullish in uptrend", result["strategies"]["trend_strength"]["signal"] == "bullish")
@@ -194,6 +194,17 @@ check(
     "too little history -> None",
     backtest.track_record(make_candles([100.0] * 50), fable5_analysis.analyze_fable5) is None,
 )
+
+print("macro strategies")
+ctx_high = {"vix_level": 30.0, "us2y_yield": 4.0, "us10y_yield": 4.2, "yield_spread": 0.2}
+ctx_low = {"vix_level": 12.0, "us2y_yield": 3.0, "us10y_yield": 4.0, "yield_spread": 1.0}
+ctx_inv = {"vix_level": 18.0, "us2y_yield": 4.5, "us10y_yield": 4.0, "yield_spread": -0.5}
+check("elevated VIX bearish", fable5_analysis._vix_regime(ctx_high)["signal"] == "bearish")
+check("calm VIX bullish", fable5_analysis._vix_regime(ctx_low)["signal"] == "bullish")
+check("inverted curve bearish", fable5_analysis._yield_curve(ctx_inv)["signal"] == "bearish")
+check("steep curve bullish", fable5_analysis._yield_curve(ctx_low)["signal"] == "bullish")
+result = fable5_analysis.analyze_fable5(make_candles([100.0 * math.exp(0.002 * i) for i in range(140)]), 80, ctx_low)
+check("ten strategies with context", len(result["strategies"]) == 10)
 
 print(f"\n{passed} passed, {failed} failed")
 raise SystemExit(1 if failed else 0)

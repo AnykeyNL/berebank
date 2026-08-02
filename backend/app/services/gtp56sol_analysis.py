@@ -13,7 +13,7 @@ from statistics import fmean, median
 
 from app.services import analysis
 
-ENGINE_VERSION = "1"
+ENGINE_VERSION = "2"
 HORIZONS = {"1d": 1, "1w": 5, "1m": 21}
 MIN_SAMPLES = 30
 MAX_NEIGHBORS = 100
@@ -43,6 +43,10 @@ FEATURE_NAMES = (
     "return_20",
     "realized_volatility_20",
     "volume_ratio",
+    "vix_normalized",
+    "yield_spread",
+    "earnings_proximity",
+    "insider_activity",
 )
 
 
@@ -185,7 +189,30 @@ def _derived_vote_features(
     return trend, rsi_vote, macd_vote, volatility_vote, levels_vote
 
 
-def _feature_matrix(candles: list[list]) -> tuple[list[int], list[float], list[dict[str, float | None]]]:
+def _macro_feature_row(
+    context: dict | None,
+    timestamp_ms: int,
+    *,
+    current_only: bool = False,
+) -> dict[str, float | None]:
+    if context is None:
+        return {
+            "vix_normalized": None,
+            "yield_spread": None,
+            "earnings_proximity": None,
+            "insider_activity": None,
+        }
+    from .td_context import macro_features_at
+
+    return macro_features_at(context, timestamp_ms, current_only=current_only)
+
+
+def _feature_matrix(
+    candles: list[list],
+    context: dict | None = None,
+    *,
+    current_only_macro: bool = False,
+) -> tuple[list[int], list[float], list[dict[str, float | None]]]:
     candles = _sanitize_candles(candles)
     timestamps = [int(candle[0]) for candle in candles]
     highs = [float(candle[2]) for candle in candles]
@@ -257,6 +284,11 @@ def _feature_matrix(candles: list[list]) -> tuple[list[int], list[float], list[d
             support_distance,
             resistance_distance,
         )
+        macro = _macro_feature_row(
+            context,
+            timestamps[index],
+            current_only=current_only_macro and index == len(candles) - 1,
+        )
         rows.append({
             "vote_trend": votes[0],
             "vote_rsi": votes[1],
@@ -274,11 +306,16 @@ def _feature_matrix(candles: list[list]) -> tuple[list[int], list[float], list[d
             "return_20": _return_pct(closes, index, 20),
             "realized_volatility_20": _finite(realized_volatility),
             "volume_ratio": _finite(volume_ratio),
+            **macro,
         })
     return timestamps, closes, rows
 
 
-def build_feature_snapshot(candles: list[list], index: int | None = None) -> dict[str, float | None]:
+def build_feature_snapshot(
+    candles: list[list],
+    index: int | None = None,
+    context: dict | None = None,
+) -> dict[str, float | None]:
     """Build a causal feature snapshot at ``index``.
 
     The input is sliced before any indicator is calculated. This makes the
@@ -290,15 +327,25 @@ def build_feature_snapshot(candles: list[list], index: int | None = None) -> dic
         index = len(candles) - 1
     if index < 0 or index >= len(candles):
         raise IndexError("snapshot index outside candles")
-    _, _, rows = _feature_matrix(candles[: index + 1])
+    sliced = candles[: index + 1]
+    _, _, rows = _feature_matrix(
+        sliced,
+        context,
+        current_only_macro=True,
+    )
     if not rows:
         raise ValueError("no usable candles at or before index")
     return rows[-1].copy()
 
 
-def _candidates(candles: list[list], bars: int, source: str = "asset") -> list[Candidate]:
+def _candidates(
+    candles: list[list],
+    bars: int,
+    source: str = "asset",
+    context: dict | None = None,
+) -> list[Candidate]:
     candles = _sanitize_candles(candles)
-    timestamps, closes, rows = _feature_matrix(candles)
+    timestamps, closes, rows = _feature_matrix(candles, context)
     candidates: list[Candidate] = []
     for index in range(FEATURE_WARMUP, len(candles) - bars):
         atr_pct = rows[index]["atr_pct"]
@@ -476,16 +523,20 @@ def _list_confidence(
     return "low"
 
 
-def forecast_outlook(candles: list[list], horizon: str) -> dict:
+def forecast_outlook(
+    candles: list[list],
+    horizon: str,
+    context: dict | None = None,
+) -> dict:
     """Fast direction/score/confidence summary for list views."""
     bars = horizon_bars(horizon)
     asset_candles = _sanitize_candles(candles)
     if len(asset_candles) <= FEATURE_WARMUP:
         return {"status": "insufficient_history"}
-    candidates = _deduplicate_candidates(_candidates(asset_candles, bars, source="asset"))
+    candidates = _deduplicate_candidates(_candidates(asset_candles, bars, source="asset", context=context))
     if len(candidates) < MIN_SAMPLES:
         return {"status": "insufficient_history"}
-    current = build_feature_snapshot(asset_candles)
+    current = build_feature_snapshot(asset_candles, context=context)
     evidence = _probabilities(current, candidates)
     if evidence is None:
         return {"status": "insufficient_history"}
@@ -645,10 +696,11 @@ def _drivers(
     features: dict[str, float | None],
     probabilities: dict[str, float],
     validation: dict,
+    context: dict | None = None,
 ) -> list[dict]:
     vote_total = sum(features.get(name) or 0.0 for name in FEATURE_NAMES[:5])
     winner = max(("up", "sideways", "down"), key=lambda label: probabilities[label])
-    return [
+    drivers = [
         {
             "code": "historical_probability_leader",
             "params": {"outcome": winner, "probability": _s(probabilities[winner])},
@@ -665,6 +717,36 @@ def _drivers(
             },
         },
     ]
+    if context and context.get("vix_level") is not None:
+        drivers.append({
+            "code": "macro_vix_context",
+            "params": {"vix": _s(float(context["vix_level"]))},
+        })
+    if context and context.get("yield_spread") is not None:
+        drivers.append({
+            "code": "macro_yield_spread",
+            "params": {"spread": _s(float(context["yield_spread"]))},
+        })
+    elif context and context.get("us2y_yield") is not None:
+        drivers.append({
+            "code": "macro_us2y_yield",
+            "params": {"us2y": _s(float(context["us2y_yield"]))},
+        })
+    if context and context.get("earnings_near"):
+        drivers.append({
+            "code": "earnings_near",
+            "params": {"days": context.get("days_to_earnings")},
+        })
+    if context and context.get("insider_signal") not in (None, "none"):
+        drivers.append({
+            "code": "insider_activity",
+            "params": {
+                "signal": context.get("insider_signal"),
+                "buys": context.get("insider_buys", 0),
+                "sells": context.get("insider_sells", 0),
+            },
+        })
+    return drivers
 
 
 def _serialized_validation(validation: dict) -> dict:
@@ -714,6 +796,7 @@ def forecast(
     fallback_candles_by_market: dict[str, list[list]] | None = None,
     *,
     as_of_index: int | None = None,
+    context: dict | None = None,
 ) -> dict:
     """Forecast one horizon from historical nearest-pattern outcomes.
 
@@ -731,7 +814,7 @@ def forecast(
     if len(asset_candles) <= FEATURE_WARMUP:
         return _insufficient(horizon, "asset", 0, asset_candles)
 
-    asset_candidates = _candidates(asset_candles, bars, source="asset")
+    asset_candidates = _candidates(asset_candles, bars, source="asset", context=context)
     source_scope = "asset"
     candidates = asset_candidates
     if len(candidates) < MIN_SAMPLES and fallback_candles_by_market:
@@ -748,7 +831,7 @@ def forecast(
             peer_candles = _sanitize_candles(peer_candles)
             if len(peer_candles) > FEATURE_WARMUP:
                 fallback_candidates.extend(
-                    _candidates(peer_candles, bars, source=f"peer:{market}")
+                    _candidates(peer_candles, bars, source=f"peer:{market}", context=context)
                 )
         candidates = asset_candidates + fallback_candidates
         source_scope = "asset_class"
@@ -756,7 +839,7 @@ def forecast(
     if len(candidates) < MIN_SAMPLES:
         return _insufficient(horizon, source_scope, len(candidates), asset_candles)
 
-    current = build_feature_snapshot(asset_candles)
+    current = build_feature_snapshot(asset_candles, context=context)
     evidence = _probabilities(current, candidates)
     if evidence is None:
         return _insufficient(horizon, source_scope, len(candidates), asset_candles)
@@ -793,7 +876,7 @@ def forecast(
         "probabilities": probability_strings,
         "direction": direction,
         "confidence": confidence,
-        "drivers": _drivers(current, probabilities, serialized_validation),
+        "drivers": _drivers(current, probabilities, serialized_validation, context),
         "sample_count": sample_count,
         "effective_sample_count": effective_sample_count,
         "candidate_pool_size": candidate_pool_size,

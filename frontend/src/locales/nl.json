@@ -476,7 +476,29 @@
       "avgBearish": "Gem. beweging na bearish: {{value}}%",
       "noHistory": "Het track record verschijnt zodra er genoeg dagelijkse koershistorie is verzameld — kom later terug."
     },
-    "disclaimer": "De KimiK3-verwachting combineert technische indicatoren uit historische koersen, voor educatieve doeleinden in deze simulatie. Het is een indicatie, geen voorspelling of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen."
+    "disclaimer": "De KimiK3-verwachting combineert technische indicatoren uit historische koersen, voor educatieve doeleinden in deze simulatie. Het is een indicatie, geen voorspelling of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen.",
+    "context": {
+      "title": "Marktcontext (Twelve Data)",
+      "subtitle": "Macro-, resultaten- en insiderdata voor niet-crypto assets.",
+      "vix": "VIX-niveau",
+      "yieldSpread": "10Y–2Y rentespread",
+      "macroRegime": "Macro-regime",
+      "macroRegimes": {
+        "risk_on": "Risk-on",
+        "risk_off": "Risk-off",
+        "neutral": "Neutraal"
+      },
+      "earnings": "Resultaten",
+      "daysToEarnings": "{{days}} dagen tot publicatie",
+      "earningsNear": "Publicatie binnen 5 dagen",
+      "insider": "Insideractiviteit (90d)",
+      "insiderSignals": {
+        "bullish": "Netto koop ({{buys}} koop vs {{sells}} verkoop)",
+        "bearish": "Netto verkoop ({{sells}} verkoop vs {{buys}} koop)",
+        "neutral": "Gemengde insideractiviteit ({{buys}} koop, {{sells}} verkoop)"
+      },
+      "sector": "vs {{etf}} sector (20d)"
+    }
   },
   "fable5Analysis": {
     "pageTitle": "Fable5-analyse",
@@ -534,6 +556,8 @@
       "macd": "Momentum (MACD)",
       "momentum": "Momentum (koersverandering)",
       "trend_strength": "Trendsterkte (ADX)",
+      "vix_regime": "Macrovolatiliteit (VIX)",
+      "yield_curve": "Rentecurve",
       "rsi": "Momentum (RSI)",
       "stochastic": "Stochastische oscillator",
       "volatility": "Volatiliteit (Bollinger Bands)",
@@ -553,7 +577,16 @@
       "adx_strong_down": "Sterke neerwaartse trend (ADX {{adx}}) — verkopers hebben de overhand.",
       "adx_mild_up": "Zwakke opwaartse trend (ADX {{adx}}) — kopers hebben een licht voordeel.",
       "adx_mild_down": "Zwakke neerwaartse trend (ADX {{adx}}) — verkopers hebben een licht voordeel.",
-      "adx_ranging": "Geen trend (ADX {{adx}}, onder 20) — de markt beweegt zijwaarts."
+      "adx_ranging": "Geen trend (ADX {{adx}}, onder 20) — de markt beweegt zijwaarts.",
+      "vix_elevated": "VIX op {{vix}} — verhoogde angst, risk-off.",
+      "vix_calm": "VIX op {{vix}} — lage volatiliteit ondersteunt risicobereidheid.",
+      "vix_neutral": "VIX op {{vix}} — volatiliteit in normale band.",
+      "yield_inverted": "Rentecurve omgekeerd (spread {{spread}}%) — recessiewaarschuwing.",
+      "yield_steep": "Steile rentecurve (spread {{spread}}%) — groei-vriendelijk.",
+      "yield_flat": "Vlakke rentecurve (spread {{spread}}%).",
+      "yield_2y_elevated": "2Y-rente op {{us2y}}% — hoge korte rente verscherpt financiële condities.",
+      "yield_2y_low": "2Y-rente op {{us2y}}% — lage korte rente ondersteunt risicobereidheid.",
+      "yield_2y_neutral": "2Y-rente op {{us2y}}% — korte rente in een gematigd bereik."
     },
     "trackRecord": {
       "title": "Track record op {{market}}",
@@ -563,7 +596,29 @@
       "avgBearish": "Gem. beweging na bearish: {{value}}%",
       "noHistory": "Het track record verschijnt zodra er genoeg dagelijkse koershistorie is verzameld — kom later terug."
     },
-    "disclaimer": "De Fable5-verwachting combineert acht technische signalen met vaste gewichten, berekend uit historische koersen, voor educatieve doeleinden in deze simulatie. Het is een indicatie, geen voorspelling of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen."
+    "disclaimer": "De Fable5-verwachting combineert tien technische en macro-signalen met vaste gewichten, berekend uit historische koersen en Twelve Data-context, voor educatieve doeleinden in deze simulatie. Het is een indicatie, geen voorspelling of financieel advies — geen enkele indicator kan de markt betrouwbaar voorspellen.",
+    "context": {
+      "title": "Marktcontext (Twelve Data)",
+      "subtitle": "Macro-, resultaten- en insiderdata voor niet-crypto assets.",
+      "vix": "VIX-niveau",
+      "yieldSpread": "10Y–2Y rentespread",
+      "macroRegime": "Macro-regime",
+      "macroRegimes": {
+        "risk_on": "Risk-on",
+        "risk_off": "Risk-off",
+        "neutral": "Neutraal"
+      },
+      "earnings": "Resultaten",
+      "daysToEarnings": "{{days}} dagen tot publicatie",
+      "earningsNear": "Publicatie binnen 5 dagen",
+      "insider": "Insideractiviteit (90d)",
+      "insiderSignals": {
+        "bullish": "Netto koop ({{buys}} koop vs {{sells}} verkoop)",
+        "bearish": "Netto verkoop ({{sells}} verkoop vs {{buys}} koop)",
+        "neutral": "Gemengde insideractiviteit ({{buys}} koop, {{sells}} verkoop)"
+      },
+      "sector": "vs {{etf}} sector (20d)"
+    }
   },
   "gtp56solAnalysis": {
     "brand": "GTP56Sol analysis",
@@ -623,6 +678,11 @@
       "historical_probability_leader": "Vergelijkbare historische situaties bewogen het vaakst {{outcome}} ({{probability}}).",
       "technical_vote_balance": "Technische signalen wijzen {{balance}}.",
       "walk_forward_evidence": "Walk-forward-controles waren {{directional_accuracy}} nauwkeurig over {{evaluated_samples}} validatiemetingen.",
+      "macro_vix_context": "Huidige VIX is {{vix}} — meegenomen in nearest-neighbor matching.",
+      "macro_yield_spread": "10Y–2Y rentespread is {{spread}}% — meegenomen in patroonmatching.",
+      "macro_us2y_yield": "2Y-rente is {{us2y}}% — meegenomen in patroonmatching.",
+      "earnings_near": "Resultaten binnen {{days}} dagen — nabijheidsfeature actief.",
+      "insider_activity": "Insidersignaal: {{signal}} ({{buys}} koop, {{sells}} verkoop in 90d).",
       "voteUpOne": "één punt omhoog",
       "voteUpMany": "{{value}} punten omhoog",
       "voteDownOne": "één punt omlaag",
@@ -665,7 +725,29 @@
       "collecting": "Historie verzamelen",
       "collectingHint": "De weekverwachting verschijnt zodra er genoeg dagelijkse historie is verzameld."
     },
-    "disclaimer": "Educatieve verwachtingen op basis van historische patronen voor de de BereBank-simulatie met nepgeld. Uitkomsten zijn onzeker en er wordt geen echt geld gebruikt."
+    "disclaimer": "Educatieve verwachtingen op basis van historische patronen voor de de BereBank-simulatie met nepgeld. Uitkomsten zijn onzeker en er wordt geen echt geld gebruikt.",
+    "context": {
+      "title": "Marktcontext (Twelve Data)",
+      "subtitle": "Macro-, resultaten- en insiderfeatures voor patroonmatching.",
+      "vix": "VIX-niveau",
+      "yieldSpread": "10Y–2Y rentespread",
+      "macroRegime": "Macro-regime",
+      "macroRegimes": {
+        "risk_on": "Risk-on",
+        "risk_off": "Risk-off",
+        "neutral": "Neutraal"
+      },
+      "earnings": "Resultaten",
+      "daysToEarnings": "{{days}} dagen tot publicatie",
+      "earningsNear": "Publicatie binnen 5 dagen",
+      "insider": "Insideractiviteit (90d)",
+      "insiderSignals": {
+        "bullish": "Netto koop ({{buys}} koop vs {{sells}} verkoop)",
+        "bearish": "Netto verkoop ({{sells}} verkoop vs {{buys}} koop)",
+        "neutral": "Gemengde insideractiviteit ({{buys}} koop, {{sells}} verkoop)"
+      },
+      "sector": "vs {{etf}} sector (20d)"
+    }
   },
   "orderForm": {
     "amountLabel": "Aantal ({{asset}})",

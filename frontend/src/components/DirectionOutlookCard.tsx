@@ -91,6 +91,24 @@ function driverText(
         evaluated_samples:
           typeof params.evaluated_samples === 'number' ? params.evaluated_samples : 0,
       })
+    case 'macro_vix_context':
+      return t('gtp56solAnalysis.drivers.macro_vix_context', {
+        vix: String(params.vix ?? '—'),
+      })
+    case 'macro_yield_spread':
+      return t('gtp56solAnalysis.drivers.macro_yield_spread', {
+        spread: String(params.spread ?? '—'),
+      })
+    case 'earnings_near':
+      return t('gtp56solAnalysis.drivers.earnings_near', {
+        days: typeof params.days === 'number' ? params.days : 0,
+      })
+    case 'insider_activity':
+      return t('gtp56solAnalysis.drivers.insider_activity', {
+        signal: String(params.signal ?? 'neutral'),
+        buys: typeof params.buys === 'number' ? params.buys : 0,
+        sells: typeof params.sells === 'number' ? params.sells : 0,
+      })
     default:
       return t('gtp56solAnalysis.drivers.unavailable')
   }
