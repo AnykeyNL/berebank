@@ -1,7 +1,8 @@
 # KimiK3 analysis — design spec
 
 Date: 2026-08-02
-Status: implemented
+Status: implemented (extended the same day — see "Extension: short-term
+context signals and buy/sell scores" below)
 
 ## Goal
 
@@ -96,3 +97,119 @@ page (five independent strategies, no combined verdict) untouched.
   useful immediately after deploy; Twelve Data markets need a configured API key.
 - The outlook is an educational indication, not a prediction; the disclaimer is
   shown on the page and documented in the MCP tool.
+
+## Extension: short-term context signals and buy/sell scores
+
+Evaluated against `docs/external_source.md`, the original six-signal design
+left the highest-value short-term data from the paid subscriptions unused:
+context (funding, open interest, Fear & Greed, VIX, yields, insiders,
+earnings) could only nudge a near-neutral score by ±8–15 points and never
+flip a verdict. The extension turns context into full regime-weighted votes
+per asset class, adds the two classic short-term price strategies, and adds
+buy/sell scores. The walk-forward track record still uses the price
+strategies only (context is live-only by nature).
+
+### Signal changes
+
+- **Price strategies (6 → 8)**: adds `momentum` (rate of change over 10 and
+  20 bars: both up bullish, both down bearish, disagreement neutral) and
+  `stochastic` (slow stochastic 14/3/3: %K < 20 oversold bullish, > 80
+  overbought bearish, a %K/%D cross within 3 bars votes with the cross).
+  Regime-aware weighting extends: trending (ADX >= 25) doubles trend, MACD
+  and momentum; ranging (ADX < 20) doubles RSI, Bollinger and stochastic
+  (still suppressed near earnings or extreme funding). `trend_strength`
+  keeps weight 1.0 as the regime referee.
+- **Context votes replace nudges**: the old ±8–15 near-neutral nudges are
+  removed entirely; context strategies vote like any other strategy at a
+  fixed weight of 1.0 (no regime multiplier), so external data can now flip
+  a verdict. Each strategy joins the vote only for the asset class it
+  belongs to.
+  - **Crypto**: `fear_greed_regime` (extremes contrarian; in the middle
+    zone a ±10-point 7-day change votes with sentiment momentum),
+    `crypto_liquidity` (BTC dominance change + stablecoin supply change),
+    `funding_regime` (level contrarian), `oi_momentum` (4h preferred, 24h
+    fallback, price-confirmed: OI up + price down means new shorts, the
+    case the old nudge got backwards), `oi_fast` (1h OI change ≥ 1% with a
+    matching 1h price move > 0.2% — the intraday edge; the field was
+    already fetched but consumed by nothing), `funding_momentum` (4h
+    funding-history trend ≥ ±0.02 percentage points over 24h with a
+    confirming 24h price move: funding rising while price rises means late
+    crowded longs, bearish; funding falling while price falls means
+    capitulation fuel, bullish; otherwise neutral), `long_short` (taker
+    long/short ratio, contrarian at extremes), `liquidations` (24h
+    one-sided flush, contrarian).
+  - **Stocks**: `vix_regime` (level bands plus 5-day spike/cool-down),
+    `yield_curve` (spread bands, US2Y-only fallback), `relative_strength`
+    (20-day return vs the sector SPDR ETF, ±2 pp), `event_risk` (within 5
+    days of earnings it votes neutral on purpose — the gap-risk brake),
+    `insider_flow` (90-day insider buy/sell balance, promoted from
+    tie-break nudge to full vote).
+  - **Funds**: `vix_regime` + `yield_curve` with asset-aware routing:
+    safe-haven bases (`GLD`, `BND`, `TLT`) read elevated fear as a bid
+    (risk-off flight to gold/Treasuries); `IBIT` is routed the crypto macro
+    context and votes `fear_greed_regime`, `crypto_liquidity` and
+    `funding_regime` on BTC derivatives.
+  - **Commodities**: precious metals (XAU/XAG/XPT/XPD) get the safe-haven
+    `vix_regime` and inversion-bullish `yield_curve`; energy
+    (WTI/XBR/URALS) omits `yield_curve` entirely — the treasury curve is
+    not predictive for oil.
+
+### Buy / sell scores
+
+`compute_outlook` additionally returns `buy_score` and `sell_score`
+(0..100): the shares of active **regime-weighted** weight voting bullish
+resp. bearish (neutral votes count in the denominator, so an undecided
+market scores low on both). Unlike Fable5's fixed-weight shares, Kimi's
+reflect the effective weights — a doubled trend vote in a strong trend
+lifts Buy more. High values on both sides surface contested markets. The
+scores ride along on the outlook contract (detail endpoint,
+`/markets/kimi-outlooks` summaries, MCP tool) and render as sortable Buy /
+Sell columns in the KimiK3 asset picker table (default sort: Buy,
+descending) plus chips on the detail hero card.
+
+### New data integration
+
+- **Coinglass `/api/futures/funding-rate/history`** (verified usable on
+  Hobbyist, `interval >= 4h`): 4h funding trend per coin as
+  `funding_rate_change_24h`, using Binance as the reference exchange (the
+  history endpoint requires naming one; it is the largest perpetuals
+  market). Cached 15 min per symbol in `services/coinglass.py`. Request
+  budget: three cached calls per coin per 15 min (open interest +
+  pairs-markets + funding history) plus one bulk funding call — inside the
+  Hobbyist 30 req/min limit for realistic usage.
+- **`open_interest_change_percent_1h`**: already fetched by
+  `fetch_open_interest` and merged into the crypto context but consumed by
+  no engine — now drives `oi_fast`.
+- `crypto_context.serialize_context` exposes the funding trend and 1h OI
+  fields so the supplementary context panel can show them on all analysis
+  pages.
+
+### Plumbing
+
+- The Kimi endpoints copy the shared context and tag it with `asset_class`
+  and `base` (never mutating the cached macro dicts); `IBIT-EUR`
+  additionally merges the shared crypto macro context and BTC derivatives
+  so the engine can gate crypto signals for it.
+- `analyze_kimi(candles, display_count, context=None)` includes only the
+  eight price strategies, keeping the walk-forward track record price-only
+  by design; the detail and batch endpoints pass the tagged live context.
+
+### Testing
+
+- `test_kimi_analysis.py` extended: momentum/stochastic math, funding
+  momentum and 1h-OI cases, buy/sell shares (unanimous, split,
+  regime-doubled weights, no-data), asset-class gating (crypto, stock,
+  GLD, BND/TLT, IBIT, energy), insider vote, price-only without context.
+- `test_analysis.py` and `test_fable5_analysis.py` must pass unchanged
+  (isolation smoke test); frontend `tsc -b && vite build` clean.
+
+### Not done (documented for later)
+
+- RSS headline sentiment (external-sources suggestion #6): needs an NLP
+  scoring step; naive keyword scoring risks degrading signal quality, so it
+  stays out for now (same call as Fable5).
+- Twelve Data pre/post-market bars for gap analysis and the
+  `/market_movers` cross-asset scanner: medium-effort plumbing and caching
+  changes; next round.
+- Funding/OI history harvest for backtesting the derivative signals: they
+  stay live-only and out of the track record until persisted.

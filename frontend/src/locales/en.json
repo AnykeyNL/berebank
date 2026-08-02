@@ -433,21 +433,18 @@
         "low": "Low"
       },
       "regimeNote": {
-        "trending": "Strong trend detected — trend indicators count double.",
-        "ranging": "Sideways market detected — momentum and volatility indicators count double.",
+        "trending": "Strong trend detected — trend-following indicators (trend, MACD, momentum) count double.",
+        "ranging": "Sideways market detected — mean-reversion indicators (RSI, Bollinger, stochastic) count double.",
         "neutral": "No strong regime — all indicators weigh equally."
-      },
-      "contextNote": {
-        "earnings_near": "Earnings are near — mean-reversion signals are not doubled.",
-        "macro_risk_off": "Macro context is risk-off — neutral technical scores were adjusted down.",
-        "macro_risk_on": "Macro context is risk-on — neutral technical scores were adjusted up."
       },
       "reasons": {
         "outlook_bullish": "{{bullish}} of {{total}} indicators point up.",
         "outlook_bearish": "{{bearish}} of {{total}} indicators point down.",
         "outlook_neutral": "Indicators are mixed: {{bullish}} up, {{bearish}} down, {{neutral}} neutral.",
         "outlook_no_data": "Not enough price history in this period for an outlook."
-      }
+      },
+      "buyScore": "Buy {{value}}",
+      "sellScore": "Sell {{value}}"
     },
     "why": "Why this outlook?",
     "hideWhy": "Hide breakdown",
@@ -455,7 +452,11 @@
     "table": {
       "asset": "Asset",
       "outlook": "Outlook",
-      "collecting": "Collecting history"
+      "collecting": "Collecting history",
+      "buy": "Buy",
+      "sell": "Sell",
+      "buyTitle": "Buy score: share of signal weight voting bullish (0–100) — higher means more of the evidence favors buying",
+      "sellTitle": "Sell score: share of signal weight voting bearish (0–100) — higher means more of the evidence favors selling"
     },
     "strategyNames": {
       "trend": "Trend (moving averages)",
@@ -463,7 +464,22 @@
       "macd": "Momentum (MACD)",
       "volatility": "Volatility (Bollinger Bands)",
       "levels_volume": "Support / resistance & volume",
-      "trend_strength": "Trend strength (ADX)"
+      "trend_strength": "Trend strength (ADX)",
+      "momentum": "Momentum (rate of change)",
+      "stochastic": "Stochastic oscillator",
+      "funding_regime": "Funding rate (Coinglass)",
+      "oi_momentum": "Open interest vs price",
+      "long_short": "Long/short positioning",
+      "liquidations": "Liquidation flows",
+      "vix_regime": "Macro volatility (VIX)",
+      "yield_curve": "Treasury yield curve",
+      "relative_strength": "Sector relative strength",
+      "event_risk": "Earnings event risk",
+      "fear_greed_regime": "Fear & Greed sentiment",
+      "crypto_liquidity": "Crypto liquidity (dominance & stablecoins)",
+      "funding_momentum": "Funding trend (4h)",
+      "oi_fast": "Open interest (1h edge)",
+      "insider_flow": "Insider flow (90d)"
     },
     "reasons": {
       "insufficient_data": "Not enough price history in this period for this analysis.",
@@ -471,7 +487,70 @@
       "adx_strong_down": "Strong downtrend (ADX {{adx}}) — sellers are in control (-DI above +DI).",
       "adx_weak_up": "Mild uptrend (ADX {{adx}}) — buyers have a slight edge.",
       "adx_weak_down": "Mild downtrend (ADX {{adx}}) — sellers have a slight edge.",
-      "adx_ranging": "No trend (ADX {{adx}}, below 20) — the market is moving sideways."
+      "adx_ranging": "No trend (ADX {{adx}}, below 20) — the market is moving sideways.",
+      "momentum_up": "Price is above where it was 10 and 20 bars ago ({{roc10}}% and {{roc20}}%).",
+      "momentum_down": "Price is below where it was 10 and 20 bars ago ({{roc10}}% and {{roc20}}%).",
+      "momentum_mixed": "Short- and longer-term momentum disagree ({{roc10}}% vs {{roc20}}%).",
+      "stoch_oversold": "Stochastic %K at {{k}} — oversold, a bounce becomes likelier.",
+      "stoch_overbought": "Stochastic %K at {{k}} — overbought, a pullback becomes likelier.",
+      "stoch_bull_cross": "%K crossed above %D {{bars_ago}} bars ago — momentum turning up.",
+      "stoch_bear_cross": "%K crossed below %D {{bars_ago}} bars ago — momentum turning down.",
+      "stoch_neutral": "Stochastic in the middle zone (%K {{k}}, %D {{d}}) — no signal.",
+      "vix_elevated": "VIX at {{vix}} — elevated fear, risk-off conditions.",
+      "vix_calm": "VIX at {{vix}} — subdued volatility supports risk appetite.",
+      "vix_neutral": "VIX at {{vix}} — volatility in a normal range.",
+      "vix_spiking": "VIX up {{change}}% in a week (now {{vix}}) — volatility spiking, short-term risk-off.",
+      "vix_cooling": "VIX down {{change}}% in a week (now {{vix}}) — volatility cooling, risk appetite returning.",
+      "vix_haven_bid": "VIX at {{vix}} — market fear tends to attract safe-haven buying of precious metals.",
+      "yield_inverted": "Yield curve inverted (spread {{spread}}%) — recession warning.",
+      "yield_steep": "Steep yield curve (spread {{spread}}%) — growth-friendly backdrop.",
+      "yield_flat": "Flat yield curve (spread {{spread}}%).",
+      "yield_2y_elevated": "2Y Treasury yield at {{us2y}}% — elevated short rates tighten financial conditions.",
+      "yield_2y_low": "2Y Treasury yield at {{us2y}}% — low short rates support risk appetite.",
+      "yield_2y_neutral": "2Y Treasury yield at {{us2y}}% — short rates in a moderate range.",
+      "fear_greed_extreme_greed": "Fear & Greed at {{index}} — extreme greed, contrarian caution.",
+      "fear_greed_extreme_fear": "Fear & Greed at {{index}} — extreme fear, contrarian opportunity.",
+      "fear_greed_neutral": "Fear & Greed at {{index}} — neutral sentiment.",
+      "fear_greed_improving": "Fear & Greed at {{index}}, up {{change}} points in a week — sentiment improving.",
+      "fear_greed_deteriorating": "Fear & Greed at {{index}}, down {{change}} points in a week — sentiment deteriorating.",
+      "crypto_liquidity_supportive": "Supportive liquidity (dominance {{dominance_change_pct}}%, stablecoins {{stablecoin_change_pct}}%).",
+      "crypto_liquidity_tight": "Tight liquidity (dominance {{dominance_change_pct}}%, stablecoins {{stablecoin_change_pct}}%).",
+      "crypto_liquidity_mixed": "Mixed liquidity signals (dominance {{dominance_change_pct}}%, stablecoins {{stablecoin_change_pct}}%).",
+      "funding_crowded_longs": "Funding rate {{funding}}% — crowded longs.",
+      "funding_crowded_shorts": "Funding rate {{funding}}% — crowded shorts.",
+      "funding_neutral": "Funding rate {{funding}}% — neutral positioning.",
+      "oi_rising": "Open interest up {{change}}% — new positions entering.",
+      "oi_falling": "Open interest down {{change}}% — positions closing.",
+      "oi_stable": "Open interest change {{change}}% over {{hours}}h — stable positioning.",
+      "oi_confirming_up": "Open interest up {{change}}% while price rose {{price_change}}% ({{hours}}h) — new longs confirm the move.",
+      "oi_confirming_down": "Open interest up {{change}}% while price fell {{price_change}}% ({{hours}}h) — new shorts drive the move.",
+      "oi_unwinding": "Open interest down {{change}}% over {{hours}}h — the move runs on closing positions and is losing fuel.",
+      "ls_crowded_longs": "Taker long/short ratio {{ratio}} — crowd leaning long, contrarian caution.",
+      "ls_crowded_shorts": "Taker long/short ratio {{ratio}} — crowd leaning short, squeeze potential.",
+      "ls_balanced": "Taker long/short ratio {{ratio}} — balanced positioning.",
+      "liq_long_flush": "Longs liquidated ({{long_usd}} vs {{short_usd}} shorts, 24h) — leverage flushed below price, bounce setup.",
+      "liq_short_squeeze": "Shorts liquidated ({{short_usd}} vs {{long_usd}} longs, 24h) — squeeze fuel spent, pullback risk.",
+      "liq_balanced": "Liquidations balanced ({{long_usd}} longs / {{short_usd}} shorts, 24h).",
+      "liq_calm": "Few liquidations in the past 24h — no forced-flow signal.",
+      "rel_strength_leading": "Beating its {{etf}} sector by {{rel}}% over 20 days — short-term leaders tend to stay strong.",
+      "rel_strength_lagging": "Trailing its {{etf}} sector by {{rel}}% over 20 days — laggards tend to stay weak.",
+      "rel_strength_inline": "Moving in line with its {{etf}} sector ({{rel}}% over 20 days).",
+      "earnings_near": "Earnings report within {{days}} days — gap risk, directional signals are less dependable now.",
+      "earnings_far": "Next earnings report {{days}} days away — no event risk in play.",
+      "funding_trend_flat": "Funding rate barely moved over 24h ({{change}} pts) — no positioning trend.",
+      "funding_trend_unclear": "Funding trend {{change}} pts over 24h without a confirming price move — unclear.",
+      "funding_crowding_longs": "Funding up {{change}} pts while price rose {{price_change}}% (24h) — late longs piling in, fragile.",
+      "funding_capitulating": "Funding down {{change}} pts while price fell {{price_change}}% (24h) — shorts paying into the drop, squeeze fuel.",
+      "funding_diverging": "Funding and price moved in opposite directions ({{change}} pts vs {{price_change}}%, 24h) — contested positioning.",
+      "oi_fast_longs": "Open interest +{{change}}% in one hour while price rose {{price_change}}% — new longs entering fast.",
+      "oi_fast_shorts": "Open interest +{{change}}% in one hour while price fell {{price_change}}% — new shorts entering fast.",
+      "oi_fast_unconfirmed": "Open interest +{{change}}% in one hour without a clear price move — unconfirmed.",
+      "oi_fast_unwinding": "Open interest {{change}}% in one hour — positions closing, move losing fuel.",
+      "oi_fast_calm": "No meaningful 1h open-interest shift ({{change}}%).",
+      "yield_haven_inverted": "Yield curve inverted (spread {{spread}}%) — recession worry drives safe-haven demand.",
+      "insider_net_buying": "Insiders net buying ({{buys}} buys vs {{sells}} sells, 90d) — confidence from within.",
+      "insider_net_selling": "Insiders net selling ({{sells}} sells vs {{buys}} buys, 90d) — a warning sign.",
+      "insider_balanced": "Insider activity balanced or absent ({{buys}} buys, {{sells}} sells, 90d)."
     },
     "trackRecord": {
       "title": "Track record on {{market}}",
@@ -517,7 +596,11 @@
         "bearish": "Net selling ({{sells}} sells vs {{buys}} buys)",
         "neutral": "Mixed insider activity ({{buys}} buys, {{sells}} sells)"
       },
-      "sector": "vs {{etf}} sector (20d)"
+      "sector": "vs {{etf}} sector (20d)",
+      "fundingRateTrend": "Funding trend (24h)",
+      "fundingRateTrendValue": "{{change}} pts",
+      "openInterestChange1h": "Open interest (1h)",
+      "openInterestChange1hValue": "{{change}}%"
     }
   },
   "fable5Analysis": {
@@ -698,7 +781,11 @@
         "bearish": "Net selling ({{sells}} sells vs {{buys}} buys)",
         "neutral": "Mixed insider activity ({{buys}} buys, {{sells}} sells)"
       },
-      "sector": "vs {{etf}} sector (20d)"
+      "sector": "vs {{etf}} sector (20d)",
+      "fundingRateTrend": "Funding trend (24h)",
+      "fundingRateTrendValue": "{{change}} pts",
+      "openInterestChange1h": "Open interest (1h)",
+      "openInterestChange1hValue": "{{change}}%"
     }
   },
   "gtp56solAnalysis": {
@@ -848,7 +935,11 @@
         "bearish": "Net selling ({{sells}} sells vs {{buys}} buys)",
         "neutral": "Mixed insider activity ({{buys}} buys, {{sells}} sells)"
       },
-      "sector": "vs {{etf}} sector (20d)"
+      "sector": "vs {{etf}} sector (20d)",
+      "fundingRateTrend": "Funding trend (24h)",
+      "fundingRateTrendValue": "{{change}} pts",
+      "openInterestChange1h": "Open interest (1h)",
+      "openInterestChange1hValue": "{{change}}%"
     }
   },
   "orderForm": {

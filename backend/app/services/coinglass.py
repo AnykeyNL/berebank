@@ -18,13 +18,20 @@ COINGLASS_REST_URL = "https://open-api-v4.coinglass.com"
 _CACHE_TTL = 900.0
 _OI_CACHE_TTL = 900.0
 _PAIRS_CACHE_TTL = 900.0
+_FUNDING_HIST_CACHE_TTL = 900.0
+
+# The funding history endpoint requires naming one exchange; Binance runs
+# the largest perpetuals market, so its funding trend is the reference.
+_FUNDING_REFERENCE_EXCHANGE = "Binance"
 
 _funding_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
 _oi_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _pairs_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+_funding_hist_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 _funding_lock = asyncio.Lock()
 _oi_lock = asyncio.Lock()
 _pairs_lock = asyncio.Lock()
+_funding_hist_lock = asyncio.Lock()
 
 
 class CoinglassService:
@@ -35,10 +42,11 @@ class CoinglassService:
 
     def set_api_key(self, api_key: str | None) -> None:
         self.api_key = api_key.strip() if api_key else None
-        global _funding_cache, _oi_cache, _pairs_cache
+        global _funding_cache, _oi_cache, _pairs_cache, _funding_hist_cache
         _funding_cache = None
         _oi_cache = {}
         _pairs_cache = {}
+        _funding_hist_cache = {}
 
     def status(self) -> dict[str, Any]:
         return {
@@ -176,6 +184,50 @@ async def fetch_pairs_markets(client: httpx.AsyncClient, symbol: str) -> dict[st
     return aggregate_pairs_markets(rows)
 
 
+def _funding_close(row: dict[str, Any]) -> float | None:
+    value = row.get("c", row.get("close"))
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+async def fetch_funding_history(client: httpx.AsyncClient, symbol: str) -> dict[str, Any] | None:
+    """24h funding-rate trend from 4h funding OHLC (Hobbyist: interval >= 4h).
+
+    Returns the change in percentage points between the oldest and newest
+    close over roughly the past day, plus the reference exchange used.
+    """
+    rows = await _get_json(
+        client,
+        "/api/futures/funding-rate/history",
+        params={
+            "exchange": _FUNDING_REFERENCE_EXCHANGE,
+            "symbol": symbol,
+            "interval": "4h",
+            "limit": 7,
+        },
+    )
+    if not isinstance(rows, list) or len(rows) < 2:
+        return None
+
+    def _row_ts(row: dict[str, Any]) -> int:
+        try:
+            return int(row.get("t", row.get("time")) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    closes = [c for c in (_funding_close(row) for row in sorted(rows, key=_row_ts)) if c is not None]
+    if len(closes) < 2:
+        return None
+    return {
+        "funding_rate_change_24h": closes[-1] - closes[0],
+        "funding_rate_reference_exchange": _FUNDING_REFERENCE_EXCHANGE,
+    }
+
+
 async def get_funding_map() -> dict[str, dict[str, Any]]:
     """All symbols' average funding rates (one Coinglass call, cached)."""
     global _funding_cache
@@ -259,6 +311,24 @@ async def get_symbol_derivatives(base: str) -> dict[str, Any]:
             if pairs:
                 _pairs_cache[resolved] = (now, pairs)
                 out.update(pairs)
+            elif cached:
+                out.update(cached[1])
+
+    async with _funding_hist_lock:
+        now = time.monotonic()
+        cached = _funding_hist_cache.get(resolved)
+        if cached and now - cached[0] < _FUNDING_HIST_CACHE_TTL:
+            out.update(cached[1])
+        else:
+            try:
+                async with httpx.AsyncClient(base_url=COINGLASS_REST_URL, headers=_headers(), timeout=30) as client:
+                    history = await fetch_funding_history(client, resolved)
+            except Exception:
+                logger.debug("Coinglass funding history fetch failed for %s", resolved, exc_info=True)
+                history = cached[1] if cached else None
+            if history:
+                _funding_hist_cache[resolved] = (now, history)
+                out.update(history)
             elif cached:
                 out.update(cached[1])
     return out

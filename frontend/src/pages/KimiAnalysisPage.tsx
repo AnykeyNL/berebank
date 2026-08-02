@@ -22,6 +22,26 @@ import { formatReasonParams } from './AnalyzePage'
 
 const RANGES: AnalysisRange[] = ['1d', '1w', '30d', '90d', '180d', '365d']
 
+// Strategies whose reason codes live in the kimiAnalysis i18n namespace.
+const KIMI_STRATEGIES = new Set([
+  'momentum',
+  'stochastic',
+  'trend_strength',
+  'fear_greed_regime',
+  'crypto_liquidity',
+  'funding_regime',
+  'funding_momentum',
+  'oi_momentum',
+  'oi_fast',
+  'long_short',
+  'liquidations',
+  'vix_regime',
+  'yield_curve',
+  'relative_strength',
+  'event_risk',
+  'insider_flow',
+])
+
 const DIRECTION_STYLES: Record<Outlook['direction'], string> = {
   bullish: 'bg-emerald-500/15 text-emerald-400',
   bearish: 'bg-red-500/15 text-red-400',
@@ -92,7 +112,7 @@ function ConfidenceMeter({ confidence }: { confidence: Outlook['confidence'] }) 
   )
 }
 
-type SortKey = 'asset' | 'confidence' | 'score' | 'direction' | 'last'
+type SortKey = 'asset' | 'confidence' | 'score' | 'buy' | 'sell' | 'direction' | 'last'
 type SortDir = 'asc' | 'desc'
 
 const DIRECTION_RANK: Record<string, number> = { bullish: 3, neutral: 2, bearish: 1, none: 0 }
@@ -106,7 +126,7 @@ function AssetPicker() {
   const [outlooks, setOutlooks] = useState<KimiOutlooks['outlooks']>({})
   const [search, setSearch] = useState('')
   const [classFilter, setClassFilter] = useState<'all' | AssetClass>('all')
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'score', dir: 'desc' })
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'buy', dir: 'desc' })
 
   useEffect(() => {
     api<Market[]>('/markets').then(setMarkets).catch(() => {})
@@ -135,6 +155,10 @@ function AssetPicker() {
           return outlook ? CONFIDENCE_RANK[outlook.confidence] : null
         case 'score':
           return outlook ? outlook.score : null
+        case 'buy':
+          return outlook?.buy_score ?? null
+        case 'sell':
+          return outlook?.sell_score ?? null
         case 'direction':
           return outlook ? DIRECTION_RANK[outlook.direction] : null
         case 'last': {
@@ -230,7 +254,23 @@ function AssetPicker() {
             'hidden w-12 justify-center sm:flex',
             t('kimiAnalysis.outlook.confidenceLabel'),
           )}
-          {sortHeader('score', t('kimiAnalysis.outlook.scoreLabel'), 'w-12 justify-end sm:w-14')}
+          {sortHeader(
+            'score',
+            t('kimiAnalysis.outlook.scoreLabel'),
+            'hidden w-12 justify-end sm:flex sm:w-14',
+          )}
+          {sortHeader(
+            'buy',
+            t('kimiAnalysis.table.buy'),
+            'w-9 justify-end sm:w-11',
+            t('kimiAnalysis.table.buyTitle'),
+          )}
+          {sortHeader(
+            'sell',
+            t('kimiAnalysis.table.sell'),
+            'w-9 justify-end sm:w-11',
+            t('kimiAnalysis.table.sellTitle'),
+          )}
           {sortHeader('direction', t('kimiAnalysis.table.outlook'), 'w-20 justify-center sm:w-24')}
           {sortHeader('last', t('trade.last'), 'w-16 justify-end sm:w-20')}
         </div>
@@ -255,7 +295,7 @@ function AssetPicker() {
                 {outlook && <ConfidenceDots confidence={outlook.confidence} />}
               </span>
               <span
-                className={`w-12 text-right font-mono text-xs sm:w-14 ${
+                className={`hidden w-12 text-right font-mono text-xs sm:flex sm:w-14 sm:justify-end ${
                   !outlook
                     ? ''
                     : outlook.score > 0
@@ -266,6 +306,12 @@ function AssetPicker() {
                 }`}
               >
                 {outlook ? (outlook.score > 0 ? `+${outlook.score}` : outlook.score) : ''}
+              </span>
+              <span className="w-9 text-right font-mono text-xs text-emerald-400 sm:w-11">
+                {outlook?.buy_score != null ? outlook.buy_score : ''}
+              </span>
+              <span className="w-9 text-right font-mono text-xs text-red-400 sm:w-11">
+                {outlook?.sell_score != null ? outlook.sell_score : ''}
               </span>
               <span className="flex w-20 justify-center sm:w-24">
                 {outlook ? (
@@ -343,12 +389,34 @@ export default function KimiAnalysisPage() {
 
   if (!market) return <AssetPicker />
 
+  function kimiParam(key: string, value: string | number | null): string {
+    if (['bars_ago', 'days', 'hours', 'index', 'buys', 'sells'].includes(key)) {
+      return String(value ?? '—')
+    }
+    if (key === 'etf') return String(value || '—')
+    const n = parseFloat(String(value))
+    if (!Number.isFinite(n)) return '—'
+    if (key === 'long_usd' || key === 'short_usd') {
+      if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
+      if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
+      if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
+      return `$${n.toFixed(0)}`
+    }
+    if (key === 'ratio') return n.toFixed(2)
+    if (key.startsWith('roc')) return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`
+    // Funding rates and their 24h trends are hundredths of a percent point.
+    const abs = Math.abs(n)
+    if (abs > 0 && abs < 0.1) return n.toFixed(4).replace(/\.?0+$/, '')
+    return n.toFixed(1)
+  }
+
   function contributionReason(key: string, strategy: AnalysisStrategy): string {
-    if (key === 'trend_strength') {
-      const adx = strategy.reason.params.adx
-      return t(`kimiAnalysis.reasons.${strategy.reason.code}`, {
-        adx: adx != null ? parseFloat(String(adx)).toFixed(1) : '—',
-      })
+    if (KIMI_STRATEGIES.has(key)) {
+      const params: Record<string, string> = {}
+      for (const [k, v] of Object.entries(strategy.reason.params)) {
+        params[k] = kimiParam(k, v)
+      }
+      return t(`kimiAnalysis.reasons.${strategy.reason.code}`, params)
     }
     return t(`analyze.reasons.${strategy.reason.code}`, formatReasonParams(strategy.reason.params, t))
   }
@@ -430,6 +498,22 @@ export default function KimiAnalysisPage() {
                 >
                   {t(`analyze.signals.${outlook.direction}`)}
                 </span>
+                {outlook.buy_score != null && outlook.sell_score != null && (
+                  <div className="mt-2 flex gap-2 text-xs font-medium">
+                    <span
+                      className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-400"
+                      title={t('kimiAnalysis.table.buyTitle')}
+                    >
+                      {t('kimiAnalysis.outlook.buyScore', { value: outlook.buy_score })}
+                    </span>
+                    <span
+                      className="rounded bg-red-500/10 px-2 py-0.5 text-red-400"
+                      title={t('kimiAnalysis.table.sellTitle')}
+                    >
+                      {t('kimiAnalysis.outlook.sellScore', { value: outlook.sell_score })}
+                    </span>
+                  </div>
+                )}
                 <p className="mt-2 max-w-md text-sm text-slate-300">
                   {t(`kimiAnalysis.outlook.reasons.${outlook.reason.code}`, outlook.reason.params)}
                 </p>

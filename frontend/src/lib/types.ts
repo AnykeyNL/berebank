@@ -94,7 +94,7 @@ export interface OutlookContribution {
 export interface Outlook {
   direction: AnalysisSignal
   score: number // -100 (strongly bearish) to +100 (strongly bullish)
-  // Fable5 only: 0..100 shares of active signal weight voting bullish/bearish.
+  // Fable5 and KimiK3: 0..100 shares of active signal weight voting bullish/bearish.
   buy_score?: number
   sell_score?: number
   confidence: OutlookConfidence
@@ -137,8 +137,10 @@ export interface SupplementaryContext {
   stablecoin_supply_usd?: string | null
   stablecoin_supply_change_pct?: string | null
   funding_rate_avg?: string | null
+  funding_rate_change_24h?: string | null
   open_interest_change_percent_24h?: string | null
   open_interest_change_percent_4h?: string | null
+  open_interest_change_percent_1h?: string | null
   open_interest_usd?: string | null
   long_short_ratio?: string | null
   long_liquidation_usd_24h?: string | null
@@ -151,7 +153,24 @@ export interface KimiAnalysis {
   generated_at: string
   candles: Candle[]
   outlook: Outlook
-  strategies: Analysis['strategies'] & { trend_strength: AnalysisStrategy }
+  strategies: Analysis['strategies'] & {
+    trend_strength: AnalysisStrategy
+    momentum: AnalysisStrategy
+    stochastic: AnalysisStrategy
+    fear_greed_regime?: AnalysisStrategy
+    crypto_liquidity?: AnalysisStrategy
+    funding_regime?: AnalysisStrategy
+    funding_momentum?: AnalysisStrategy
+    oi_momentum?: AnalysisStrategy
+    oi_fast?: AnalysisStrategy
+    long_short?: AnalysisStrategy
+    liquidations?: AnalysisStrategy
+    vix_regime?: AnalysisStrategy
+    yield_curve?: AnalysisStrategy
+    relative_strength?: AnalysisStrategy
+    event_risk?: AnalysisStrategy
+    insider_flow?: AnalysisStrategy
+  }
   track_record: TrackRecord | null
   context: SupplementaryContext | null
 }
@@ -159,7 +178,7 @@ export interface KimiAnalysis {
 export interface OutlookSummary {
   direction: AnalysisSignal
   score: number
-  // Fable5 only: 0..100 shares of active signal weight voting bullish/bearish.
+  // Fable5 and KimiK3: 0..100 shares of active signal weight voting bullish/bearish.
   buy_score?: number
   sell_score?: number
   confidence: OutlookConfidence

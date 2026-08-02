@@ -40,7 +40,7 @@ ctx = {
     "open_interest_change_percent_24h": 8.0,
 }
 funding = fable5_analysis._funding_regime(ctx)
-oi = fable5_analysis._oi_momentum(ctx)
+oi = fable5_analysis._oi_momentum(ctx, [0, 3_600_000], [100.0, 100.0])
 check("funding crowded longs", funding["signal"] == "bearish")
 check("oi rising", oi["signal"] == "bullish")
 

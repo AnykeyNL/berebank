@@ -402,8 +402,8 @@ else:
     check("walk-forward fold ignores future candidates", False)
 
 print("supplementary features")
-check("engine version bumped", gtp56sol_analysis.ENGINE_VERSION == "2")
-check("twenty feature dimensions", len(gtp56sol_analysis.FEATURE_NAMES) == 20)
+check("engine version current", gtp56sol_analysis.ENGINE_VERSION == "3")
+check("twenty-two feature dimensions", len(gtp56sol_analysis.FEATURE_NAMES) == 22)
 ctx = {
     "vix_by_day": {"2024-06-01": 18.0},
     "yield_spread_by_day": {"2024-06-01": 0.3},

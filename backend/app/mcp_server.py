@@ -185,20 +185,31 @@ async def analyze_market(market: str, range: str = "30d") -> dict:
 @mcp.tool()
 async def get_kimi_analysis(market: str, range: str = "30d") -> dict:
     """KimiK3 direction outlook for a market (e.g. BTC-EUR): a single
-    bullish/bearish/neutral verdict blended from six technical-analysis
-    strategies (trend, RSI, MACD, Bollinger volatility, support/resistance
-    with volume, and ADX trend strength).
+    bullish/bearish/neutral verdict blended from eight price strategies
+    (trend, RSI, MACD, Bollinger volatility, support/resistance with
+    volume, ADX trend strength, dual-horizon momentum and a slow
+    stochastic) plus asset-class context signals — for crypto: Fear &
+    Greed sentiment momentum, BTC-aware dominance/stablecoin liquidity,
+    Coinglass funding level and 4h funding momentum, price-confirmed open
+    interest on 1h/4h/24h windows, long/short positioning and liquidation
+    flows; for stocks: VIX, yield curve, sector relative strength,
+    earnings-proximity brake and insider flow; for funds/commodities:
+    safe-haven aware VIX/yield logic (gold, Treasuries, precious metals;
+    omitted for energy) and crypto macro signals for IBIT.
 
     Range is one of "1d", "1w", "30d", "90d", "180d" or "365d" (default
     "30d"). The outlook contains a direction, a score from -100 (strongly
-    bearish) to +100 (strongly bullish), a confidence level
-    (low/medium/high, based on how many strategies agree), the market
-    regime (trending/ranging) used for weighting, and per-strategy
-    contributions showing each vote. When enough daily history has been
-    harvested, a track_record shows how often past outlooks on this market
-    were followed by a move in the indicated direction within 5 days
-    (hit_rate_pct, samples, average forward returns). Educational
-    indication from a paper-money simulation, not financial advice.
+    bearish) to +100 (strongly bullish), a buy_score and sell_score (0-100
+    shares of active regime-weighted weight voting bullish resp. bearish;
+    higher buy_score = more evidence favors buying, high on both sides =
+    contested market), a confidence level (low/medium/high, based on how
+    many strategies agree), the market regime (trending/ranging) used for
+    weighting, and per-strategy contributions showing each vote. When
+    enough daily history has been harvested, a track_record shows how
+    often past outlooks on this market were followed by a move in the
+    indicated direction within 5 days (hit_rate_pct, samples, average
+    forward returns). Educational indication from a paper-money
+    simulation, not financial advice.
     """
     db = SessionLocal()
     try:

@@ -180,8 +180,9 @@ async def get_kimi_outlooks(
 
     Computed from the stored daily candles (harvested in the background),
     so a market appears once enough history has been collected. Values:
-    direction, score (-100..+100), confidence and regime — same engine as
-    the per-market KimiK3 analysis endpoint.
+    direction, score (-100..+100), buy_score / sell_score (0..100 shares of
+    active regime-weighted weight voting bullish resp. bearish), confidence
+    and regime — same engine as the per-market KimiK3 analysis endpoint.
     """
     global _kimi_outlooks_cache
     if _kimi_outlooks_cache and time.monotonic() - _kimi_outlooks_cache[0] < _KIMI_OUTLOOKS_TTL:
@@ -196,11 +197,14 @@ async def get_kimi_outlooks(
         if len(candles) < 60:
             continue
         asset_class = market_data_service.get_market(market)["asset_class"]
-        context = crypto_macro if asset_class == "crypto" else macro
+        shared = crypto_macro if asset_class == "crypto" else macro
+        context = await _kimi_context(market, asset_class, shared)
         outlook = kimi_analysis_service.analyze_kimi(candles, len(candles), context)["outlook"]
         outlooks[market] = {
             "direction": outlook["direction"],
             "score": outlook["score"],
+            "buy_score": outlook["buy_score"],
+            "sell_score": outlook["sell_score"],
             "confidence": outlook["confidence"],
             "regime": outlook["regime"],
         }
@@ -424,6 +428,39 @@ def _kimi_track_record(db: Session, market: str) -> dict | None:
     )
     _kimi_track_record_cache[market] = (time.monotonic(), record)
     return record
+
+
+async def _kimi_context(market: str, asset_class: str, shared_context: dict | None) -> dict | None:
+    """Shared context tagged for the KimiK3 engine.
+
+    Returns a copy tagged with ``asset_class``/``base`` so the engine can
+    gate asset-class signals; the shared macro caches are never mutated.
+    Crypto-linked funds (IBIT) additionally merge the shared crypto macro
+    context and BTC derivatives so they vote with crypto signals.
+    """
+    base = market.split("-", 1)[0]
+    if base in kimi_analysis_service.CRYPTO_LINKED_BASES:
+        from ..services.coinglass import get_symbol_derivatives
+        from ..services.crypto_context import get_macro_context as get_crypto_macro_context
+
+        crypto_macro, btc_derivatives = await asyncio.gather(
+            get_crypto_macro_context(),
+            get_symbol_derivatives("BTC"),
+        )
+        merged = {
+            **(shared_context or {}),
+            **(crypto_macro or {}),
+            **{k: v for k, v in btc_derivatives.items() if k != "coinglass_symbol"},
+        }
+        return {
+            **merged,
+            "context_type": "crypto",
+            "asset_class": asset_class,
+            "base": base,
+        }
+    if shared_context is None:
+        return None
+    return {**shared_context, "asset_class": asset_class, "base": base}
 
 
 def _fable5_track_record(db: Session, market: str) -> dict | None:
@@ -693,12 +730,20 @@ async def get_kimi_analysis(
 ):
     """KimiK3 direction outlook for a market over the requested range.
 
-    Blends the five analysis strategies plus an ADX trend-strength signal
-    into a single outlook: direction (bullish/bearish/neutral), a score
-    from -100 to +100, a confidence level and per-strategy contributions.
-    Includes a track record (hit rate of past outlooks on this market,
-    computed from stored daily candles) once enough history has been
-    harvested. Ranges: 1d, 1w, 30d, 90d, 180d, 365d.
+    Blends eight price strategies (the five base strategies plus ADX trend
+    strength, dual-horizon momentum and a slow stochastic) with asset-class
+    context signals — Fear & Greed, liquidity, funding level and 4h funding
+    momentum, price-confirmed open interest on 1h/4h/24h windows, long/short
+    positioning and liquidations for crypto; VIX, yield curve, sector
+    relative strength, earnings proximity and insider flow for stocks;
+    safe-haven aware VIX/yield logic for gold, Treasuries and precious
+    metals; crypto macro signals for IBIT — using regime-aware weights into
+    a single outlook: direction (bullish/bearish/neutral), a score from
+    -100 to +100, buy/sell scores (0..100 shares of active weight voting
+    each way), a confidence level and per-strategy contributions. Includes
+    a track record (hit rate of past outlooks on this market, computed from
+    stored daily candles) once enough history has been harvested. Ranges:
+    1d, 1w, 30d, 90d, 180d, 365d.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -730,11 +775,12 @@ async def get_kimi_analysis(
             raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
 
     td_context = await get_market_context(market, market_info["asset_class"])
+    kimi_context = await _kimi_context(market, market_info["asset_class"], td_context)
     result = {
         "market": market,
         "range": range_,
-        **kimi_analysis_service.analyze_kimi(candles, display_count, td_context),
-        "context": serialize_context(td_context),
+        **kimi_analysis_service.analyze_kimi(candles, display_count, kimi_context),
+        "context": serialize_context(kimi_context),
         "track_record": _kimi_track_record(db, market),
     }
     _kimi_cache[cache_key] = (time.monotonic(), result)

@@ -433,8 +433,8 @@
         "low": "Laag"
       },
       "regimeNote": {
-        "trending": "Sterke trend gedetecteerd — trendindicatoren tellen dubbel.",
-        "ranging": "Zijwaartse markt gedetecteerd — momentum- en volatiliteitsindicatoren tellen dubbel.",
+        "trending": "Sterke trend gedetecteerd — trendvolgende indicatoren (trend, MACD, momentum) tellen dubbel.",
+        "ranging": "Zijwaartse markt gedetecteerd — mean-reversion-indicatoren (RSI, Bollinger, stochastic) tellen dubbel.",
         "neutral": "Geen sterk regime — alle indicatoren wegen even zwaar."
       },
       "reasons": {
@@ -442,7 +442,9 @@
         "outlook_bearish": "{{bearish}} van {{total}} indicatoren wijzen omlaag.",
         "outlook_neutral": "Indicatoren zijn verdeeld: {{bullish}} omhoog, {{bearish}} omlaag, {{neutral}} neutraal.",
         "outlook_no_data": "Niet genoeg koersgeschiedenis in deze periode voor een verwachting."
-      }
+      },
+      "buyScore": "Koop {{value}}",
+      "sellScore": "Verkoop {{value}}"
     },
     "why": "Waarom deze verwachting?",
     "hideWhy": "Onderbouwing verbergen",
@@ -450,7 +452,11 @@
     "table": {
       "asset": "Asset",
       "outlook": "Verwachting",
-      "collecting": "Historie wordt verzameld"
+      "collecting": "Historie wordt verzameld",
+      "buy": "Koop",
+      "sell": "Verkoop",
+      "buyTitle": "Koopscore: aandeel van het signaalgewicht dat bullish stemt (0–100) — hoger betekent dat meer bewijs voor kopen pleit",
+      "sellTitle": "Verkoopscore: aandeel van het signaalgewicht dat bearish stemt (0–100) — hoger betekent dat meer bewijs voor verkopen pleit"
     },
     "strategyNames": {
       "trend": "Trend (voortschrijdende gemiddelden)",
@@ -458,7 +464,22 @@
       "macd": "Momentum (MACD)",
       "volatility": "Volatiliteit (Bollinger Bands)",
       "levels_volume": "Steun / weerstand & volume",
-      "trend_strength": "Trendsterkte (ADX)"
+      "trend_strength": "Trendsterkte (ADX)",
+      "momentum": "Momentum (koersverandering)",
+      "stochastic": "Stochastische oscillator",
+      "funding_regime": "Funding rate (Coinglass)",
+      "oi_momentum": "Open interest vs koers",
+      "long_short": "Long/short-positionering",
+      "liquidations": "Liquidatiestromen",
+      "vix_regime": "Macrovolatiliteit (VIX)",
+      "yield_curve": "Rentecurve",
+      "relative_strength": "Relatieve sectorkracht",
+      "event_risk": "Cijferrisico (earnings)",
+      "fear_greed_regime": "Fear & Greed-sentiment",
+      "crypto_liquidity": "Cryptoliquiditeit (dominantie & stablecoins)",
+      "funding_momentum": "Fundingtrend (4u)",
+      "oi_fast": "Open interest (1u, snel)",
+      "insider_flow": "Insiderstroom (90d)"
     },
     "reasons": {
       "insufficient_data": "Niet genoeg koersgeschiedenis in deze periode voor deze analyse.",
@@ -466,7 +487,70 @@
       "adx_strong_down": "Sterke neerwaartse trend (ADX {{adx}}) — verkopers hebben de overhand (-DI boven +DI).",
       "adx_weak_up": "Zwakke opwaartse trend (ADX {{adx}}) — kopers hebben een licht voordeel.",
       "adx_weak_down": "Zwakke neerwaartse trend (ADX {{adx}}) — verkopers hebben een licht voordeel.",
-      "adx_ranging": "Geen trend (ADX {{adx}}, onder 20) — de markt beweegt zijwaarts."
+      "adx_ranging": "Geen trend (ADX {{adx}}, onder 20) — de markt beweegt zijwaarts.",
+      "momentum_up": "De koers staat hoger dan 10 en 20 candles geleden ({{roc10}}% en {{roc20}}%).",
+      "momentum_down": "De koers staat lager dan 10 en 20 candles geleden ({{roc10}}% en {{roc20}}%).",
+      "momentum_mixed": "Korte- en langeretermijnmomentum spreken elkaar tegen ({{roc10}}% vs {{roc20}}%).",
+      "stoch_oversold": "Stochastic %K op {{k}} — oversold, een opleving wordt waarschijnlijker.",
+      "stoch_overbought": "Stochastic %K op {{k}} — overbought, een terugval wordt waarschijnlijker.",
+      "stoch_bull_cross": "%K kruiste {{bars_ago}} candles geleden boven %D — momentum draait omhoog.",
+      "stoch_bear_cross": "%K kruiste {{bars_ago}} candles geleden onder %D — momentum draait omlaag.",
+      "stoch_neutral": "Stochastic in de middenzone (%K {{k}}, %D {{d}}) — geen signaal.",
+      "vix_elevated": "VIX op {{vix}} — verhoogde angst, risk-off.",
+      "vix_calm": "VIX op {{vix}} — lage volatiliteit ondersteunt risicobereidheid.",
+      "vix_neutral": "VIX op {{vix}} — volatiliteit in normale band.",
+      "vix_spiking": "VIX +{{change}}% in een week (nu {{vix}}) — volatiliteit schiet omhoog, korte termijn risk-off.",
+      "vix_cooling": "VIX {{change}}% in een week (nu {{vix}}) — volatiliteit koelt af, risicobereidheid keert terug.",
+      "vix_haven_bid": "VIX op {{vix}} — marktangst trekt doorgaans vluchthaven-kopers naar edelmetalen.",
+      "yield_inverted": "Rentecurve omgekeerd (spread {{spread}}%) — recessiewaarschuwing.",
+      "yield_steep": "Steile rentecurve (spread {{spread}}%) — groei-vriendelijk.",
+      "yield_flat": "Vlakke rentecurve (spread {{spread}}%).",
+      "yield_2y_elevated": "2Y-rente op {{us2y}}% — hoge korte rente verscherpt financiële condities.",
+      "yield_2y_low": "2Y-rente op {{us2y}}% — lage korte rente ondersteunt risicobereidheid.",
+      "yield_2y_neutral": "2Y-rente op {{us2y}}% — korte rente in een gematigd bereik.",
+      "fear_greed_extreme_greed": "Fear & Greed op {{index}} — extreme hebzucht, contrarian voorzichtigheid.",
+      "fear_greed_extreme_fear": "Fear & Greed op {{index}} — extreme angst, contrarian kans.",
+      "fear_greed_neutral": "Fear & Greed op {{index}} — neutraal sentiment.",
+      "fear_greed_improving": "Fear & Greed op {{index}}, +{{change}} punten in een week — sentiment verbetert.",
+      "fear_greed_deteriorating": "Fear & Greed op {{index}}, {{change}} punten in een week — sentiment verslechtert.",
+      "crypto_liquidity_supportive": "Ondersteunende liquiditeit (dominantie {{dominance_change_pct}}%, stablecoins {{stablecoin_change_pct}}%).",
+      "crypto_liquidity_tight": "Krappe liquiditeit (dominantie {{dominance_change_pct}}%, stablecoins {{stablecoin_change_pct}}%).",
+      "crypto_liquidity_mixed": "Gemengde liquiditeitssignalen (dominantie {{dominance_change_pct}}%, stablecoins {{stablecoin_change_pct}}%).",
+      "funding_crowded_longs": "Funding rate {{funding}}% — overvolle longs.",
+      "funding_crowded_shorts": "Funding rate {{funding}}% — overvolle shorts.",
+      "funding_neutral": "Funding rate {{funding}}% — neutrale positioning.",
+      "oi_rising": "Open interest +{{change}}% — nieuwe posities.",
+      "oi_falling": "Open interest {{change}}% — posities sluiten.",
+      "oi_stable": "Open interest {{change}}% in {{hours}}u — stabiele positioning.",
+      "oi_confirming_up": "Open interest +{{change}}% terwijl de koers {{price_change}}% steeg ({{hours}}u) — nieuwe longs bevestigen de beweging.",
+      "oi_confirming_down": "Open interest +{{change}}% terwijl de koers {{price_change}}% daalde ({{hours}}u) — nieuwe shorts sturen de beweging.",
+      "oi_unwinding": "Open interest {{change}}% in {{hours}}u — de beweging draait op sluitende posities en verliest brandstof.",
+      "ls_crowded_longs": "Taker long/short-ratio {{ratio}} — de massa zit long, contrarian voorzichtigheid.",
+      "ls_crowded_shorts": "Taker long/short-ratio {{ratio}} — de massa zit short, squeeze-potentieel.",
+      "ls_balanced": "Taker long/short-ratio {{ratio}} — evenwichtige positionering.",
+      "liq_long_flush": "Longs geliquideerd ({{long_usd}} vs {{short_usd}} shorts, 24u) — hefboom onder de koers weggespoeld, kans op opleving.",
+      "liq_short_squeeze": "Shorts geliquideerd ({{short_usd}} vs {{long_usd}} longs, 24u) — squeeze-brandstof verbruikt, terugvalrisico.",
+      "liq_balanced": "Liquidaties in evenwicht ({{long_usd}} longs / {{short_usd}} shorts, 24u).",
+      "liq_calm": "Weinig liquidaties in de afgelopen 24u — geen signaal uit gedwongen stromen.",
+      "rel_strength_leading": "Verslaat de {{etf}}-sector met {{rel}}% over 20 dagen — kortetermijnleiders blijven vaak sterk.",
+      "rel_strength_lagging": "Blijft {{rel}}% achter bij de {{etf}}-sector over 20 dagen — achterblijvers blijven vaak zwak.",
+      "rel_strength_inline": "Beweegt in lijn met de {{etf}}-sector ({{rel}}% over 20 dagen).",
+      "earnings_near": "Kwartaalcijfers binnen {{days}} dagen — gap-risico, richtingsignalen zijn nu minder betrouwbaar.",
+      "earnings_far": "Volgende kwartaalcijfers over {{days}} dagen — geen eventrisico actief.",
+      "funding_trend_flat": "Funding rate bewoog nauwelijks in 24u ({{change}} pts) — geen positioneringstrend.",
+      "funding_trend_unclear": "Fundingtrend {{change}} pts in 24u zonder bevestigende koersbeweging — onduidelijk.",
+      "funding_crowding_longs": "Funding +{{change}} pts terwijl de koers {{price_change}}% steeg (24u) — late longs stappen in, kwetsbaar.",
+      "funding_capitulating": "Funding {{change}} pts terwijl de koers {{price_change}}% daalde (24u) — shorts betalen in de daling, squeeze-brandstof.",
+      "funding_diverging": "Funding en koers bewogen tegengesteld ({{change}} pts vs {{price_change}}%, 24u) — verdeelde positionering.",
+      "oi_fast_longs": "Open interest +{{change}}% in één uur terwijl de koers {{price_change}}% steeg — nieuwe longs komen snel binnen.",
+      "oi_fast_shorts": "Open interest +{{change}}% in één uur terwijl de koers {{price_change}}% daalde — nieuwe shorts komen snel binnen.",
+      "oi_fast_unconfirmed": "Open interest +{{change}}% in één uur zonder duidelijke koersbeweging — onbevestigd.",
+      "oi_fast_unwinding": "Open interest {{change}}% in één uur — posities sluiten, beweging verliest brandstof.",
+      "oi_fast_calm": "Geen betekenisvolle 1u open-interestverschuiving ({{change}}%).",
+      "yield_haven_inverted": "Rentecurve omgekeerd (spread {{spread}}%) — recessiezorgen drijven vluchthavenvraag.",
+      "insider_net_buying": "Insiders kopen netto ({{buys}} aankopen vs {{sells}} verkopen, 90d) — vertrouwen van binnenuit.",
+      "insider_net_selling": "Insiders verkopen netto ({{sells}} verkopen vs {{buys}} aankopen, 90d) — een waarschuwing.",
+      "insider_balanced": "Insideractiviteit in evenwicht of afwezig ({{buys}} aankopen, {{sells}} verkopen, 90d)."
     },
     "trackRecord": {
       "title": "Track record op {{market}}",
@@ -512,7 +596,11 @@
         "bearish": "Netto verkoop ({{sells}} verkoop vs {{buys}} koop)",
         "neutral": "Gemengde insideractiviteit ({{buys}} koop, {{sells}} verkoop)"
       },
-      "sector": "vs {{etf}} sector (20d)"
+      "sector": "vs {{etf}} sector (20d)",
+      "fundingRateTrend": "Fundingtrend (24u)",
+      "fundingRateTrendValue": "{{change}} pts",
+      "openInterestChange1h": "Open interest (1u)",
+      "openInterestChange1hValue": "{{change}}%"
     }
   },
   "fable5Analysis": {
@@ -693,7 +781,11 @@
         "bearish": "Netto verkoop ({{sells}} verkoop vs {{buys}} koop)",
         "neutral": "Gemengde insideractiviteit ({{buys}} koop, {{sells}} verkoop)"
       },
-      "sector": "vs {{etf}} sector (20d)"
+      "sector": "vs {{etf}} sector (20d)",
+      "fundingRateTrend": "Fundingtrend (24u)",
+      "fundingRateTrendValue": "{{change}} pts",
+      "openInterestChange1h": "Open interest (1u)",
+      "openInterestChange1hValue": "{{change}}%"
     }
   },
   "gtp56solAnalysis": {
@@ -843,7 +935,11 @@
         "bearish": "Netto verkoop ({{sells}} verkoop vs {{buys}} koop)",
         "neutral": "Gemengde insideractiviteit ({{buys}} koop, {{sells}} verkoop)"
       },
-      "sector": "vs {{etf}} sector (20d)"
+      "sector": "vs {{etf}} sector (20d)",
+      "fundingRateTrend": "Fundingtrend (24u)",
+      "fundingRateTrendValue": "{{change}} pts",
+      "openInterestChange1h": "Open interest (1u)",
+      "openInterestChange1hValue": "{{change}}%"
     }
   },
   "orderForm": {

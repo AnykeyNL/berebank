@@ -21,6 +21,20 @@ function compactUsd(value: string): string {
   return `$${n.toFixed(0)}`
 }
 
+// Funding trends are hundredths of a percent point; larger values get 2dp.
+function signedPts(value: string): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value
+  const text = (Math.abs(n) >= 0.1 ? n.toFixed(2) : n.toFixed(4)).replace(/\.?0+$/, '')
+  return n > 0 ? `+${text}` : text
+}
+
+function signedPct(value: string, digits = 2): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value
+  return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}`
+}
+
 export default function SupplementaryContextPanel({ context, namespace }: Props) {
   const { t } = useTranslation()
   if (!context) return null
@@ -67,11 +81,27 @@ export default function SupplementaryContextPanel({ context, namespace }: Props)
         }),
       })
     }
+    if (context.funding_rate_change_24h != null) {
+      rows.push({
+        label: t(`${namespace}.context.fundingRateTrend`),
+        value: t(`${namespace}.context.fundingRateTrendValue`, {
+          change: signedPts(context.funding_rate_change_24h),
+        }),
+      })
+    }
     if (context.open_interest_change_percent_24h != null) {
       rows.push({
         label: t(`${namespace}.context.openInterestChange`),
         value: t(`${namespace}.context.openInterestChangeValue`, {
           change: context.open_interest_change_percent_24h,
+        }),
+      })
+    }
+    if (context.open_interest_change_percent_1h != null) {
+      rows.push({
+        label: t(`${namespace}.context.openInterestChange1h`),
+        value: t(`${namespace}.context.openInterestChange1hValue`, {
+          change: signedPct(context.open_interest_change_percent_1h),
         }),
       })
     }
