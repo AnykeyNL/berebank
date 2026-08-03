@@ -27,6 +27,7 @@
     "kimi": "KimiK3-analyse",
     "gtp56sol": "GTP56Sol-analyse",
     "fable5": "Fable5-analyse",
+    "opus": "Opus-analyse",
     "technical": "Technische analyse",
     "ai": "AI / MCP",
     "admin": "Beheer",
@@ -788,6 +789,223 @@
       "openInterestChange1hValue": "{{change}}%"
     }
   },
+  "opusAnalysis": {
+    "pageTitle": "Opus-analyse",
+    "button": "Opus",
+    "subtitle": "Elke markt gerangschikt tegen zijn soortgenoten, in euro's na kosten, voor de komende dag tot vier weken.",
+    "pickAsset": "Zoek in de ranglijst",
+    "changeAsset": "Terug naar ranglijst",
+    "backToTrade": "Terug naar handelen",
+    "range": "Periode",
+    "horizon": "Horizon",
+    "horizons": {
+      "1d": "1 dag",
+      "1w": "1 week",
+      "4w": "4 weken"
+    },
+    "sides": {
+      "buy": "Beste kopen",
+      "sell": "Beste verkopen"
+    },
+    "loadError": "Kon de Opus-ranglijst niet laden",
+    "loadErrorDetail": "Kon de Opus-analyse niet laden",
+    "updated": "Bijgewerkt {{time}} · ververst elke minuut",
+    "rankingUpdated": "{{markets}} markten beoordeeld, bijgewerkt {{time}}",
+    "notCalibrated": "De engine heeft zijn gewichten nog niet geleerd: hij werkt met voorlopige gewichten, dus er is nog geen verwacht rendement. Kom terug na de volgende nachtelijke kalibratie.",
+    "noEdgeNote": "Op deze horizon dekt niets de handelskosten — over één dag is dat normaal, want een rondje kost {{fee}}%. De ranglijst laat nog wel zien welke markten relatief het sterkst staan.",
+    "basketTitle": "Gespreide selectie",
+    "basketNote": "De beste kopen met een maximum per groep, zodat de lijst niet tien keer dezelfde weddenschap is.",
+    "basketEmpty": "Geen enkele markt levert op deze horizon een voordeel op dat de kosten overleeft.",
+    "inBasket": "In selectie",
+    "empty": "Geen markten passen bij dit filter.",
+    "macro": {
+      "title": "Macro-achtergrond",
+      "vix": "VIX",
+      "yieldCurve": "10j–2j",
+      "fearGreed": "Fear & Greed",
+      "stablecoins": "Stablecoins (30d)",
+      "regime": "Regime"
+    },
+    "regimes": {
+      "up": "groepsindex in opwaartse trend",
+      "down": "groepsindex in neerwaartse trend",
+      "all": "geen duidelijke groepstrend"
+    },
+    "peerGroups": {
+      "crypto": "Crypto",
+      "stock": "Aandelen",
+      "other": "Fondsen & grondstoffen"
+    },
+    "table": {
+      "rank": "#",
+      "asset": "Asset",
+      "score": "Score",
+      "scoreTitle": "Overtuigingsscore van -100 (verkopen) tot +100 (kopen), afgeleid van verwacht rendement per eenheid risico",
+      "expected": "Verw.",
+      "expectedTitle": "Verwacht rendement over de horizon, uit de geleerde gewichten plus het deel van de groepstrend dat bij deze markt hoort",
+      "edge": "Voordeel",
+      "edgeTitle": "Verwacht rendement min de kosten van een rondje handelen in jouw feetarief — wat er echt overblijft",
+      "conviction": "Overt.",
+      "convictionTitle": "Verwacht rendement gedeeld door de verwachte beweging over de horizon",
+      "action": "Advies",
+      "collecting": "Historie wordt verzameld",
+      "limitHint": "Alleen zinvol als limietorder (maker-fee)",
+      "closedHint": "Markt gesloten — plaats een limietorder",
+      "staleHint": "Koersdata is verouderd",
+      "illiquidHint": "Te weinig omzet om netjes uit te voeren",
+      "flatHint": "Beweegt te weinig om de kosten te dekken",
+      "heldHint": "Je bezit dit asset"
+    },
+    "actions": {
+      "strong_buy": "Sterk kopen",
+      "buy": "Kopen",
+      "hold": "Aanhouden",
+      "reduce": "Afbouwen",
+      "sell": "Verkopen"
+    },
+    "recommendation": {
+      "title": "Advies",
+      "expectedReturn": "Verwacht rendement",
+      "alpha": "Alfa t.o.v. groep",
+      "marketReturn": "Groepstrend × bèta",
+      "fee": "Kosten rondje handelen",
+      "limitFee": "Kosten met limietorders",
+      "netEdge": "Voordeel na kosten",
+      "netEdgeLimit": "Voordeel met limietorders",
+      "sellEdge": "Uitstapvoordeel na kosten",
+      "conviction": "Overtuiging",
+      "expectedMove": "Verwachte beweging",
+      "stop": "Voorgestelde stop-loss",
+      "stopValue": "{{price}} (−{{pct}}%)",
+      "orderType": "Voorgestelde order",
+      "orderTypes": {
+        "market": "Marktorder",
+        "limit": "Limietorder"
+      },
+      "horizonBars": "over {{bars}} handelsdagen"
+    },
+    "gauge": {
+      "label": "Overtuigingsmeter",
+      "zones": {
+        "strong_down": "Sterk verkopen",
+        "down": "Neigt verkopen",
+        "neutral": "Geen duidelijk voordeel",
+        "up": "Neigt kopen",
+        "strong_up": "Sterk kopen"
+      }
+    },
+    "outlook": {
+      "title": "Cross-sectioneel oordeel",
+      "scoreLabel": "Score",
+      "scoreMin": "-100 verkopen",
+      "scoreMax": "+100 kopen",
+      "confidenceLabel": "Betrouwbaarheid",
+      "buyScore": "Koop {{value}}",
+      "sellScore": "Verkoop {{value}}",
+      "confidenceLevels": {
+        "high": "Hoog",
+        "medium": "Gemiddeld",
+        "low": "Laag"
+      },
+      "regimeNote": {
+        "up": "De groep zit in een opwaartse trend, dus de gewichten voor stijgende markten worden gebruikt.",
+        "down": "De groep zit in een neerwaartse trend, dus de gewichten voor dalende markten worden gebruikt.",
+        "all": "De groep heeft geen duidelijke trend, dus de allesweer-gewichten worden gebruikt.",
+        "trending": "De groep zit in een trend, dus de trendgewichten worden gebruikt.",
+        "ranging": "De groep beweegt zijwaarts.",
+        "neutral": "Geen duidelijk regime voor deze groep."
+      },
+      "reasons": {
+        "outlook_bullish": "{{bullish}} van {{total}} gewogen kenmerken zetten dit boven de groep.",
+        "outlook_bearish": "{{bearish}} van {{total}} gewogen kenmerken zetten dit onder de groep.",
+        "outlook_neutral": "Kenmerken zijn verdeeld: {{bullish}} gunstig, {{bearish}} ongunstig, {{neutral}} neutraal.",
+        "outlook_no_data": "Niet genoeg historie om deze markt tegen zijn groep af te zetten."
+      }
+    },
+    "crossSection": {
+      "title": "Cross-sectie",
+      "peers": "Vergeleken met {{peers}} markten in {{group}}",
+      "day": "Kenmerken uit de afgeronde sessie van {{day}}",
+      "mode": {
+        "cross_sectional": "Vergeleken met de groep van vandaag.",
+        "time_series": "Geen groepsvergelijking beschikbaar voor deze markt — kenmerken zijn afgezet tegen het eigen afgelopen jaar, zonder gekalibreerd verwacht rendement."
+      }
+    },
+    "features": {
+      "title": "Kenmerken",
+      "note": "Elk kenmerk krijgt een percentielscore binnen de groep en wordt vermenigvuldigd met het gewicht dat voor deze horizon en dit regime is geleerd. Gewicht nul betekent dat het kenmerk geen betrouwbaar signaal gaf.",
+      "feature": "Kenmerk",
+      "percentile": "Percentiel",
+      "weight": "Gewicht",
+      "ic": "IC",
+      "icTitle": "Informatiecoëfficiënt: gemiddelde rangcorrelatie met het toekomstige rendement over de kalibratieperiode",
+      "contribution": "Bijdrage",
+      "show": "Toon alle {{count}} kenmerken",
+      "hide": "Kenmerken verbergen"
+    },
+    "featureNames": {
+      "mom_21": "Momentum (21 dagen, risicogecorrigeerd)",
+      "mom_63": "Momentum (63 dagen, risicogecorrigeerd)",
+      "accel": "Versnelling van momentum",
+      "rev_5": "Omkeer over 5 dagen",
+      "rev_1": "Omkeer over 1 dag",
+      "ma_dist": "Afstand tot het 50-daags gemiddelde",
+      "adx_dir": "Trendsterkte met richting (ADX)",
+      "rsi_dev": "RSI-afwijking van 50",
+      "bb_pos": "Positie in de Bollinger-band",
+      "range_pos": "Positie in de 20-daagse bandbreedte",
+      "vol_ratio": "Toenemende volatiliteit",
+      "vol_level": "Volatiliteitsniveau",
+      "dd_63": "Terugval vanaf de top (63 dagen)",
+      "vol_z": "Volumepiek",
+      "turnover": "Omzet in euro's",
+      "beta_mkt": "Bèta t.o.v. de groepsindex",
+      "corr_mkt": "Correlatie met de groepsindex",
+      "resid_mom": "Momentum t.o.v. de groep",
+      "beta_vix": "Gevoeligheid voor de VIX",
+      "beta_rate": "Gevoeligheid voor de 10-jaarsrente",
+      "beta_fng": "Gevoeligheid voor cryptosentiment",
+      "beta_stable": "Gevoeligheid voor stablecoin-aanbod",
+      "funding": "Funding rate van perpetuals"
+    },
+    "reasons": {
+      "insufficient_data": "Niet genoeg historie voor dit kenmerk.",
+      "opus_no_weight": "Percentiel {{percentile}} binnen de groep, maar dit kenmerk kreeg geen gewicht voor deze horizon.",
+      "opus_percentile_top": "Percentiel {{percentile}} binnen de groep — bij de hoogste waarden van vandaag.",
+      "opus_percentile_high": "Percentiel {{percentile}} binnen de groep — boven het grootste deel van het veld.",
+      "opus_percentile_mid": "Percentiel {{percentile}} binnen de groep — dicht bij het midden van het veld.",
+      "opus_percentile_low": "Percentiel {{percentile}} binnen de groep — onder het grootste deel van het veld.",
+      "opus_percentile_bottom": "Percentiel {{percentile}} binnen de groep — bij de laagste waarden van vandaag."
+    },
+    "calibration": {
+      "title": "Waar de gewichten vandaan komen",
+      "summary": "Gewichten geleerd voor {{group}} op de horizon {{horizon}}, {{regime}}, uit {{days}} dagen historie ({{from}} → {{to}}).",
+      "prior": "Nog geen betrouwbare kalibratie voor dit segment, dus er worden gedocumenteerde voorlopige gewichten gebruikt en is er geen verwacht rendement.",
+      "ic": "Walk-forward informatiecoëfficiënt {{ic}}% over {{days}} dagen",
+      "hitRate": "Walk-forward score {{value}}% op {{samples}} waarnemingen",
+      "drift": "Groepstrend {{value}}% per horizon (± {{std}}%)",
+      "topFeatures": "Zwaarste kenmerken",
+      "calibratedAt": "Gekalibreerd {{time}}",
+      "engine": "Engine {{version}}"
+    },
+    "trackRecord": {
+      "title": "Trackrecord op {{market}}",
+      "summary": "{{hitRate}}% van de Opus-oordelen werd binnen {{days}} dagen gevolgd door een beweging in de aangegeven richting.",
+      "samples": "{{samples}} richtingoordelen tussen {{from}} en {{to}}",
+      "avgBullish": "Gem. beweging na koop: {{value}}%",
+      "avgBearish": "Gem. beweging na verkoop: {{value}}%",
+      "noHistory": "Het trackrecord verschijnt zodra er genoeg dagelijkse koershistorie is verzameld — kom binnenkort terug.",
+      "liveTitle": "Live resultaat van gepubliceerde adviezen",
+      "liveMarket": "Op {{market}}",
+      "liveAll": "Over alle markten",
+      "liveSummary": "{{hitRate}}% van {{samples}} beoordeelde adviezen bewoog de goede kant op over de horizon {{horizon}}.",
+      "livePeriod": "{{from}} → {{to}}",
+      "liveBuys": "{{samples}} kopen, gem. {{value}}%",
+      "liveSells": "{{samples}} verkopen, gem. {{value}}%",
+      "liveNone": "Opus beoordeelt zijn eigen gepubliceerde adviezen zodra de horizon verstreken is — nog niets te melden."
+    },
+    "disclaimer": "Opus rangschikt markten tegen hun soortgenoten met gewichten die uit opgeslagen dagelijkse historie zijn geleerd, en trekt daar echte handelskosten van af. Geleerde gewichten beschrijven het verleden, niet de toekomst, en een verwacht rendement is een gemiddelde over veel trades — geen belofte over deze ene. Educatieve indicatie in een simulatie met speelgeld, geen financieel advies."
+  },
   "gtp56solAnalysis": {
     "brand": "GTP56Sol analysis",
     "button": "GTP56Sol",
@@ -1071,6 +1289,32 @@
     "candleHistoryImporting": "Importeren…",
     "candleHistoryImportConfirm": "Koersgeschiedenis uit dit bestand importeren? Bestaande rijen voor dezelfde markt en dag worden bijgewerkt.",
     "candleHistoryImported": "{{markets}} markten geïmporteerd ({{rows}} rijen geschreven, {{settings}} GTP56Sol-instellingen).",
-    "candleHistoryImportFailed": "Importeren mislukt"
+    "candleHistoryImportFailed": "Importeren mislukt",
+    "opusDataset": "Opus-dataset",
+    "opusStatus": "Opgeslagen Opus-data",
+    "opusMacroSeries": "Macroseries / rijen",
+    "opusMacroRange": "Macro-datumbereik",
+    "opusCalibrationRows": "Kalibratierijen",
+    "opusCalibratedAt": "Laatst gekalibreerd",
+    "opusRecommendations": "Adviesmomentopnames",
+    "opusEvaluated": "beoordeeld",
+    "opusLastHarvest": "Laatste Opus-harvest",
+    "opusNote": "Opus bewaart zijn macroseries (FRED-rentes en VIX, Fear & Greed, stablecoin-aanbod, funding), de geleerde kenmerkgewichten en een dagelijkse momentopname van zijn eigen adviezen. De export streamt gzip-NDJSON, dus zelfs een volledige overdracht met koersgeschiedenis blijft op constant geheugen.",
+    "opusTransfer": "Exporteren / importeren",
+    "opusIncludeCandles": "Dagelijkse koersgeschiedenis meenemen (groot bestand, vult een verse installatie)",
+    "opusExport": "Exporteer NDJSON.gz",
+    "opusExporting": "Exporteren…",
+    "opusExported": "Opus-dataset gedownload.",
+    "opusExportFailed": "Exporteren mislukt",
+    "opusImport": "Importeer NDJSON.gz",
+    "opusImporting": "Importeren…",
+    "opusImportConfirm": "Deze Opus-dataset importeren? Rijen voor dezelfde dag, serie of segment worden overschreven.",
+    "opusImported": "{{macro}} macrorijen, {{calibration}} kalibratierijen, {{recommendations}} adviezen en {{candles}} candles geïmporteerd.",
+    "opusImportFailed": "Importeren mislukt",
+    "opusRecalibrate": "Nu herkalibreren",
+    "opusRecalibrating": "Herkalibreren…",
+    "opusRecalibrated": "Gewichten opnieuw geleerd voor {{markets}} markten: {{rows}} kalibratierijen in {{seconds}}s.",
+    "opusRecalibrateFailed": "Herkalibreren mislukt",
+    "opusRecalibrateNote": "Herkalibreren loopt het hele opgeslagen panel walk-forward door en duurt een minuut of twee; de achtergrond-harvest doet dit toch elke nacht."
   }
 }

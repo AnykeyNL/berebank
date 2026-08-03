@@ -25,6 +25,7 @@ Existing engines live in `backend/app/services/`:
 | KimiK3 | `kimi_analysis.py` | 6 TA + regime weights | Yes — adjusts score |
 | Fable5 | `fable5_analysis.py` | 8 price + asset-class context votes (fixed weights) | Yes — extra strategy votes per asset class |
 | GTP56Sol | `gtp56sol_analysis.py` | 22-feature k-NN | Yes — macro features in matching |
+| Opus | `opus_analysis.py` (+ `opus_features.py`, `opus_calibration.py`, `opus_store.py`) | 23 cross-sectional features, weights **learned** from walk-forward IC; output is a fee-net buy/sell ranking | Own harvested macro history (`opus_macro_series`), not the live context dicts |
 
 ---
 
@@ -52,9 +53,10 @@ Existing engines live in `backend/app/services/`:
 | **Bitvavo** | Crypto live prices, intraday candles, daily harvest | No (public REST + WebSocket) | `bitvavo.py` |
 | **Twelve Data** | Stocks/funds/commodities quotes, candles, press releases, VIX, treasuries, earnings, insiders | Yes — Admin → Twelve Data | `twelvedata.py` |
 | **Coinglass** | Crypto funding rates (all symbols), open interest (per symbol) | Yes — Admin → Coinglass or `BEREBANK_COINGLASS_API_KEY` | `coinglass.py` |
-| **Alternative.me** | Crypto Fear & Greed (365-day history) | No | `crypto_context.py` |
+| **Alternative.me** | Crypto Fear & Greed (365-day history live; full history since 2018 for Opus) | No | `crypto_context.py`, `opus_macro.py` |
 | **CoinGecko** | BTC market-cap dominance (current snapshot) | No | `crypto_context.py` |
-| **DeFiLlama** | Stablecoin total supply (daily history) | No | `crypto_context.py` |
+| **DeFiLlama** | Stablecoin total supply (daily history) | No | `crypto_context.py`, `opus_macro.py` |
+| **FRED** | US 2y/10y treasury yields and VIX, daily back to 1962/1990 | No | `opus_macro.py` |
 | **RSS feeds** | News matched by ticker/name regex | No (BankManager configures URLs) | `rss_aggregator.py` |
 
 ---
@@ -174,6 +176,22 @@ Numbers may be JSON numbers or strings depending on endpoint; treat as decimals.
 
 **Admin export/import:** `GET/POST /admin/candle-history/export|import` — JSON v1, OHLCV + optional GTP56Sol deep-backfill state. **Macro/context data is not exported.**
 
+### Opus dataset tables
+
+Additive tables, only read and written by the Opus engine:
+
+| Table | Content | Written by |
+|-------|---------|------------|
+| `opus_macro_series` | `(series_id, day, value)` for every harvested or derived daily series: `fred:us2y`, `fred:us10y`, `fred:vix`, `crypto:fear_greed`, `crypto:stablecoin_usd`, `funding:{COIN}` | `OpusHarvestService` (every 6h, upsert) |
+| `opus_calibration` | One row per `(engine_version, peer_group, horizon, regime)`: learned weight vector, score-to-return bins, IC diagnostics | Nightly walk-forward calibration (min 20h between runs) |
+| `opus_recommendations` | Daily snapshot of published advice per `(day, market, horizon)`, graded with the realized forward return once the horizon passes | Harvest; pruned after 400 days |
+
+**Admin export/import:** `GET /admin/opus-dataset/status|export`, `POST
+/admin/opus-dataset/import|recalibrate` — streaming **gzip NDJSON** at constant
+memory, `include_candles=true` optionally bundles `market_candles` so a fresh
+install can be seeded from a development machine. The candle-history endpoints
+above are unchanged.
+
 ---
 
 ## Supplementary context
@@ -269,14 +287,17 @@ Base path: `/markets` (requires JWT except `/health`).
 | `GET` | `/markets/kimi-outlooks` | Bulk KimiK3 outlooks |
 | `GET` | `/markets/fable5-outlooks` | Bulk Fable5 outlooks |
 | `GET` | `/markets/gtp56sol-outlooks?horizon=1d\|1w\|1m` | Bulk GTP56Sol (fast path) |
+| `GET` | `/markets/opus-rankings?horizon=1d\|1w\|4w&asset_class=&side=&limit=` | Opus fee-net buy/sell ranking of every market + diversified basket |
+| `GET` | `/markets/opus-outlooks?horizon=` | Bulk Opus outlooks |
 | `GET` | `/markets/{market}/candles?range=` | Live OHLCV |
 | `GET` | `/markets/{market}/analysis?range=` | Five-strategy TA (no context) |
 | `GET` | `/markets/{market}/kimi-analysis?range=` | KimiK3 + `context` + `track_record` |
 | `GET` | `/markets/{market}/fable5-analysis?range=` | Fable5 + `context` + `track_record` |
 | `GET` | `/markets/{market}/gtp56sol-analysis?horizon=` | GTP56Sol forecast + `context` |
+| `GET` | `/markets/{market}/opus-analysis?range=&horizon=` | Opus recommendation, feature table, calibration provenance, walk-forward + live track record |
 | `GET` | `/markets/{market}/news?limit=` | News items |
 
-**Track record** (KimiK3, Fable5): Hit rate of past directional outlooks vs 5-day forward return; needs ≥70 stored daily bars.
+**Track record** (KimiK3, Fable5, Opus): Hit rate of past directional outlooks vs 5-day forward return; needs ≥70 stored daily bars. Opus adds a **live** record: the graded hit rate of the recommendations it actually published (≥20 samples).
 
 ### GTP56Sol specifics
 
@@ -286,6 +307,27 @@ Base path: `/markets` (requires JWT except `/health`).
 - **Peer fallback:** Same `asset_class` only, max 8 peers, when `< MIN_SAMPLES` (30) local candidates.
 - **Engine version:** `ENGINE_VERSION = "3"` — bumps forecast cache key when features change.
 - **Cache:** 3600s per market + horizon + history signature.
+
+### Opus specifics
+
+- **Input:** Stored daily candles (260-day panel for scoring, up to 1500 days for
+  calibration) plus `opus_macro_series`; the detail page additionally fetches
+  live candles for its chart.
+- **Peer groups:** `crypto`, `stock`, `other` (funds + commodities). Every feature
+  is a rank z-score *within the peer group on that day*.
+- **Horizons:** `1d` → 1 forward bar, `1w` → 5, `4w` → 21.
+- **Weights:** learned per `(peer_group, horizon, regime)` from the walk-forward
+  information coefficient; the payload states whether the weights in use were
+  learned or are the research prior.
+- **Output:** `expected_return_pct`, `net_edge_pct` (round-trip fees for the
+  calling user's tier), `net_edge_limit_pct`, `conviction`, `buy_score` /
+  `sell_score`, `action` (`strong_buy … sell`), `suggested_order_type`,
+  `tradable_now`, plus the −100..+100 gauge score of the shared outlook contract.
+- **Gates:** median euro turnover ≥ 25k, stale data (3 bars crypto / 6 others),
+  market hours, low-volatility cut-off; gated rows rank last and are never
+  advised as buys.
+- **Engine version:** `ENGINE_VERSION = "opus-1"` — part of the calibration key.
+- **Cache:** one shared scoring pass per 900s; detail responses 60s.
 
 ---
 
@@ -303,6 +345,9 @@ Base path: `/markets` (requires JWT except `/health`).
 | `get_kimi_analysis` | `GET /markets/{market}/kimi-analysis` | Includes `context`, `track_record` |
 | `get_fable5_analysis` | `GET /markets/{market}/fable5-analysis` | Includes `context`, `track_record` |
 | `get_gtp56sol_analysis` | `GET /markets/{market}/gtp56sol-analysis` | Horizons: `1d`, `1w`, `1m` |
+| `get_opus_rankings` | `GET /markets/opus-rankings` | Ranked buy or sell list + basket; horizons `1d`, `1w`, `4w` |
+| `get_opus_analysis` | `GET /markets/{market}/opus-analysis` | Feature table, calibration provenance, both track records |
+| `get_opus_portfolio_advice` | Opus ranking joined to `GET /portfolio` | Exit opinion per holding + cash-sized buy candidates; read-only |
 | `get_news` | `GET /markets/{market}/news` | Limit 1–10 |
 
 ### Not exposed via MCP
@@ -341,9 +386,10 @@ Bulk outlook endpoints, admin candle import/export, RSS admin, raw supplementary
 
 | Data | TTL |
 |------|-----|
-| Candles + Analyze + Kimi + Fable5 detail | 60s |
+| Candles + Analyze + Kimi + Fable5 + Opus detail | 60s |
 | GTP56Sol detail | 3600s |
 | Bulk outlook lists | 900s |
+| Opus scoring pass (shared by rankings, outlooks, detail) | 900s |
 | Track records | 3600s |
 | News | 300s |
 
@@ -418,9 +464,23 @@ If you need **historical pattern matching:**
 - Map context via `macro_features_at(context, timestamp_ms, current_only=...)`.
 - Register lazy backfill in `candle_store.ensure_gtp56sol_deep_history` if you need >400 bars.
 
-### 7. Tests
+### 7. Cross-sectional engine (optional)
 
-Add `backend/test_your_analysis.py` following `test_kimi_analysis.py` / `test_fable5_analysis.py` patterns.
+If your engine ranks markets against each other instead of scoring one in
+isolation, follow Opus:
+
+- Build the panel once per pass (`opus_store.compute_scores`) and cache it; per-market
+  requests then read from that pass instead of recomputing.
+- Rank features within a peer group per day; a day-constant macro reading says
+  nothing about which market to hold, so regress each market against it instead.
+- Learn weights from the walk-forward information coefficient and state in the
+  payload whether they were learned or are a prior.
+- Express the verdict after fees (`fees.get_30d_volume` + `fees.get_fee_rates`), and let the engine say
+  "no trade" when nothing clears the round trip.
+
+### 8. Tests
+
+Add `backend/test_your_analysis.py` following `test_kimi_analysis.py` / `test_fable5_analysis.py` / `test_opus_analysis.py` patterns.
 
 ---
 
@@ -453,4 +513,4 @@ Admin UI shows Twelve Data and Coinglass configuration under **Admin → API con
 - [AGENTS.md](../AGENTS.md) — MCP tools and competition rules for AI agents
 - [README.md](../README.md) — Development setup
 - [MCP server design spec](superpowers/specs/2026-07-19-mcp-server-design.md) — OAuth and tool architecture
-- Engine design specs: `docs/superpowers/specs/2026-08-02-*-analysis-design.md`
+- Engine design specs: `docs/superpowers/specs/2026-08-02-*-analysis-design.md`, [Opus](superpowers/specs/2026-08-03-opus-analysis-design.md)

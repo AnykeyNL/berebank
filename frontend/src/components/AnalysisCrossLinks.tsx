@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
-export type AnalysisKind = 'technical' | 'kimi' | 'gtp56sol' | 'fable5'
+export type AnalysisKind = 'technical' | 'kimi' | 'gtp56sol' | 'fable5' | 'opus'
 
 const LINKS: { id: AnalysisKind; path: string; labelKey: string }[] = [
   { id: 'technical', path: '/technical-analysis', labelKey: 'analyze.analyzeButton' },
   { id: 'kimi', path: '/kimi-analysis', labelKey: 'kimiAnalysis.button' },
   { id: 'gtp56sol', path: '/gtp56sol-analysis', labelKey: 'gtp56solAnalysis.button' },
   { id: 'fable5', path: '/fable5-analysis', labelKey: 'fable5Analysis.button' },
+  { id: 'opus', path: '/opus-analysis', labelKey: 'opusAnalysis.button' },
 ]
 
 export default function AnalysisCrossLinks({

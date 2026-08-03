@@ -17,6 +17,7 @@ from .security import hash_password
 from .services.bitvavo import bitvavo_service
 from .services.market_data import market_data_service
 from .services.candle_store import candle_harvest_service
+from .services.opus_store import opus_harvest_service
 from .services.rss_aggregator import rss_aggregator_service
 from .services.snapshots import portfolio_snapshot_service
 from .services.trading import load_open_limit_markets, match_limit_orders
@@ -107,6 +108,7 @@ async def lifespan(app: FastAPI):
     rss_aggregator_service.start()
     portfolio_snapshot_service.start()
     candle_harvest_service.start()
+    opus_harvest_service.start()
     # The MCP Streamable HTTP transport needs its session manager running.
     async with mcp.session_manager.run():
         yield
@@ -115,6 +117,7 @@ async def lifespan(app: FastAPI):
     await rss_aggregator_service.stop()
     await portfolio_snapshot_service.stop()
     await candle_harvest_service.stop()
+    await opus_harvest_service.stop()
 
 
 app = FastAPI(title="de BereBank", version="1.0.0", lifespan=lifespan)

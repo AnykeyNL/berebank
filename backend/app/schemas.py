@@ -255,3 +255,33 @@ class CandleHistoryImportOut(BaseModel):
     rows_written: int
     settings_imported: int
     skipped_invalid: int
+
+
+class OpusDatasetStatusOut(BaseModel):
+    macro_rows: int
+    macro_series: int
+    macro_first_day: str | None
+    macro_last_day: str | None
+    calibration_rows: int
+    calibrated_at: datetime | None
+    recommendation_rows: int
+    recommendations_evaluated: int
+    recommendation_first_day: str | None
+    recommendation_last_day: str | None
+    last_harvest: datetime | None = None
+    harvest_error: str | None = None
+
+
+class OpusDatasetImportOut(BaseModel):
+    macro_rows: int
+    macro_records: int
+    calibration_rows: int
+    recommendation_rows: int
+    candle_rows: int
+    skipped_invalid: int
+
+
+class OpusRecalibrateOut(BaseModel):
+    markets: int
+    rows: int
+    seconds: float

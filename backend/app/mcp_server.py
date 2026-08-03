@@ -20,7 +20,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl
 from sqlalchemy.orm import Session
 
-from .config import PUBLIC_URL
+from .config import MIN_ORDER_EUR, PUBLIC_URL
 from .database import SessionLocal
 from .models import User
 from .oauth import oauth_provider
@@ -31,6 +31,8 @@ from .routers.markets import get_fable5_analysis as _get_fable5_analysis
 from .routers.markets import get_gtp56sol_analysis as _get_gtp56sol_analysis
 from .routers.markets import get_kimi_analysis as _get_kimi_analysis
 from .routers.markets import get_news as _get_news
+from .routers.markets import get_opus_analysis as _get_opus_analysis
+from .routers.markets import get_opus_rankings as _get_opus_rankings
 from .routers.markets import list_markets as _list_markets
 from .routers.orders import list_orders as _list_orders
 from .routers.orders import list_trades as _list_trades
@@ -38,7 +40,7 @@ from .routers.orders import trade_history as _trade_history
 from .routers.portfolio import get_portfolio as _get_portfolio
 from .routers.portfolio import get_portfolio_history as _get_portfolio_history
 from .schemas import OrderOut, PortfolioSnapshotOut
-from .services import trading
+from .services import opus_calibration, trading
 from .services.trading import TradingError, trade_lock
 
 logger = logging.getLogger("berebank.mcp")
@@ -91,6 +93,86 @@ def _require_trading(user: User) -> None:
             "Trading via MCP is disabled in your profile. Enable it on your "
             "BereBank profile page (MCP access section) to place or cancel orders."
         )
+
+
+async def _opus_portfolio_advice(*, user: User, db: Session, horizon: str) -> dict:
+    """Join the Opus ranking to the user's holdings and free cash.
+
+    Read-only: it sizes suggestions against available cash and the EUR 5
+    minimum order, but never places anything.
+    """
+    portfolio = _get_portfolio(user=user, db=db)
+    rankings = await _get_opus_rankings(
+        user=user, db=db, horizon=horizon, side="buy", limit=600
+    )
+    rows = {row["market"]: row for row in rankings["rankings"]}
+
+    holdings = []
+    held_markets: set[str] = set()
+    for holding in portfolio.holdings:
+        if holding.market is None:
+            continue
+        held_markets.add(holding.market)
+        row = rows.get(holding.market)
+        holdings.append({
+            "market": holding.market,
+            "asset": holding.asset,
+            "amount": str(holding.amount + holding.reserved),
+            "eur_value": None if holding.eur_value is None else str(holding.eur_value),
+            "action": None if row is None else row["action"],
+            "direction": None if row is None else row["direction"],
+            "score": None if row is None else row["score"],
+            "sell_score": None if row is None else row["sell_score"],
+            "sell_rank": None if row is None else row["sell_rank"],
+            "expected_return_pct": None if row is None else row["expected_return_pct"],
+            "sell_edge_pct": None if row is None else row["sell_edge_pct"],
+            "confidence": None if row is None else row["confidence"],
+            "tradable_now": None if row is None else row["tradable_now"],
+        })
+    holdings.sort(key=lambda item: item["sell_rank"] or 10**6)
+
+    candidates = [
+        rows[market]
+        for market in rankings["basket"]
+        if market in rows and market not in held_markets
+    ]
+    weights = [max(0.0, float(row["buy_score"])) for row in candidates]
+    total_weight = sum(weights)
+    cash = float(portfolio.balance_eur)
+    allocation = []
+    for row, weight in zip(candidates, weights):
+        amount = cash * weight / total_weight if total_weight > 0 else 0.0
+        if amount < float(MIN_ORDER_EUR):
+            continue
+        allocation.append({
+            "market": row["market"],
+            "eur_amount": f"{amount:.2f}",
+            "action": row["action"],
+            "order_type": row["suggested_order_type"],
+            "expected_return_pct": row["expected_return_pct"],
+            "net_edge_pct": row["net_edge_pct"],
+            "conviction": row["conviction"],
+        })
+
+    return {
+        "generated_at": rankings["generated_at"],
+        "horizon": horizon,
+        "regimes": rankings["regimes"],
+        "macro": rankings["macro"],
+        "cash_eur": str(portfolio.balance_eur),
+        "reserved_eur": str(portfolio.reserved_eur),
+        "total_value_eur": str(portfolio.total_value_eur),
+        "fee_tier": portfolio.fee_tier.model_dump(mode="json"),
+        "holdings": holdings,
+        "buy_candidates": candidates,
+        "suggested_allocation": allocation,
+        "minimum_order_eur": str(MIN_ORDER_EUR),
+        "note": (
+            "Suggestions only — nothing was ordered. Over short horizons Opus "
+            "often finds no trade whose edge clears the fees, in which case the "
+            "candidate list is empty on purpose."
+        ),
+    }
 
 
 def _parse_decimal(value: str | float | int | None, field: str) -> Decimal | None:
@@ -284,6 +366,165 @@ async def get_gtp56sol_analysis(market: str, horizon: str = "1w") -> dict:
             return await _get_gtp56sol_analysis(
                 market, user=user, db=db, horizon=horizon
             )
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
+    finally:
+        db.close()
+
+
+@mcp.tool()
+async def get_opus_rankings(
+    horizon: str = "1w",
+    asset_class: str | None = None,
+    side: str = "buy",
+    limit: int = 20,
+) -> dict:
+    """Opus buy/sell ranking of every market for a 1-day to 4-week horizon.
+
+    This is the tool to reach for when the question is "what should I buy or
+    sell right now?". Where the other engines score one market against absolute
+    thresholds, Opus ranks every crypto, stock, fund and commodity against its
+    peers *on the same day* and expresses the answer in euros after fees.
+
+    How a row is produced:
+
+    - Each of ~19 features (volatility-adjusted momentum over two horizons,
+      short-term reversal, distance to the 50-day mean in ATR units, signed ADX,
+      RSI, Bollinger and 20-day range position, volatility expansion and level,
+      drawdown, volume surge, turnover, beta/correlation/residual momentum
+      versus the peer index, sensitivity to VIX, the 10-year yield, crypto
+      sentiment and stablecoin supply, and perpetual funding) is rank-scored
+      within the market's peer group for that day.
+    - Weights are learned, not chosen: they are the shrunk walk-forward
+      information coefficient of each feature against forward returns over the
+      stored daily history, estimated per peer group, per horizon and per market
+      regime. A feature whose predictive sign is statistically indistinguishable
+      from noise gets weight zero.
+    - The weighted composite is mapped through a calibrated score-to-return
+      table into `expected_return_pct`, plus the peer group's drift scaled by
+      this market's beta.
+    - `net_edge_pct` subtracts the real round-trip Bitvavo fee for the calling
+      user's own tier; `net_edge_limit_pct` does the same with maker fees, and
+      `suggested_order_type` becomes "limit" when only the maker path is
+      profitable. Over a 1-day horizon most edges do not clear a taker round
+      trip at all — Opus will say so rather than invent a trade.
+    - `buy_score` and `sell_score` (0..100) are the fee-aware edge divided by
+      the expected move over the horizon, i.e. conviction per unit of risk.
+      `action` is one of strong_buy, buy, hold, reduce, sell.
+
+    Arguments: `horizon` is "1d", "1w" (default) or "4w"; `asset_class`
+    optionally narrows to crypto, stock, fund or commodity; `side` is "buy" or
+    "sell" and decides the ordering; `limit` is 1..200 rows.
+
+    The response also carries `basket` — a diversified shortlist of the best
+    buys, capped per peer group so it is not the same bet ten times — plus the
+    current `regimes`, the `macro` backdrop (VIX, yield curve, Fear & Greed,
+    stablecoin growth) and whether the engine is `calibrated` yet. Rows flagged
+    `stale`, `low_volatility` or not `liquidity_ok` are ranked last and never
+    recommended as buys. Educational indication from a paper-money simulation,
+    not financial advice.
+    """
+    if horizon not in opus_calibration.HORIZONS:
+        raise ToolError(f'horizon must be one of {", ".join(opus_calibration.HORIZONS)}')
+    if side not in ("buy", "sell"):
+        raise ToolError('side must be "buy" or "sell"')
+    if asset_class is not None and asset_class not in ("crypto", "stock", "fund", "commodity"):
+        raise ToolError('asset_class must be "crypto", "stock", "fund" or "commodity"')
+    if limit < 1 or limit > 200:
+        raise ToolError("limit must be between 1 and 200")
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        try:
+            return await _get_opus_rankings(
+                user=user,
+                db=db,
+                horizon=horizon,
+                asset_class=asset_class,
+                side=side,
+                limit=limit,
+            )
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
+    finally:
+        db.close()
+
+
+@mcp.tool()
+async def get_opus_analysis(market: str, range: str = "30d", horizon: str = "1w") -> dict:
+    """Opus recommendation for one market, with the full feature breakdown.
+
+    Same engine as `get_opus_rankings`, zoomed in on a single market. Returns
+    the verdict (direction, score -100..+100, buy/sell scores, confidence and
+    regime), the `recommendation` block (expected return, the fees it must
+    clear, net edge for taker and maker orders, conviction, action and a stop
+    loss two ATRs below price), and every feature with its peer percentile,
+    learned weight, information coefficient and contribution — so the answer
+    can always be explained rather than asserted.
+
+    `cross_section` says which peer group the market was ranked in, how many
+    peers it was compared with and which completed day the features come from.
+    `gates` reports tradability: liquidity, data freshness, market hours and
+    whether the instrument moves enough to be worth a fee at all.
+    `calibration` is the provenance of the weights (peer group, horizon,
+    regime, sample days, walk-forward information coefficient and hit rate).
+
+    Two track records are included: `track_record` replays this market's own
+    history through the engine, while `live_track_record` reports how the
+    recommendations Opus actually published for it performed, and
+    `live_track_record_all` does the same across every market.
+
+    Range is "1d", "1w", "30d" (default), "90d", "180d" or "365d" and only
+    affects the returned candles and display window. Horizon is "1d", "1w"
+    (default) or "4w" and selects the calibration. Educational indication from
+    a paper-money simulation, not financial advice.
+    """
+    if horizon not in opus_calibration.HORIZONS:
+        raise ToolError(f'horizon must be one of {", ".join(opus_calibration.HORIZONS)}')
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        try:
+            return await _get_opus_analysis(
+                market, user=user, db=db, range_=range, horizon=horizon
+            )
+        except Exception as exc:
+            raise ToolError(_http_detail(exc))
+    finally:
+        db.close()
+
+
+@mcp.tool()
+async def get_opus_portfolio_advice(horizon: str = "1w") -> dict:
+    """Join the Opus ranking to the user's actual portfolio. Read-only.
+
+    Answers "what should I do with what I hold, and where should my cash go?"
+    in one call:
+
+    - `holdings` lists every position with its Opus verdict, the exit edge after
+      the sell fee, the action, and its rank on the sell board — so the weakest
+      holdings are obvious.
+    - `buy_candidates` is the diversified basket of best buys the user does not
+      already hold, each with expected return, net edge after fees, conviction
+      and the order type that makes the edge work.
+    - `suggested_allocation` splits the available EUR cash over those candidates
+      in proportion to conviction, respecting the EUR 5 minimum order size and
+      leaving the fee out of the invested amount. It is a suggestion only:
+      nothing is ordered, and placing orders still requires `place_order` and
+      the user's explicit MCP trading permission.
+
+    Horizon is "1d", "1w" (default) or "4w". Note that over short horizons Opus
+    often finds no trade whose edge clears the fees; an empty candidate list is
+    a real answer, not a failure. Educational indication from a paper-money
+    simulation, not financial advice.
+    """
+    if horizon not in opus_calibration.HORIZONS:
+        raise ToolError(f'horizon must be one of {", ".join(opus_calibration.HORIZONS)}')
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        try:
+            return await _opus_portfolio_advice(user=user, db=db, horizon=horizon)
         except Exception as exc:
             raise ToolError(_http_detail(exc))
     finally:

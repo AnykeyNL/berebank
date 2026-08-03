@@ -223,6 +223,197 @@ export interface Fable5Outlooks {
   outlooks: Record<string, OutlookSummary>
 }
 
+export type OpusHorizon = '1d' | '1w' | '4w'
+// Opus reports the peer group's trend regime, not a per-market ADX regime.
+export type OpusRegime = 'up' | 'down' | 'all'
+export type OpusAction = 'strong_buy' | 'buy' | 'hold' | 'reduce' | 'sell'
+export type OpusPeerGroup = 'crypto' | 'stock' | 'other'
+
+export interface OpusRecommendation {
+  action: OpusAction
+  score: number | null
+  direction: AnalysisSignal | null
+  expected_return_pct: string | null
+  fee_pct: string | null
+  limit_fee_pct: string | null
+  net_edge_pct: string | null
+  net_edge_limit_pct: string | null
+  sell_edge_pct: string | null
+  conviction: string | null
+  buy_score: number
+  sell_score: number
+  low_volatility: boolean
+  requires_limit_order: boolean
+  tradable_edge: boolean
+  horizon: OpusHorizon
+  horizon_bars: number
+  expected_move_pct: string | null
+  market_return_pct: string | null
+  alpha_pct: string | null
+  suggested_stop_pct: string | null
+  suggested_stop_price: string | null
+}
+
+export interface OpusCalibrationInfo {
+  engine_version: string | null
+  peer_group: OpusPeerGroup | null
+  horizon: OpusHorizon | null
+  regime: OpusRegime | null
+  weights_learned: boolean
+  days: number | null
+  from: string | null
+  to: string | null
+  calibrated_at: string | null
+  walk_forward_ic: string | null
+  walk_forward_ic_days: number | null
+  walk_forward_hit_rate_pct: string | null
+  walk_forward_samples: number | null
+  market_return_pct: string | null
+  market_return_std_pct: string | null
+  top_features: { feature: string; weight: string | null }[]
+}
+
+export interface OpusMacro {
+  vix: number | null
+  vix_day: string | null
+  us10y: number | null
+  us2y: number | null
+  yield_curve: number | null
+  fear_greed: number | null
+  fear_greed_day: string | null
+  stablecoin_change_30d_pct: number | null
+}
+
+export interface OpusLiveTrackRecord {
+  hit_rate_pct: string
+  samples: number
+  horizon: OpusHorizon
+  buy_samples: number
+  sell_samples: number
+  avg_buy_return_pct: string | null
+  avg_sell_return_pct: string | null
+  from: string
+  to: string
+}
+
+// One market on the ranking board: the cached cross-sectional score with the
+// requesting user's own fees and the tradability gates applied.
+export interface OpusRankingRow extends OpusRecommendation {
+  market: string
+  name: string | null
+  asset_class: AssetClass
+  peer_group: OpusPeerGroup
+  regime: OpusRegime
+  day: string
+  days_since_close: number
+  close: string
+  confidence: OutlookConfidence
+  weights_learned: boolean
+  expected_move_pct: string | null
+  turnover_eur: number | null
+  corr_mkt: number | null
+  liquidity_ok: boolean
+  stale: boolean
+  tradable: boolean
+  tradable_now: boolean
+  suggested_order_type: 'market' | 'limit'
+  held: boolean
+  taker_pct: string | null
+  maker_pct: string | null
+  buy_rank: number
+  sell_rank: number
+}
+
+export interface OpusRankings {
+  generated_at: string
+  engine_version: string
+  horizon: OpusHorizon
+  side: 'buy' | 'sell'
+  regimes: Record<OpusPeerGroup, OpusRegime>
+  group_days: Record<string, string>
+  macro: OpusMacro
+  calibrated: boolean
+  markets: number
+  basket: string[]
+  rankings: OpusRankingRow[]
+}
+
+export interface OpusAnalysis {
+  market: string
+  range: AnalysisRange
+  horizon: OpusHorizon
+  generated_at: string
+  candles: Candle[]
+  mode: 'cross_sectional' | 'time_series'
+  outlook: Omit<Outlook, 'regime'> & { regime: OpusRegime | MarketRegime }
+  strategies: Record<string, AnalysisStrategy>
+  recommendation: OpusRecommendation
+  calibration: OpusCalibrationInfo | null
+  cross_section: {
+    peer_group: OpusPeerGroup
+    peers: number
+    regime: OpusRegime
+    day: string
+    days_since_close: number
+  } | null
+  gates: {
+    liquidity_ok: boolean
+    stale: boolean
+    tradable: boolean
+    tradable_now: boolean
+    low_volatility: boolean
+    suggested_order_type: 'market' | 'limit'
+    turnover_eur: string | null
+  } | null
+  macro: OpusMacro
+  track_record: TrackRecord | null
+  live_track_record: OpusLiveTrackRecord | null
+  live_track_record_all: OpusLiveTrackRecord | null
+}
+
+export interface OpusOutlookSummary extends Omit<OutlookSummary, 'regime'> {
+  regime: OpusRegime
+  action: OpusAction
+  buy_rank: number
+  sell_rank: number
+}
+
+export interface OpusOutlooks {
+  generated_at: string
+  horizon: OpusHorizon
+  outlooks: Record<string, OpusOutlookSummary>
+}
+
+export interface OpusDatasetStatus {
+  macro_rows: number
+  macro_series: number
+  macro_first_day: string | null
+  macro_last_day: string | null
+  calibration_rows: number
+  calibrated_at: string | null
+  recommendation_rows: number
+  recommendations_evaluated: number
+  recommendation_first_day: string | null
+  recommendation_last_day: string | null
+  last_harvest: string | null
+  harvest_error: string | null
+}
+
+export interface OpusDatasetImportResult {
+  macro_rows: number
+  macro_records: number
+  calibration_rows: number
+  recommendation_rows: number
+  candle_rows: number
+  skipped_invalid: number
+}
+
+export interface OpusRecalibrateResult {
+  markets: number
+  rows: number
+  seconds: number
+}
+
 export type GTP56SolStatus = 'ok' | 'insufficient_history' | 'stale' | 'unavailable'
 export type GTP56SolHorizon = '1d' | '1w' | '1m'
 export type GTP56SolDirection = 'bullish' | 'bearish' | 'neutral'

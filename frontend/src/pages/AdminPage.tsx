@@ -4,7 +4,16 @@ import { useTranslation } from 'react-i18next'
 import { api, downloadApiFile, uploadApiFile } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { fmtDateTime, fmtEur } from '../lib/format'
-import type { AdminUser, CandleHistoryImportResult, CandleHistoryStatus, RssFeedStatus, Settings } from '../lib/types'
+import type {
+  AdminUser,
+  CandleHistoryImportResult,
+  CandleHistoryStatus,
+  OpusDatasetImportResult,
+  OpusDatasetStatus,
+  OpusRecalibrateResult,
+  RssFeedStatus,
+  Settings,
+} from '../lib/types'
 
 export default function AdminPage() {
   return (
@@ -15,6 +24,7 @@ export default function AdminPage() {
       <CoinglassSettings />
       <RssFeedSettings />
       <CandleHistoryTransfer />
+      <OpusDatasetTransfer />
     </div>
   )
 }
@@ -1045,6 +1055,193 @@ function CandleHistoryTransfer() {
               />
             </label>
           </div>
+          {message && <p className="text-sm text-emerald-400">{message}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function OpusDatasetTransfer() {
+  const { t } = useTranslation()
+  const [status, setStatus] = useState<OpusDatasetStatus | null>(null)
+  const [includeCandles, setIncludeCandles] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<'export' | 'import' | 'recalibrate' | null>(null)
+
+  const load = useCallback(() => {
+    api<OpusDatasetStatus>('/admin/opus-dataset/status').then(setStatus).catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function onExport() {
+    setMessage(null)
+    setError(null)
+    setBusy('export')
+    try {
+      const { blob, filename } = await downloadApiFile(
+        `/admin/opus-dataset/export?include_candles=${includeCandles}`,
+      )
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+      setMessage(t('admin.opusExported'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.opusExportFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function onImport(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!window.confirm(t('admin.opusImportConfirm'))) return
+    setMessage(null)
+    setError(null)
+    setBusy('import')
+    try {
+      const result = await uploadApiFile<OpusDatasetImportResult>('/admin/opus-dataset/import', file)
+      setMessage(
+        t('admin.opusImported', {
+          macro: result.macro_rows,
+          calibration: result.calibration_rows,
+          recommendations: result.recommendation_rows,
+          candles: result.candle_rows,
+        }),
+      )
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.opusImportFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function onRecalibrate() {
+    setMessage(null)
+    setError(null)
+    setBusy('recalibrate')
+    try {
+      const result = await api<OpusRecalibrateResult>('/admin/opus-dataset/recalibrate', {
+        method: 'POST',
+      })
+      setMessage(
+        t('admin.opusRecalibrated', {
+          markets: result.markets,
+          rows: result.rows,
+          seconds: result.seconds,
+        }),
+      )
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.opusRecalibrateFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="mb-4 text-xl font-bold">{t('admin.opusDataset')}</h2>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="mb-3 font-semibold">{t('admin.opusStatus')}</h3>
+          {status ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.opusMacroSeries')}</dt>
+                <dd className="font-mono text-right">
+                  {status.macro_series} / {status.macro_rows}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.opusMacroRange')}</dt>
+                <dd className="font-mono text-right">
+                  {status.macro_first_day && status.macro_last_day
+                    ? `${status.macro_first_day} → ${status.macro_last_day}`
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.opusCalibrationRows')}</dt>
+                <dd className="font-mono">{status.calibration_rows}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.opusCalibratedAt')}</dt>
+                <dd className="font-mono text-right">
+                  {status.calibrated_at ? fmtDateTime(status.calibrated_at) : '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.opusRecommendations')}</dt>
+                <dd className="font-mono text-right">
+                  {status.recommendation_rows} ({status.recommendations_evaluated}{' '}
+                  {t('admin.opusEvaluated')})
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-400">{t('admin.opusLastHarvest')}</dt>
+                <dd className="font-mono text-right">
+                  {status.last_harvest ? fmtDateTime(status.last_harvest) : '—'}
+                </dd>
+              </div>
+              {status.harvest_error && (
+                <p className="text-xs text-red-400">{status.harvest_error}</p>
+              )}
+            </dl>
+          ) : (
+            <p className="text-sm text-slate-400">{t('common.loading')}</p>
+          )}
+          <p className="mt-4 text-xs text-slate-500">{t('admin.opusNote')}</p>
+        </div>
+        <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="font-semibold">{t('admin.opusTransfer')}</h3>
+          <label className="flex items-start gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={includeCandles}
+              onChange={(e) => setIncludeCandles(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>{t('admin.opusIncludeCandles')}</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onExport}
+              disabled={busy !== null}
+              className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+            >
+              {busy === 'export' ? t('admin.opusExporting') : t('admin.opusExport')}
+            </button>
+            <label className="cursor-pointer rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 has-[:disabled]:opacity-50">
+              {busy === 'import' ? t('admin.opusImporting') : t('admin.opusImport')}
+              <input
+                type="file"
+                accept="application/gzip,.gz,.ndjson,application/x-ndjson"
+                className="hidden"
+                disabled={busy !== null}
+                onChange={onImport}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={onRecalibrate}
+              disabled={busy !== null}
+              className="rounded-md border border-emerald-600/60 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+            >
+              {busy === 'recalibrate' ? t('admin.opusRecalibrating') : t('admin.opusRecalibrate')}
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">{t('admin.opusRecalibrateNote')}</p>
           {message && <p className="text-sm text-emerald-400">{message}</p>}
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>

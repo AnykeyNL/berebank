@@ -27,6 +27,7 @@
     "kimi": "KimiK3 Analysis",
     "gtp56sol": "GTP56Sol Analysis",
     "fable5": "Fable5 Analysis",
+    "opus": "Opus Analysis",
     "technical": "Technical Analysis",
     "ai": "AI / MCP",
     "admin": "Admin",
@@ -788,6 +789,223 @@
       "openInterestChange1hValue": "{{change}}%"
     }
   },
+  "opusAnalysis": {
+    "pageTitle": "Opus analysis",
+    "button": "Opus",
+    "subtitle": "Every market ranked against its peers, in euros after fees, for the next day to four weeks.",
+    "pickAsset": "Search the ranking",
+    "changeAsset": "Back to ranking",
+    "backToTrade": "Back to trading",
+    "range": "Period",
+    "horizon": "Horizon",
+    "horizons": {
+      "1d": "1 day",
+      "1w": "1 week",
+      "4w": "4 weeks"
+    },
+    "sides": {
+      "buy": "Best buys",
+      "sell": "Best sells"
+    },
+    "loadError": "Could not load the Opus ranking",
+    "loadErrorDetail": "Could not load the Opus analysis",
+    "updated": "Updated {{time}} · refreshes every minute",
+    "rankingUpdated": "{{markets}} markets scored, updated {{time}}",
+    "notCalibrated": "The engine has not finished learning its weights yet: it is running on prior weights, so no expected return is shown. Come back after the next nightly calibration.",
+    "noEdgeNote": "Nothing clears its trading costs on this horizon right now — over one day that is normal, since a round trip costs {{fee}}%. The ranking still shows which markets are relatively strongest.",
+    "basketTitle": "Diversified basket",
+    "basketNote": "The best buys with a cap per peer group, so the list is not the same bet ten times.",
+    "basketEmpty": "No market currently offers an edge that survives fees on this horizon.",
+    "inBasket": "In basket",
+    "empty": "No markets match this filter.",
+    "macro": {
+      "title": "Macro backdrop",
+      "vix": "VIX",
+      "yieldCurve": "10Y–2Y",
+      "fearGreed": "Fear & Greed",
+      "stablecoins": "Stablecoins (30d)",
+      "regime": "Regime"
+    },
+    "regimes": {
+      "up": "peer index trending up",
+      "down": "peer index trending down",
+      "all": "no clear peer trend"
+    },
+    "peerGroups": {
+      "crypto": "Crypto",
+      "stock": "Stocks",
+      "other": "Funds & commodities"
+    },
+    "table": {
+      "rank": "#",
+      "asset": "Asset",
+      "score": "Score",
+      "scoreTitle": "Conviction score from -100 (sell) to +100 (buy), derived from expected return per unit of risk",
+      "expected": "Exp.",
+      "expectedTitle": "Expected return over the horizon, from the learned weights plus the market's share of peer-group drift",
+      "edge": "Edge",
+      "edgeTitle": "Expected return minus the round-trip fee for your own fee tier — what is actually left over",
+      "conviction": "Conv.",
+      "convictionTitle": "Expected return divided by the expected move over the horizon",
+      "action": "Advice",
+      "collecting": "Collecting history",
+      "limitHint": "Only worth it as a limit order (maker fee)",
+      "closedHint": "Market closed — place a limit order",
+      "staleHint": "Price data is stale",
+      "illiquidHint": "Too little turnover to fill cleanly",
+      "flatHint": "Moves too little to pay for a fee",
+      "heldHint": "You hold this asset"
+    },
+    "actions": {
+      "strong_buy": "Strong buy",
+      "buy": "Buy",
+      "hold": "Hold",
+      "reduce": "Reduce",
+      "sell": "Sell"
+    },
+    "recommendation": {
+      "title": "Recommendation",
+      "expectedReturn": "Expected return",
+      "alpha": "Peer-relative alpha",
+      "marketReturn": "Peer-group drift × beta",
+      "fee": "Round-trip fee",
+      "limitFee": "Fee with limit orders",
+      "netEdge": "Net edge after fees",
+      "netEdgeLimit": "Net edge with limit orders",
+      "sellEdge": "Exit edge after fee",
+      "conviction": "Conviction",
+      "expectedMove": "Expected move",
+      "stop": "Suggested stop-loss",
+      "stopValue": "{{price}} (−{{pct}}%)",
+      "orderType": "Suggested order",
+      "orderTypes": {
+        "market": "Market order",
+        "limit": "Limit order"
+      },
+      "horizonBars": "over {{bars}} trading days"
+    },
+    "gauge": {
+      "label": "Conviction gauge",
+      "zones": {
+        "strong_down": "Strong sell",
+        "down": "Leaning sell",
+        "neutral": "No clear edge",
+        "up": "Leaning buy",
+        "strong_up": "Strong buy"
+      }
+    },
+    "outlook": {
+      "title": "Cross-sectional verdict",
+      "scoreLabel": "Score",
+      "scoreMin": "-100 sell",
+      "scoreMax": "+100 buy",
+      "confidenceLabel": "Confidence",
+      "buyScore": "Buy {{value}}",
+      "sellScore": "Sell {{value}}",
+      "confidenceLevels": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "regimeNote": {
+        "up": "Its peer group is in an uptrend, so the weights learned for rising markets are in use.",
+        "down": "Its peer group is in a downtrend, so the weights learned for falling markets are in use.",
+        "all": "Its peer group shows no clear trend, so the all-weather weights are in use.",
+        "trending": "Its peer group is trending, so the trend-regime weights are in use.",
+        "ranging": "Its peer group is moving sideways.",
+        "neutral": "No clear regime for its peer group."
+      },
+      "reasons": {
+        "outlook_bullish": "{{bullish}} of {{total}} weighted features rank this above its peers.",
+        "outlook_bearish": "{{bearish}} of {{total}} weighted features rank this below its peers.",
+        "outlook_neutral": "Features are mixed: {{bullish}} favourable, {{bearish}} unfavourable, {{neutral}} neutral.",
+        "outlook_no_data": "Not enough history to rank this market against its peers."
+      }
+    },
+    "crossSection": {
+      "title": "Cross-section",
+      "peers": "Ranked against {{peers}} markets in {{group}}",
+      "day": "Features from the completed session of {{day}}",
+      "mode": {
+        "cross_sectional": "Ranked against today's peer group.",
+        "time_series": "No peer cross-section available for this market — features are ranked against its own past year, without a calibrated expected return."
+      }
+    },
+    "features": {
+      "title": "Feature breakdown",
+      "note": "Each feature is scored as a percentile within the peer group and multiplied by the weight learned for this horizon and regime. Weight zero means the feature had no reliable signal.",
+      "feature": "Feature",
+      "percentile": "Percentile",
+      "weight": "Weight",
+      "ic": "IC",
+      "icTitle": "Information coefficient: average rank correlation with the forward return over the calibration period",
+      "contribution": "Contribution",
+      "show": "Show all {{count}} features",
+      "hide": "Hide features"
+    },
+    "featureNames": {
+      "mom_21": "Momentum (21 days, risk-adjusted)",
+      "mom_63": "Momentum (63 days, risk-adjusted)",
+      "accel": "Momentum acceleration",
+      "rev_5": "5-day reversal",
+      "rev_1": "1-day reversal",
+      "ma_dist": "Distance to the 50-day mean",
+      "adx_dir": "Signed trend strength (ADX)",
+      "rsi_dev": "RSI deviation from 50",
+      "bb_pos": "Position in the Bollinger band",
+      "range_pos": "Position in the 20-day range",
+      "vol_ratio": "Volatility expansion",
+      "vol_level": "Volatility level",
+      "dd_63": "Drawdown (63 days)",
+      "vol_z": "Volume surge",
+      "turnover": "Euro turnover",
+      "beta_mkt": "Beta to the peer index",
+      "corr_mkt": "Correlation with the peer index",
+      "resid_mom": "Peer-relative momentum",
+      "beta_vix": "Sensitivity to the VIX",
+      "beta_rate": "Sensitivity to the 10-year yield",
+      "beta_fng": "Sensitivity to crypto sentiment",
+      "beta_stable": "Sensitivity to stablecoin supply",
+      "funding": "Perpetual funding rate"
+    },
+    "reasons": {
+      "insufficient_data": "Not enough history for this feature.",
+      "opus_no_weight": "Percentile {{percentile}} within its peer group, but this feature earned no weight for this horizon.",
+      "opus_percentile_top": "Percentile {{percentile}} within its peer group — among the highest readings today.",
+      "opus_percentile_high": "Percentile {{percentile}} within its peer group — above most of the field.",
+      "opus_percentile_mid": "Percentile {{percentile}} within its peer group — close to the middle of the field.",
+      "opus_percentile_low": "Percentile {{percentile}} within its peer group — below most of the field.",
+      "opus_percentile_bottom": "Percentile {{percentile}} within its peer group — among the lowest readings today."
+    },
+    "calibration": {
+      "title": "Where the weights come from",
+      "summary": "Weights learned for {{group}} on the {{horizon}} horizon, {{regime}}, from {{days}} days of history ({{from}} → {{to}}).",
+      "prior": "No reliable calibration for this segment yet, so documented prior weights are in use and no expected return is shown.",
+      "ic": "Walk-forward information coefficient {{ic}}% over {{days}} days",
+      "hitRate": "Walk-forward hit rate {{value}}% on {{samples}} samples",
+      "drift": "Peer-group drift {{value}}% per horizon (± {{std}}%)",
+      "topFeatures": "Heaviest features",
+      "calibratedAt": "Calibrated {{time}}",
+      "engine": "Engine {{version}}"
+    },
+    "trackRecord": {
+      "title": "Track record on {{market}}",
+      "summary": "{{hitRate}}% of Opus verdicts were followed by a move in the indicated direction within {{days}} days.",
+      "samples": "{{samples}} directional verdicts between {{from}} and {{to}}",
+      "avgBullish": "Avg move after buy: {{value}}%",
+      "avgBearish": "Avg move after sell: {{value}}%",
+      "noHistory": "The track record appears once enough daily price history has been collected — check back soon.",
+      "liveTitle": "Live record of published recommendations",
+      "liveMarket": "On {{market}}",
+      "liveAll": "Across all markets",
+      "liveSummary": "{{hitRate}}% of {{samples}} graded recommendations moved the right way over the {{horizon}} horizon.",
+      "livePeriod": "{{from}} → {{to}}",
+      "liveBuys": "{{samples}} buys, avg {{value}}%",
+      "liveSells": "{{samples}} sells, avg {{value}}%",
+      "liveNone": "Opus starts grading its own published recommendations as soon as the horizon has passed — nothing to report yet."
+    },
+    "disclaimer": "Opus ranks markets against their peers using weights learned from stored daily history, then subtracts real trading fees. Learned weights describe the past, not the future, and an expected return is an average over many trades — not a promise about this one. Educational indication in a paper-money simulation, not financial advice."
+  },
   "gtp56solAnalysis": {
     "brand": "GTP56Sol analysis",
     "button": "GTP56Sol",
@@ -1071,6 +1289,32 @@
     "candleHistoryImporting": "Importing…",
     "candleHistoryImportConfirm": "Import candle history from this file? Existing rows for the same market and day will be updated.",
     "candleHistoryImported": "Imported {{markets}} markets ({{rows}} rows written, {{settings}} GTP56Sol settings).",
-    "candleHistoryImportFailed": "Import failed"
+    "candleHistoryImportFailed": "Import failed",
+    "opusDataset": "Opus dataset",
+    "opusStatus": "Stored Opus data",
+    "opusMacroSeries": "Macro series / rows",
+    "opusMacroRange": "Macro date range",
+    "opusCalibrationRows": "Calibration rows",
+    "opusCalibratedAt": "Last calibrated",
+    "opusRecommendations": "Recommendation snapshots",
+    "opusEvaluated": "graded",
+    "opusLastHarvest": "Last Opus harvest",
+    "opusNote": "Opus stores its macro series (FRED rates and VIX, Fear & Greed, stablecoin supply, funding), the learned feature weights and a daily snapshot of its own recommendations. The export streams gzip NDJSON, so even a full candle-history transfer stays at constant memory.",
+    "opusTransfer": "Export / import",
+    "opusIncludeCandles": "Include daily candle history (large file, seeds a fresh install)",
+    "opusExport": "Export NDJSON.gz",
+    "opusExporting": "Exporting…",
+    "opusExported": "Opus dataset downloaded.",
+    "opusExportFailed": "Export failed",
+    "opusImport": "Import NDJSON.gz",
+    "opusImporting": "Importing…",
+    "opusImportConfirm": "Import this Opus dataset? Rows for the same day, series or segment will be overwritten.",
+    "opusImported": "Imported {{macro}} macro rows, {{calibration}} calibration rows, {{recommendations}} recommendations and {{candles}} candles.",
+    "opusImportFailed": "Import failed",
+    "opusRecalibrate": "Recalibrate now",
+    "opusRecalibrating": "Recalibrating…",
+    "opusRecalibrated": "Relearned weights for {{markets}} markets: {{rows}} calibration rows in {{seconds}}s.",
+    "opusRecalibrateFailed": "Recalibration failed",
+    "opusRecalibrateNote": "Recalibration walks the whole stored panel forward and takes a minute or two; the background harvest does it nightly anyway."
   }
 }

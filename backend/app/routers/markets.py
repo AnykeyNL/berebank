@@ -20,6 +20,9 @@ from ..services import analysis as analysis_service
 from ..services import fable5_analysis as fable5_analysis_service
 from ..services import gtp56sol_analysis as gtp56sol_analysis_service
 from ..services import kimi_analysis as kimi_analysis_service
+from ..services import opus_analysis as opus_analysis_service
+from ..services import opus_calibration as opus_calibration_service
+from ..services import opus_store
 from ..services.backtest import track_record
 from ..services.candle_store import (
     CandleHistorySummary,
@@ -29,6 +32,7 @@ from ..services.candle_store import (
     load_completed_daily_candles,
     load_recent_daily_candles,
 )
+from ..services.fees import get_30d_volume, get_fee_rates
 from ..services.market_data import market_data_service
 from ..services.rss_aggregator import fetch_articles_for_market, get_markets_with_articles, merge_news_items
 from ..services.td_context import get_macro_context, get_market_context, serialize_context
@@ -54,6 +58,10 @@ _fable5_cache: dict[str, tuple[float, dict]] = {}
 _fable5_outlooks_cache: tuple[float, dict] | None = None
 _fable5_track_record_cache: dict[str, tuple[float, dict | None]] = {}
 _gtp56sol_outlooks_cache: dict[str, tuple[float, dict]] = {}
+_opus_scores_cache: tuple[float, dict] | None = None
+_opus_outlooks_cache: dict[str, tuple[float, dict]] = {}
+_opus_cache: dict[str, tuple[float, dict]] = {}
+_opus_track_record_cache: dict[str, tuple[float, dict | None]] = {}
 _news_cache: dict[str, tuple[float, list]] = {}
 _CANDLE_TTL = 60  # seconds
 _GTP56SOL_TTL = 3600  # daily stored inputs change slowly
@@ -64,6 +72,9 @@ _KIMI_OUTLOOKS_TTL = 900  # seconds; computed from daily candles, which change s
 _FABLE5_OUTLOOKS_TTL = 900  # seconds; computed from daily candles, which change slowly
 _GTP56SOL_OUTLOOKS_TTL = 900  # seconds; computed from daily candles, which change slowly
 _GTP56SOL_OUTLOOKS_WORKERS = 4
+# Opus scores completed daily bars, so a fresh pass per quarter hour is plenty.
+_OPUS_TTL = 900
+_OPUS_OUTLOOKS_TTL = 900
 _TRACK_RECORD_TTL = 3600  # seconds; recomputed from stored daily candles
 _NEWS_TTL = 300  # seconds; press releases change infrequently
 
@@ -263,6 +274,145 @@ async def get_fable5_outlooks(
         "outlooks": outlooks,
     }
     _fable5_outlooks_cache = (time.monotonic(), result)
+    return result
+
+
+def _opus_scores(db: Session) -> dict:
+    """Cached cross-sectional scoring pass, shared by every Opus endpoint.
+
+    One pass scores all markets on all three horizons; the fee-dependent part is
+    applied per request so a user's own fee tier never pollutes the cache.
+    """
+    global _opus_scores_cache
+    if _opus_scores_cache and time.monotonic() - _opus_scores_cache[0] < _OPUS_TTL:
+        return _opus_scores_cache[1]
+    scores = opus_store.compute_scores(db)
+    _opus_scores_cache = (time.monotonic(), scores)
+    return scores
+
+
+def _opus_fee_rates(db: Session, user: User) -> tuple[float, float]:
+    """The connected user's own maker/taker rates, in percent."""
+    try:
+        volume = get_30d_volume(db, user.account.id)
+        maker, taker = get_fee_rates(volume)
+        return float(maker) * 100, float(taker) * 100
+    except Exception:
+        return opus_analysis_service.DEFAULT_MAKER_PCT, opus_analysis_service.DEFAULT_TAKER_PCT
+
+
+def _opus_finalized_rows(
+    db: Session,
+    user: User,
+    horizon: str,
+    scores: dict,
+    *,
+    holdings: set[str] | None = None,
+) -> list[dict]:
+    maker_pct, taker_pct = _opus_fee_rates(db, user)
+    rows = []
+    for row in scores["rows"].get(horizon) or []:
+        price = market_data_service.get_price(row["market"]) or {}
+        rows.append(opus_analysis_service.finalize_row(
+            row,
+            taker_pct=taker_pct,
+            maker_pct=maker_pct,
+            market_open=price.get("market_open"),
+            days_since_close=row.get("days_since_close"),
+            held=bool(holdings and row["market"] in holdings),
+        ))
+    return opus_analysis_service.rank_rows(rows)
+
+
+@router.get("/opus-rankings")
+async def get_opus_rankings(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    horizon: str = opus_calibration_service.DEFAULT_HORIZON,
+    asset_class: Annotated[str | None, Query(pattern="^(crypto|stock|fund|commodity)$")] = None,
+    side: Annotated[str, Query(pattern="^(buy|sell)$")] = "buy",
+    limit: Annotated[int, Query(ge=1, le=600)] = 50,
+):
+    """Opus buy/sell ranking of every market for a 1-day to 4-week horizon.
+
+    Opus scores each market against its peers on the same day rather than
+    against absolute thresholds, using feature weights learned from the stored
+    daily history (walk-forward information coefficients). The composite is
+    mapped to an expected return in percent, the peer-group drift is added
+    through the market's beta, and real Bitvavo fees for the requesting user's
+    own tier are subtracted — so `net_edge_pct` is what is actually left over
+    after trading costs. Rows are ordered best-first for the requested side and
+    carry the tradability gates (liquidity, data freshness, market hours,
+    low-volatility) that decide whether acting is sensible at all.
+    """
+    if horizon not in opus_calibration_service.HORIZONS:
+        allowed = ", ".join(opus_calibration_service.HORIZONS)
+        raise HTTPException(400, f"Invalid horizon: {horizon}. Use one of {allowed}")
+
+    scores = await run_in_threadpool(_opus_scores, db)
+    rows = await run_in_threadpool(_opus_finalized_rows, db, user, horizon, scores)
+    basket = opus_analysis_service.select_basket(rows)
+
+    if asset_class:
+        rows = [row for row in rows if row["asset_class"] == asset_class]
+    rank_field = "buy_rank" if side == "buy" else "sell_rank"
+    rows.sort(key=lambda row: row[rank_field])
+    return {
+        "generated_at": scores["generated_at"],
+        "engine_version": scores["engine_version"],
+        "horizon": horizon,
+        "side": side,
+        "regimes": scores["regimes"],
+        "group_days": scores["group_days"],
+        "macro": scores["macro"],
+        "calibrated": scores["calibrated"],
+        "markets": scores["markets"],
+        "basket": basket,
+        "rankings": rows[:limit],
+    }
+
+
+@router.get("/opus-outlooks")
+async def get_opus_outlooks(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    horizon: str = opus_calibration_service.DEFAULT_HORIZON,
+):
+    """Opus outlook summary for every market, for list views.
+
+    A projection of the Opus ranking: direction, score (-100..+100), buy/sell
+    scores (0..100 fee-aware conviction), confidence, regime and the
+    recommended action — same engine as the per-market Opus analysis endpoint.
+    """
+    if horizon not in opus_calibration_service.HORIZONS:
+        allowed = ", ".join(opus_calibration_service.HORIZONS)
+        raise HTTPException(400, f"Invalid horizon: {horizon}. Use one of {allowed}")
+
+    cached = _opus_outlooks_cache.get(horizon)
+    if cached and time.monotonic() - cached[0] < _OPUS_OUTLOOKS_TTL:
+        return cached[1]
+
+    scores = await run_in_threadpool(_opus_scores, db)
+    rows = await run_in_threadpool(_opus_finalized_rows, db, user, horizon, scores)
+    result = {
+        "generated_at": scores["generated_at"],
+        "horizon": horizon,
+        "outlooks": {
+            row["market"]: {
+                "direction": row["direction"],
+                "score": row["score"],
+                "buy_score": row["buy_score"],
+                "sell_score": row["sell_score"],
+                "confidence": row["confidence"],
+                "regime": row["regime"],
+                "action": row["action"],
+                "buy_rank": row["buy_rank"],
+                "sell_rank": row["sell_rank"],
+            }
+            for row in rows
+        },
+    }
+    _opus_outlooks_cache[horizon] = (time.monotonic(), result)
     return result
 
 
@@ -855,6 +1005,139 @@ async def get_fable5_analysis(
         "track_record": _fable5_track_record(db, market),
     }
     _fable5_cache[cache_key] = (time.monotonic(), result)
+    return result
+
+
+def _opus_track_record(db: Session, market: str) -> dict | None:
+    cached = _opus_track_record_cache.get(market)
+    if cached and time.monotonic() - cached[0] < _TRACK_RECORD_TTL:
+        return cached[1]
+    record = track_record(
+        load_recent_daily_candles(db, market),
+        opus_analysis_service.analyze_opus,
+    )
+    _opus_track_record_cache[market] = (time.monotonic(), record)
+    return record
+
+
+@router.get("/{market}/opus-analysis")
+async def get_opus_analysis(
+    market: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    range_: Annotated[str, Query(alias="range")] = "30d",
+    horizon: str = opus_calibration_service.DEFAULT_HORIZON,
+):
+    """Opus recommendation for one market, with the full feature breakdown.
+
+    Ranks the market against its peer group on the latest completed daily bars,
+    scores it with the weights learned for that peer group, horizon and market
+    regime, and reports the expected return, the fees it has to clear, the
+    resulting conviction and a suggested stop-loss two ATRs below price. Every
+    feature is listed with its peer percentile, learned weight, information
+    coefficient and contribution, next to the provenance of the calibration
+    itself. Includes both a walk-forward track record (replaying this market's
+    own history) and the live track record of the recommendations Opus actually
+    published. Ranges: 1d, 1w, 30d, 90d, 180d, 365d. Horizons: 1d, 1w, 4w.
+    """
+    market = market.upper()
+    market_info = market_data_service.get_market(market)
+    if market_info is None:
+        raise HTTPException(404, f"Unknown market: {market}")
+    if range_ not in _ANALYSIS_RANGES:
+        raise HTTPException(400, f"Invalid range: {range_}. Use one of {', '.join(_ANALYSIS_RANGES)}")
+    if horizon not in opus_calibration_service.HORIZONS:
+        allowed = ", ".join(opus_calibration_service.HORIZONS)
+        raise HTTPException(400, f"Invalid horizon: {horizon}. Use one of {allowed}")
+
+    cache_key = f"{market}:{range_}:{horizon}:{user.id}"
+    cached = _opus_cache.get(cache_key)
+    if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
+        return cached[1]
+
+    # Same candle fetch as the analysis endpoint: display window plus
+    # warm-up bars so indicators are defined from the first visible bar.
+    if market_info["asset_class"] == "crypto":
+        interval, display_count = _RANGE_PARAMS[range_]
+        candles = await _fetch_bitvavo_candles(
+            market, interval, display_count + analysis_service.WARMUP_BARS
+        )
+    else:
+        display_count = twelvedata_service._RANGE_PARAMS[range_][1]
+        try:
+            candles = await twelvedata_service.fetch_candles(
+                market, range_, extra_bars=analysis_service.WARMUP_BARS
+            )
+        except Exception as exc:
+            raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
+
+    scores = await run_in_threadpool(_opus_scores, db)
+    context = opus_store.detail_context(scores, market, horizon)
+    maker_pct, taker_pct = _opus_fee_rates(db, user)
+    if context is not None:
+        context = {
+            **context,
+            "market": market,
+            "asset_class": market_info["asset_class"],
+            "taker_pct": taker_pct,
+            "maker_pct": maker_pct,
+        }
+    price = market_data_service.get_price(market) or {}
+    analysis = opus_analysis_service.analyze_opus(candles, display_count, context)
+    row = None
+    if context is not None:
+        row = opus_analysis_service.finalize_row(
+            {
+                "market": market,
+                "asset_class": market_info["asset_class"],
+                "peer_group": context["peer_group"],
+                "horizon": horizon,
+                "score": analysis["outlook"]["score"],
+                "direction": analysis["outlook"]["direction"],
+                "expected_return_pct": None if analysis["recommendation"]["expected_return_pct"] is None
+                else float(analysis["recommendation"]["expected_return_pct"]),
+                "expected_move_pct": context.get("expected_vol_pct"),
+                "turnover_eur": context.get("turnover_eur"),
+                "days_since_close": context.get("days_since_close"),
+            },
+            taker_pct=taker_pct,
+            maker_pct=maker_pct,
+            market_open=price.get("market_open"),
+            days_since_close=context.get("days_since_close"),
+        )
+
+    result = {
+        "market": market,
+        "range": range_,
+        "horizon": horizon,
+        **analysis,
+        "cross_section": None if context is None else {
+            "peer_group": context["peer_group"],
+            "peers": context["peers"],
+            "regime": context["regime"],
+            "day": context["day"],
+            "days_since_close": context["days_since_close"],
+        },
+        "gates": None if row is None else {
+            "liquidity_ok": row["liquidity_ok"],
+            "stale": row["stale"],
+            "tradable": row["tradable"],
+            "tradable_now": row["tradable_now"],
+            "low_volatility": row["low_volatility"],
+            "suggested_order_type": row["suggested_order_type"],
+            "turnover_eur": None if context.get("turnover_eur") is None
+            else f"{context['turnover_eur']:.0f}",
+        },
+        "macro": scores["macro"],
+        "track_record": _opus_track_record(db, market),
+        "live_track_record": await run_in_threadpool(
+            opus_store.live_track_record, db, horizon, market=market
+        ),
+        "live_track_record_all": await run_in_threadpool(
+            opus_store.live_track_record, db, horizon
+        ),
+    }
+    _opus_cache[cache_key] = (time.monotonic(), result)
     return result
 
 

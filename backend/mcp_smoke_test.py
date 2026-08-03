@@ -161,6 +161,8 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
                 "list_markets", "get_candles", "analyze_market",
                 "get_kimi_analysis", "get_fable5_analysis",
                 "get_gtp56sol_analysis", "get_news",
+                "get_opus_rankings", "get_opus_analysis",
+                "get_opus_portfolio_advice",
                 "get_portfolio", "get_portfolio_history", "list_orders",
                 "list_trades", "get_trade_history", "get_leaderboard",
                 "place_order", "cancel_order",
@@ -187,6 +189,21 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             r = await session.call_tool("get_news", {"market": "AAPL-EUR", "limit": 3})
             assert not r.isError, tool_text(r)
             print("get_news OK")
+
+            r = await session.call_tool("get_opus_rankings", {"horizon": "1w", "limit": 5})
+            assert not r.isError, tool_text(r)
+            assert "net_edge_pct" in tool_text(r)
+            print("get_opus_rankings OK")
+
+            r = await session.call_tool("get_opus_analysis", {"market": "BTC-EUR"})
+            assert not r.isError, tool_text(r)
+            assert "recommendation" in tool_text(r)
+            print("get_opus_analysis OK")
+
+            r = await session.call_tool("get_opus_portfolio_advice", {})
+            assert not r.isError, tool_text(r)
+            assert "suggested_allocation" in tool_text(r)
+            print("get_opus_portfolio_advice OK")
 
             r = await session.call_tool("get_portfolio", {})
             assert not r.isError, tool_text(r)

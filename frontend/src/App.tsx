@@ -9,6 +9,7 @@ import AnalyzePage from './pages/AnalyzePage'
 import KimiAnalysisPage from './pages/KimiAnalysisPage'
 import GTP56SolAnalysisPage from './pages/GTP56SolAnalysisPage'
 import Fable5AnalysisPage from './pages/Fable5AnalysisPage'
+import OpusAnalysisPage from './pages/OpusAnalysisPage'
 import TradeHistoryPage from './pages/TradeHistoryPage'
 import AdminPage from './pages/AdminPage'
 import ProfilePage from './pages/ProfilePage'
@@ -52,6 +53,8 @@ export default function App() {
         <Route path="/gtp56sol-analysis/:market" element={<GTP56SolAnalysisPage />} />
         <Route path="/fable5-analysis" element={<Fable5AnalysisPage />} />
         <Route path="/fable5-analysis/:market" element={<Fable5AnalysisPage />} />
+        <Route path="/opus-analysis" element={<OpusAnalysisPage />} />
+        <Route path="/opus-analysis/:market" element={<OpusAnalysisPage />} />
         <Route path="/history" element={<TradeHistoryPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/news" element={<NewsPage />} />

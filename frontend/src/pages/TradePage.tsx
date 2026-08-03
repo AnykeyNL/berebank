@@ -319,6 +319,13 @@ export default function TradePage() {
               >
                 {t('fable5Analysis.button')}
               </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/opus-analysis/${selected}`)}
+                className="self-center rounded-md border border-emerald-600/50 px-3 py-1.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/10"
+              >
+                {t('opusAnalysis.button')}
+              </button>
               {newsAvailable && (
                 <button
                   type="button"

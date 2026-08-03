@@ -113,6 +113,76 @@ class MarketCandle(Base):
     volume: Mapped[Decimal] = mapped_column(Money, default=Decimal("0"))
 
 
+class OpusMacroSeries(Base):
+    """One daily value of a named macro/derived series used by the Opus engine.
+
+    Deliberately narrow (series id + day + value) so any number of external or
+    in-house series share one table: FRED yields, Fear & Greed, stablecoin
+    supply, per-coin funding, asset-class breadth, index levels. Keeps the
+    dev/prod dataset transfer format trivial.
+    """
+
+    __tablename__ = "opus_macro_series"
+    __table_args__ = (UniqueConstraint("series_id", "day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    series_id: Mapped[str] = mapped_column(String(60), index=True)
+    day: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # UTC day start
+    value: Mapped[float] = mapped_column(Float)
+
+
+class OpusCalibration(Base):
+    """Learned Opus feature weights for one peer group, horizon and regime.
+
+    ``payload`` holds the JSON weight vector, the composite-to-return map and
+    the information-coefficient diagnostics produced by the nightly
+    walk-forward calibration.
+    """
+
+    __tablename__ = "opus_calibration"
+    __table_args__ = (
+        UniqueConstraint("engine_version", "peer_group", "horizon", "regime"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engine_version: Mapped[str] = mapped_column(String(20), index=True)
+    peer_group: Mapped[str] = mapped_column(String(20))  # crypto | stock | other
+    horizon: Mapped[str] = mapped_column(String(4))      # 1d | 1w | 4w
+    regime: Mapped[str] = mapped_column(String(10))      # all | up | down
+    payload: Mapped[str] = mapped_column(Text)           # JSON
+    samples: Mapped[int] = mapped_column(default=0)
+    calibrated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class OpusRecommendation(Base):
+    """Daily snapshot of one Opus recommendation, scored against reality later.
+
+    Powers the live track record: the realized forward return is filled in once
+    the horizon has passed, so the engine reports how its own published
+    recommendations actually performed.
+    """
+
+    __tablename__ = "opus_recommendations"
+    __table_args__ = (UniqueConstraint("day", "market", "horizon"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    market: Mapped[str] = mapped_column(String(20), index=True)
+    horizon: Mapped[str] = mapped_column(String(4))
+    action: Mapped[str] = mapped_column(String(12))      # strong_buy … sell
+    direction: Mapped[str] = mapped_column(String(10))
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    buy_score: Mapped[float] = mapped_column(Float, default=0.0)
+    sell_score: Mapped[float] = mapped_column(Float, default=0.0)
+    expected_return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    net_edge_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    conviction: Mapped[float | None] = mapped_column(Float, nullable=True)
+    buy_rank: Mapped[int | None] = mapped_column(nullable=True)
+    close_price: Mapped[Decimal | None] = mapped_column(Money, nullable=True)
+    realized_return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
 

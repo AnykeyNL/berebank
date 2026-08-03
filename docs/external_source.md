@@ -13,9 +13,10 @@ For how this data flows through APIs, engines, and caching, see [marketdata.md](
 | **Bitvavo** | Free | No | Crypto | **Fully integrated** — prices, candles, harvest |
 | **Twelve Data Pro** | Paid (your plan) | Admin → Twelve Data | Stocks, funds, commodities | **Integrated** — quotes, candles, news, macro, earnings, insiders |
 | **Coinglass Hobbyist** | ~$29/mo | Admin → Coinglass or `BEREBANK_COINGLASS_API_KEY` | Crypto derivatives | **Partially integrated** — funding + OI |
-| **Alternative.me** | Free | No | Crypto macro | **Integrated** — Fear & Greed |
+| **Alternative.me** | Free | No | Crypto macro | **Integrated** — Fear & Greed (live 365d; full history harvested for Opus) |
 | **CoinGecko** | Free | No | Crypto macro | **Integrated** — BTC dominance (current) |
-| **DeFiLlama** | Free | No | Crypto macro | **Integrated** — stablecoin supply |
+| **DeFiLlama** | Free | No | Crypto macro | **Integrated** — stablecoin supply (history harvested for Opus) |
+| **FRED (St. Louis Fed)** | Free | No | Macro (yields, VIX) | **Integrated** — daily history harvested for Opus |
 | **RSS feeds** | Free | No (URLs configured in Admin) | All (matched to tickers) | **Integrated** — news |
 
 ---
@@ -231,14 +232,20 @@ With BereBank’s caching:
 ## Alternative.me — Crypto Fear & Greed (free)
 
 **URL:** `https://api.alternative.me/fng/`  
-**Code:** `crypto_context.py` → `_fetch_fear_greed`  
+**Code:** `crypto_context.py` → `_fetch_fear_greed`; `opus_macro.py` → `fetch_fear_greed_history`  
 **API key:** None
 
 ### Request
 
 ```
-GET https://api.alternative.me/fng/?limit=365&format=json
+GET https://api.alternative.me/fng/?limit=365&format=json    # live context
+GET https://api.alternative.me/fng/?limit=0&format=json      # full history (Opus)
 ```
+
+`limit=0` returns the **complete history since 2018-02-01** (~3100 days). The
+live context path keeps its 365-day window; the Opus harvest stores the full
+series as `crypto:fear_greed` in `opus_macro_series` so sentiment sensitivity can
+be *calibrated* and not only displayed.
 
 ### Response fields used
 
@@ -293,7 +300,7 @@ CoinGecko Pro adds historical global data, more calls — not required for curre
 ## DeFiLlama — stablecoin supply (free)
 
 **URL:** `https://stablecoins.llama.fi/stablecoincharts/all`  
-**Code:** `crypto_context.py` → `_fetch_stablecoin_supply`  
+**Code:** `crypto_context.py` → `_fetch_stablecoin_supply`; `opus_macro.py` → `fetch_stablecoin_supply`  
 **API key:** None
 
 ### Response
@@ -310,6 +317,7 @@ BereBank exposes:
 - **`stablecoin_supply_usd`** — latest total  
 - **`stablecoin_supply_change_pct`** — vs ~31 days ago  
 - **`stablecoin_supply_by_day`** — full series (internal, for GTP56Sol history)  
+- **`crypto:stablecoin_usd`** — same series persisted in `opus_macro_series` by the Opus harvest  
 
 ### Limits
 
@@ -319,6 +327,46 @@ BereBank exposes:
 ### Available but not integrated
 
 DeFiLlama has TVL, chain-level stablecoins, protocol data — useful for macro liquidity research.
+
+---
+
+## FRED — St. Louis Fed macro history (free)
+
+**URL:** `https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}`  
+**Code:** `opus_macro.py` → `fetch_fred_series`  
+**API key:** None (the CSV graph endpoint needs no registration)
+
+Added for the Opus engine, which learns its weights from how features behaved on
+past days and therefore needs macro data **with history**, not a live reading.
+FRED also covers the gap where Twelve Data's Pro plan returns 404 for `US10Y`
+and `VIX`.
+
+### Series harvested
+
+| FRED id | Opus series id | Content | History |
+|---------|----------------|---------|---------|
+| `DGS2` | `fred:us2y` | 2-year treasury yield, daily close | 1976 → today |
+| `DGS10` | `fred:us10y` | 10-year treasury yield, daily close | 1962 → today |
+| `VIXCLS` | `fred:vix` | CBOE VIX daily close | 1990 → today |
+
+### Response
+
+Two-column CSV (`observation_date,VALUE`, historically `DATE`). Missing
+observations are written as `.` and skipped by the parser.
+
+### Use in BereBank
+
+- Persisted in `opus_macro_series`, refreshed by the Opus harvest (every 6h,
+  upsert-only so unchanged days are not rewritten).
+- Feeds the Opus macro-beta features: each market's rolling sensitivity to VIX
+  and to the 10-year yield, plus the yield-curve reading shown on the Opus page.
+- Not used by Analyze, KimiK3, Fable5 or GTP56Sol — those keep their Twelve Data
+  live macro path unchanged.
+
+### Limits
+
+- Free, no auth, no documented rate limit for CSV graph downloads  
+- Fetched at most once per harvest cycle per series; failures are non-fatal  
 
 ---
 
@@ -395,7 +443,15 @@ BereBank **re-fetches on demand** (with in-memory cache) for:
 
 **Candle import/export** (`/admin/candle-history/export|import`) includes **OHLCV + GTP56Sol backfill flags only** — not external macro/derivatives series.
 
-To add historical Coinglass or FRED data for backtesting, implement a harvest job or pass live context only (current BereBank approach).
+**Persisted for Opus** (the exception to the above): the Opus harvest stores
+daily FRED yields and VIX, the full Fear & Greed history, stablecoin supply and a
+per-coin funding snapshot in `opus_macro_series`, plus its learned calibration
+and daily recommendation snapshots. Those three tables have their own streaming
+gzip-NDJSON transfer at `/admin/opus-dataset/export|import` (optionally including
+candles), so a fresh install can be seeded from a development machine.
+
+Coinglass funding/OI **4h history** is still not harvested; Opus appends the
+current funding snapshot one day at a time instead.
 
 ---
 
@@ -409,8 +465,9 @@ You already pay for **Twelve Data Pro** and **Coinglass Hobbyist**. Highest-valu
 | 2 | Twelve Data | `/statistics` or `/profile` for valuation features | Low — per stock |
 | 3 | Twelve Data | Pre/post-market `/time_series` | Medium |
 | 4 | Coinglass | Funding/OI **4h history** for GTP56Sol backfill | Medium |
-| 5 | CoinGecko / FRED | Historical dominance or **DGS10** if TD US10Y stays null | Low — free |
+| ~~5~~ | ~~FRED~~ | ~~Historical **DGS10** / VIX if TD stays null~~ | **Done** — harvested for Opus (`fred:*`) |
 | 6 | RSS + NLP | Sentiment score on matched headlines | Medium — no vendor required |
+| 7 | CoinGecko Pro | Historical BTC dominance series | Low — paid tier |
 
 ---
 

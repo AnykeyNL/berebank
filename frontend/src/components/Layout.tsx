@@ -67,6 +67,9 @@ export default function Layout() {
       <NavLink to="/fable5-analysis" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
         {t('nav.fable5')}
       </NavLink>
+      <NavLink to="/opus-analysis" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
+        {t('nav.opus')}
+      </NavLink>
       <NavLink to="/ai" className={menuLinkClass} onClick={() => setMenuOpen(false)}>
         {t('nav.ai')}
       </NavLink>

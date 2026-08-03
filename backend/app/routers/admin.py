@@ -1,8 +1,11 @@
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from ..database import get_db
 from ..models import Account, AppSetting, Holding, Order, RssFeed, Trade, User
@@ -12,6 +15,9 @@ from ..schemas import (
     AdminUserUpdate,
     CandleHistoryImportOut,
     CandleHistoryStatusOut,
+    OpusDatasetImportOut,
+    OpusDatasetStatusOut,
+    OpusRecalibrateOut,
     RssFeedCreate,
     RssFeedOut,
     RssFeedStatusOut,
@@ -23,6 +29,8 @@ from ..security import hash_password, require_bank_manager
 from ..services.bitvavo import bitvavo_service
 from ..services.candle_history_transfer import export_history, history_status, import_history
 from ..services.candle_store import candle_harvest_service
+from ..services.opus_dataset_transfer import dataset_status, export_dataset, import_dataset
+from ..services.opus_store import opus_harvest_service, recalibrate
 from ..services.rss_aggregator import rss_aggregator_service
 from ..services.twelvedata import twelvedata_service
 from ..services.coinglass import coinglass_service
@@ -272,3 +280,54 @@ async def import_candle_history(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
     return CandleHistoryImportOut(**result)
+
+
+@router.get("/opus-dataset/status", response_model=OpusDatasetStatusOut)
+def get_opus_dataset_status(db: Session = Depends(get_db)):
+    """Coverage of the Opus macro series, calibration and recommendation log."""
+    harvest = opus_harvest_service.status()
+    return OpusDatasetStatusOut(
+        **dataset_status(db),
+        last_harvest=harvest["last_run"],
+        harvest_error=harvest["error"],
+    )
+
+
+@router.get("/opus-dataset/export")
+def export_opus_dataset(
+    include_candles: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    """Download the Opus dataset as gzip NDJSON, streamed at constant memory.
+
+    With ``include_candles`` the file also carries the daily candle history, so
+    a fresh production install can be seeded from development in one transfer.
+    """
+    exported_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z").replace(":", "-")
+    filename = f"berebank-opus-dataset-{exported_at}.ndjson.gz"
+    return StreamingResponse(
+        export_dataset(db, include_candles=include_candles),
+        media_type="application/gzip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/opus-dataset/import", response_model=OpusDatasetImportOut)
+async def import_opus_dataset(file: UploadFile, db: Session = Depends(get_db)):
+    """Import an Opus dataset export (gzip or plain NDJSON)."""
+    try:
+        result = await run_in_threadpool(import_dataset, db, file.file)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    except (OSError, EOFError) as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Could not read export file: {exc}"
+        ) from exc
+    return OpusDatasetImportOut(**result)
+
+
+@router.post("/opus-dataset/recalibrate", response_model=OpusRecalibrateOut)
+async def recalibrate_opus(db: Session = Depends(get_db)):
+    """Relearn the Opus feature weights from the stored history right now."""
+    result = await run_in_threadpool(recalibrate, db)
+    return OpusRecalibrateOut(**result)
