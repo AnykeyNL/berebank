@@ -151,12 +151,18 @@ is currently wiped every minute. The fix captures the visible range as
 are prepended, and restores them with `setVisibleRange()` after the update.
 
 To keep today's default behaviour exactly, this only applies once the user has
-moved. The rule is computable, with no interaction tracking: if no extra pages
-are loaded **and** the visible logical range still spans the whole dataset
-(`from <= 0 && to >= bars.length - 1`), the chart calls `fitContent()` as it
-does now, so a fresh chart still auto-follows the newest bar. Otherwise the
-range is preserved. `getVisibleRange()` returns `null` before there is data, in
-which case `fitContent()` is used.
+moved. The rule is computable, with no interaction tracking: the chart keeps
+calling `fitContent()` while it is still in the fitted state — no extra pages
+loaded **and** the visible logical range within one bar of `[0, count - 1]` —
+so a fresh chart still auto-follows the newest bar and picks up each new live
+bar. Any zoom or pan fails that test in one direction or the other (zooming in
+moves `from` up and `to` down, zooming out moves them past both ends), so the
+viewport is preserved instead. `getVisibleRange()` returns `null` before there
+is data, in which case `fitContent()` is used.
+
+The comparison uses the bar count and page count from the **previous** render,
+captured before the series is replaced, since that is what the logical range
+being read refers to.
 
 ### `PriceChart` changes
 
