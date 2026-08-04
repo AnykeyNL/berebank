@@ -164,8 +164,9 @@ export default function PortfolioValueChart() {
         horzLine: { color: 'rgba(148, 163, 184, 0.4)' },
       },
       // Snapshots are a fixed 30-day window with no deeper history to fetch,
-      // so zooming could only ever stretch the bars it already shows.
+      // so zooming or panning could only move the view off the data it has.
       handleScale: false,
+      handleScroll: false,
     })
     chartRef.current = chart
 
