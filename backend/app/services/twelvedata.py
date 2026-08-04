@@ -46,6 +46,40 @@ def _listing_from_quote(quote: dict) -> str | None:
     return exchange
 
 
+def _end_date_param(end_ms: int) -> str:
+    """Twelve Data ``end_date`` for an exclusive epoch-ms bound.
+
+    Their bound is inclusive, so step back a second; bars landing exactly on
+    the boundary are dropped in ``_rows_to_candles``.
+    """
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(end_ms // 1000 - 1))
+
+
+def _rows_to_candles(rows: list[dict], fx: Decimal, end_ms: int | None = None) -> list[list]:
+    """time_series rows -> API-shape candles in EUR, oldest first.
+
+    Bars at or after ``end_ms`` are dropped so the exclusive bound holds even
+    though Twelve Data's ``end_date`` is inclusive.
+    """
+    candles = []
+    for row in rows:
+        raw = row["datetime"]
+        fmt = "%Y-%m-%d %H:%M:%S" if " " in raw else "%Y-%m-%d"
+        ts = calendar.timegm(time.strptime(raw[:19], fmt)) * 1000  # datetimes are UTC
+        if end_ms is not None and ts >= end_ms:
+            continue
+        candles.append([
+            int(ts),
+            str(_dec(row["open"]) * fx),
+            str(_dec(row["high"]) * fx),
+            str(_dec(row["low"]) * fx),
+            str(_dec(row["close"]) * fx),
+            row.get("volume", "0"),
+        ])
+    candles.sort(key=lambda c: c[0])
+    return candles
+
+
 class TwelveDataService:
     def __init__(self) -> None:
         # market -> {"base", "quote", "min_quote", "asset_class", "currency"}
@@ -252,12 +286,19 @@ class TwelveDataService:
         "365d": ("1day", 250),
     }
 
-    async def fetch_candles(self, market: str, range_: str, extra_bars: int = 0) -> list[list]:
+    async def fetch_candles(
+        self,
+        market: str,
+        range_: str,
+        extra_bars: int = 0,
+        end_ms: int | None = None,
+    ) -> list[list]:
         """OHLCV candles as [timestamp_ms, open, high, low, close, volume],
         oldest first, converted to EUR — same shape as the Bitvavo candles.
 
         ``extra_bars`` extends the window backwards at the same interval
-        (used as indicator warm-up by the analysis endpoint)."""
+        (used as indicator warm-up by the analysis endpoint). ``end_ms``
+        (epoch ms, exclusive) returns the page of bars just before it."""
         inst = self._instruments.get(market)
         if inst is None:
             raise RuntimeError(f"Unknown Twelve Data market: {market}")
@@ -265,14 +306,17 @@ class TwelveDataService:
             raise RuntimeError("Twelve Data API key not configured")
         interval, outputsize = self._RANGE_PARAMS[range_]
         outputsize += extra_bars
+        params = {
+            "symbol": inst.td_symbol,
+            "interval": interval,
+            "outputsize": outputsize,
+            "timezone": "UTC",
+            "apikey": self.api_key,
+        }
+        if end_ms is not None:
+            params["end_date"] = _end_date_param(end_ms)
         async with httpx.AsyncClient(base_url=TWELVEDATA_REST_URL, timeout=30) as client:
-            resp = await client.get("/time_series", params={
-                "symbol": inst.td_symbol,
-                "interval": interval,
-                "outputsize": outputsize,
-                "timezone": "UTC",
-                "apikey": self.api_key,
-            })
+            resp = await client.get("/time_series", params=params)
             resp.raise_for_status()
             data = resp.json()
         if data.get("status") == "error" or "values" not in data:
@@ -281,21 +325,7 @@ class TwelveDataService:
         fx = self.usd_eur if inst.currency == "USD" else Decimal("1")
         if fx is None:
             raise RuntimeError("USD/EUR rate not available yet")
-        candles = []
-        for row in data["values"]:
-            raw = row["datetime"]
-            fmt = "%Y-%m-%d %H:%M:%S" if " " in raw else "%Y-%m-%d"
-            ts = calendar.timegm(time.strptime(raw[:19], fmt))  # datetimes are UTC
-            candles.append([
-                int(ts) * 1000,
-                str(_dec(row["open"]) * fx),
-                str(_dec(row["high"]) * fx),
-                str(_dec(row["low"]) * fx),
-                str(_dec(row["close"]) * fx),
-                row.get("volume", "0"),
-            ])
-        candles.sort(key=lambda c: c[0])
-        return candles
+        return _rows_to_candles(data["values"], fx, end_ms)
 
     # ---- press releases / news ----
 
