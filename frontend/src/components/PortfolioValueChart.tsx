@@ -163,6 +163,9 @@ export default function PortfolioValueChart() {
         vertLine: { color: 'rgba(148, 163, 184, 0.4)' },
         horzLine: { color: 'rgba(148, 163, 184, 0.4)' },
       },
+      // Snapshots are a fixed 30-day window with no deeper history to fetch,
+      // so zooming could only ever stretch the bars it already shows.
+      handleScale: false,
     })
     chartRef.current = chart
 
