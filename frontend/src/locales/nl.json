@@ -291,6 +291,7 @@
       "365d": "1J"
     },
     "loadError": "Kon prijsgeschiedenis niet laden",
+    "loadingHistory": "Oudere gegevens laden…",
     "limitBuy": "Limiet kopen",
     "limitSell": "Limiet verkopen",
     "stopLoss": "Stop-loss",

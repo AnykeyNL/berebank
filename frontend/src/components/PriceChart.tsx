@@ -16,10 +16,9 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import { api } from '../lib/api'
+import { attachHistoryTrigger, shouldFitContent, useOlderHistory } from '../lib/chartHistory'
 import { chartPriceFormat, fmtPct, fmtPrice } from '../lib/format'
-
-// Bitvavo candle: [timestamp_ms, open, high, low, close, volume]
-type Candle = [number, string, string, string, string, string]
+import type { Candle } from '../lib/types'
 
 type ChartRange = '1h' | '1d' | '1w' | '30d' | '365d'
 type ChartType = 'line' | 'candle'
@@ -101,7 +100,7 @@ export default function PriceChart({
   lastPrice?: number | null
 }) {
   const { t } = useTranslation()
-  const [candles, setCandles] = useState<Candle[] | null>(null)
+  const [baseCandles, setBaseCandles] = useState<Candle[] | null>(null)
   const [error, setError] = useState(false)
   const [range, setRange] = useState<ChartRange>('1d')
   const [chartType, setChartType] = useState<ChartType>('line')
@@ -119,14 +118,14 @@ export default function PriceChart({
 
   useEffect(() => {
     let cancelled = false
-    setCandles(null)
+    setBaseCandles(null)
     setError(false)
 
     function load() {
       api<Candle[]>(`/markets/${encodeURIComponent(market)}/candles?range=${range}`)
         .then((data) => {
           if (!cancelled) {
-            setCandles(data)
+            setBaseCandles(data)
             setError(false)
           }
         })
@@ -143,6 +142,21 @@ export default function PriceChart({
     }
   }, [market, range])
 
+  // Zooming out pages in older bars ahead of the preset window.
+  const { bars, olderCount, loadOlder, loading: loadingHistory, canLoadMore } = useOlderHistory({
+    market,
+    range,
+    baseBars: baseCandles,
+  })
+  const candles = bars.length > 0 ? bars : null
+
+  const renderedCountRef = useRef(0)
+  const renderedOlderRef = useRef(0)
+  const loadOlderRef = useRef(loadOlder)
+  const canLoadRef = useRef(canLoadMore)
+  loadOlderRef.current = loadOlder
+  canLoadRef.current = canLoadMore && !loadingHistory
+
   const tradeMarkers = useMemo(() => {
     if (!candles || candles.length < 2) return []
     return tradesToMarkers(trades, candles, {
@@ -151,11 +165,12 @@ export default function PriceChart({
     })
   }, [candles, trades, t])
 
+  // Preset-scoped: the 1D badge stays the 1D change however far the user zooms.
   const stats = useMemo(() => {
-    if (!candles || candles.length < 2) return null
-    const closes = candles.map((c) => parseFloat(c[4]))
-    const lows = candles.map((c) => parseFloat(c[3]))
-    const highs = candles.map((c) => parseFloat(c[2]))
+    if (!baseCandles || baseCandles.length < 2) return null
+    const closes = baseCandles.map((c) => parseFloat(c[4]))
+    const lows = baseCandles.map((c) => parseFloat(c[3]))
+    const highs = baseCandles.map((c) => parseFloat(c[2]))
     const min = Math.min(...lows)
     const max = Math.max(...highs)
     const first = closes[0]
@@ -163,7 +178,7 @@ export default function PriceChart({
     const changePct = first !== 0 ? ((lastClose - first) / first) * 100 : null
     const up = lastClose >= first
     return { min, max, changePct, up, lastClose }
-  }, [candles])
+  }, [baseCandles])
 
   const chartExtent = useMemo(() => {
     if (!stats) return null
@@ -255,6 +270,17 @@ export default function PriceChart({
     }
   }, [])
 
+  // Page in older bars when the viewport reaches the left edge.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    return attachHistoryTrigger(
+      chart,
+      () => canLoadRef.current,
+      () => loadOlderRef.current(),
+    )
+  }, [])
+
   // Keep time-axis options in sync with the selected range.
   useEffect(() => {
     chartRef.current?.applyOptions({
@@ -269,6 +295,16 @@ export default function PriceChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
+
+    // Captured before the series is replaced: prepending bars shifts logical
+    // indices, so the viewport is remembered as timestamps instead.
+    const timeScale = chart.timeScale()
+    const fit = shouldFitContent(
+      renderedOlderRef.current,
+      timeScale.getVisibleLogicalRange(),
+      renderedCountRef.current,
+    )
+    const keptRange = fit ? null : timeScale.getVisibleRange()
 
     if (markersRef.current) {
       markersRef.current.setMarkers([])
@@ -343,8 +379,11 @@ export default function PriceChart({
       markersRef.current = createSeriesMarkers(seriesRef.current, tradeMarkers)
     }
 
-    chart.timeScale().fitContent()
-  }, [candles, chartType, stats, limitOrders, tradeMarkers, autoscaleInfoProvider, lastPrice, t])
+    renderedCountRef.current = candles.length
+    renderedOlderRef.current = olderCount
+    if (keptRange === null) timeScale.fitContent()
+    else timeScale.setVisibleRange(keptRange)
+  }, [candles, chartType, stats, limitOrders, tradeMarkers, autoscaleInfoProvider, lastPrice, olderCount, t])
 
   // Keep axis precision in sync when the live price crosses a formatting tier.
   useEffect(() => {
@@ -415,6 +454,11 @@ export default function PriceChart({
         )}
         {!error && (!candles || candles.length < 2) && (
           <div className="absolute inset-0 z-10 animate-pulse rounded-md bg-slate-800/40" />
+        )}
+        {loadingHistory && (
+          <div className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-slate-900/80 px-2 py-1 text-[10px] text-slate-400">
+            {t('chart.loadingHistory')}
+          </div>
         )}
         <div
           ref={containerRef}
