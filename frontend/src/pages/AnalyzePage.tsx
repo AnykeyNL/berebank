@@ -13,6 +13,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import { api } from '../lib/api'
+import { attachHistoryTrigger, shouldFitContent, useOlderHistory } from '../lib/chartHistory'
 import { usePrices } from '../lib/usePrices'
 import { chartPriceFormat, fmtDateTime, fmtPct, fmtPrice } from '../lib/format'
 import type {
@@ -263,10 +264,34 @@ const OVERLAY_LINES: Record<'sma' | 'ema' | 'bollinger', { key: string; strategy
   ],
 }
 
-function AnalysisChart({ analysis, overlays }: { analysis: Analysis; overlays: Set<Overlay> }) {
+function AnalysisChart({
+  analysis,
+  overlays,
+  market,
+  range,
+}: {
+  analysis: Analysis
+  overlays: Set<Overlay>
+  market: string
+  range: AnalysisRange
+}) {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<SeriesType>[]>([])
+  const renderedCountRef = useRef(0)
+  const renderedOlderRef = useRef(0)
+
+  // Zooming out pages in older bars ahead of the analysis window.
+  const { bars, olderCount, loadOlder, loading: loadingHistory, canLoadMore } = useOlderHistory({
+    market,
+    range,
+    baseBars: analysis.candles,
+  })
+  const loadOlderRef = useRef(loadOlder)
+  const canLoadRef = useRef(canLoadMore)
+  loadOlderRef.current = loadOlder
+  canLoadRef.current = canLoadMore && !loadingHistory
 
   useEffect(() => {
     const el = containerRef.current
@@ -303,13 +328,35 @@ function AnalysisChart({ analysis, overlays }: { analysis: Analysis; overlays: S
     }
   }, [])
 
+  // Page in older bars when the viewport reaches the left edge.
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
+    return attachHistoryTrigger(
+      chart,
+      () => canLoadRef.current,
+      () => loadOlderRef.current(),
+    )
+  }, [])
+
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    // Captured before the series is replaced: prepending bars shifts logical
+    // indices, so the viewport is remembered as timestamps instead.
+    const timeScale = chart.timeScale()
+    const fit = shouldFitContent(
+      renderedOlderRef.current,
+      timeScale.getVisibleLogicalRange(),
+      renderedCountRef.current,
+    )
+    const keptRange = fit ? null : timeScale.getVisibleRange()
+
     for (const s of seriesRef.current) chart.removeSeries(s)
     seriesRef.current = []
 
-    const candles = analysis.candles
+    const candles = bars
     if (candles.length < 2) return
     const lastClose = parseFloat(candles[candles.length - 1][4])
 
@@ -369,10 +416,22 @@ function AnalysisChart({ analysis, overlays }: { analysis: Analysis; overlays: S
       }
     }
 
-    chart.timeScale().fitContent()
-  }, [analysis, overlays])
+    renderedCountRef.current = candles.length
+    renderedOlderRef.current = olderCount
+    if (keptRange === null) timeScale.fitContent()
+    else timeScale.setVisibleRange(keptRange)
+  }, [analysis, overlays, bars, olderCount])
 
-  return <div ref={containerRef} className="w-full" />
+  return (
+    <div className="relative w-full">
+      {loadingHistory && (
+        <div className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-slate-900/80 px-2 py-1 text-[10px] text-slate-400">
+          {t('chart.loadingHistory')}
+        </div>
+      )}
+      <div ref={containerRef} className="w-full" />
+    </div>
+  )
 }
 
 /** Format backend reason params into human-readable values for i18n interpolation. */
@@ -597,7 +656,9 @@ export default function AnalyzePage() {
             </div>
           )}
           {!error && !analysis && <div className="h-80 animate-pulse rounded-md bg-slate-800/40" />}
-          {!error && analysis && <AnalysisChart analysis={analysis} overlays={overlays} />}
+          {!error && analysis && (
+            <AnalysisChart analysis={analysis} overlays={overlays} market={market} range={range} />
+          )}
         </div>
         {analysis && (
           <p className="mt-2 text-xs text-slate-500">
