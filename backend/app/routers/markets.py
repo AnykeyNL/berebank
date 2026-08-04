@@ -64,6 +64,8 @@ _opus_cache: dict[str, tuple[float, dict]] = {}
 _opus_track_record_cache: dict[str, tuple[float, dict | None]] = {}
 _news_cache: dict[str, tuple[float, list]] = {}
 _CANDLE_TTL = 60  # seconds
+_CANDLE_HISTORY_TTL = 3600  # seconds; pages behind the live window never change
+_CANDLE_CACHE_MAX = 500  # bound the cache: paged keys carry unbounded timestamps
 _GTP56SOL_TTL = 3600  # daily stored inputs change slowly
 _GTP56SOL_PEER_CAP = 8
 _GTP56SOL_MAX_CPU_FORECASTS = 2
@@ -90,15 +92,33 @@ _RANGE_PARAMS: dict[str, tuple[str, int]] = {
 }
 
 
-async def _fetch_bitvavo_candles(market: str, interval: str, limit: int) -> list:
+async def _fetch_bitvavo_candles(
+    market: str, interval: str, limit: int, end: int | None = None
+) -> list:
+    params: dict[str, object] = {"interval": interval, "limit": limit}
+    if end is not None:
+        # Bitvavo's `end` is exclusive, matching our own bound.
+        params["end"] = end
     async with httpx.AsyncClient(base_url=BITVAVO_REST_URL, timeout=15) as client:
-        resp = await client.get(
-            f"/{market}/candles",
-            params={"interval": interval, "limit": limit},
-        )
+        resp = await client.get(f"/{market}/candles", params=params)
         if resp.status_code != 200:
             raise HTTPException(502, "Could not fetch candles from Bitvavo")
         return sorted(resp.json(), key=lambda c: c[0])
+
+
+def _candle_cache_key(market: str, range_: str, end: int | None) -> str:
+    return f"{market}:{range_}:{end or ''}"
+
+
+def _candle_cache_ttl(end: int | None) -> int:
+    """Pages behind the live window are immutable, so they can be held longer."""
+    return _CANDLE_HISTORY_TTL if end else _CANDLE_TTL
+
+
+def _store_candles(key: str, candles: list) -> None:
+    _candle_cache[key] = (time.monotonic(), candles)
+    while len(_candle_cache) > _CANDLE_CACHE_MAX:
+        _candle_cache.pop(next(iter(_candle_cache)))
 
 
 def _change_pct(price: dict) -> Decimal | None:
@@ -479,11 +499,15 @@ async def get_candles(
     market: str,
     user: User = Depends(get_current_user),
     range_: Annotated[str, Query(alias="range")] = "1d",
+    end: Annotated[int | None, Query(ge=0)] = None,
 ):
     """OHLCV candles from Bitvavo for the requested range (oldest first).
 
     Each candle is [timestamp_ms, open, high, low, close, volume].
     Ranges: 1h, 1d, 1w, 30d, 90d, 180d, 365d.
+
+    ``end`` (epoch ms, exclusive) returns the page of bars just before it at
+    the range's own interval, so charts can extend history on zoom out.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -493,21 +517,21 @@ async def get_candles(
     if range_ not in _RANGE_PARAMS:
         raise HTTPException(400, f"Invalid range: {range_}. Use one of {', '.join(_RANGE_PARAMS)}")
 
-    cache_key = f"{market}:{range_}"
+    cache_key = _candle_cache_key(market, range_, end)
     cached = _candle_cache.get(cache_key)
-    if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
+    if cached and time.monotonic() - cached[0] < _candle_cache_ttl(end):
         return cached[1]
 
     if market_info["asset_class"] == "crypto":
         interval, limit = _RANGE_PARAMS[range_]
-        candles = await _fetch_bitvavo_candles(market, interval, limit)
+        candles = await _fetch_bitvavo_candles(market, interval, limit, end=end)
     else:
         try:
-            candles = await twelvedata_service.fetch_candles(market, range_)
+            candles = await twelvedata_service.fetch_candles(market, range_, end_ms=end)
         except Exception as exc:
             raise HTTPException(502, f"Could not fetch candles from Twelve Data: {exc}")
 
-    _candle_cache[cache_key] = (time.monotonic(), candles)
+    _store_candles(cache_key, candles)
     return candles
 
 

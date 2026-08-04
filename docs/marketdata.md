@@ -136,7 +136,7 @@ All candle endpoints return arrays **oldest first**:
 
 Numbers may be JSON numbers or strings depending on endpoint; treat as decimals.
 
-### Live candles — `GET /markets/{market}/candles?range=`
+### Live candles — `GET /markets/{market}/candles?range=&end=`
 
 | Range | Bitvavo interval | Twelve Data interval |
 |-------|------------------|----------------------|
@@ -152,7 +152,15 @@ Numbers may be JSON numbers or strings depending on endpoint; treat as decimals.
 
 **Warmup:** Analysis engines use **60 extra bars** before the display window for indicator warmup (`analysis.WARMUP_BARS`).
 
-**Cache:** Per-market candle + analysis responses cached **60 seconds**.
+**Paging (`end`):** optional epoch-ms bound, **exclusive**. Returns the page of
+bars just before `end` at the same interval and bar count as the range, so
+charts can extend history when the user zooms out. Bitvavo takes `end`
+directly; Twelve Data gets `end_date` (inclusive) and the boundary bar is
+dropped. Omitting `end` is unchanged behaviour.
+
+**Cache:** Per-market candle + analysis responses cached **60 seconds**; candle
+pages with `end` set are immutable and cached **1 hour**, with the candle cache
+bounded to 500 entries.
 
 ### Stored daily candles — `market_candles` table
 
