@@ -188,6 +188,9 @@
     "limitPrice": "Limit price",
     "priceCol": "Limit / trigger price",
     "placed": "Placed",
+    "expires": "Expires",
+    "expiresAt": "expires {{moment}}",
+    "neverExpires": "—",
     "showNews": "News",
     "showChart": "Chart"
   },

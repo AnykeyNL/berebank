@@ -112,7 +112,14 @@ Each market in `GET /markets` (and `list_markets` MCP tool) includes:
   "open": "94000.00",
   "change_24h_pct": "1.06",
   "volume_quote": "12345678.00",
-  "has_news": true
+  "has_news": true,
+  "tick_size": "1",
+  "amount_decimals": 8,
+  "min_order_base": "0.00009259",
+  "amount_quantum": "0.00000001",
+  "min_order_eur": "5",
+  "next_open": null,
+  "next_close": null
 }
 ```
 
@@ -121,6 +128,53 @@ Each market in `GET /markets` (and `list_markets` MCP tool) includes:
 | `bid` / `ask` | Real spread from Bitvavo | Both set to `last` |
 | `market_open` | `null` (always open) | `true` / `false` from Twelve Data |
 | `open` | 24h open | Previous close |
+| `tick_size` | Bitvavo `tickSize` | `null` |
+| `amount_decimals` | Bitvavo `quantityDecimals` (asset `decimals` as fallback) | `null` |
+| `min_order_base` | Bitvavo `minOrderInBaseAsset` | `null` |
+| `next_open` / `next_close` | `null` (never closes) | ISO 8601 UTC from the exchange calendar |
+
+`tick_size`, `amount_decimals` and `min_order_base` are the venue's own sizing rules,
+loaded once at startup from Bitvavo's `/markets` and `/assets`. `amount_quantum` and
+`min_order_eur` are what the engine itself
+enforces and are identical on every market: amounts are worked in steps of 1e-8 and no
+order may be worth less than EUR 5. All decimals are plain strings, never exponent
+notation — tick sizes on meme coins reach 1e-10, where `str(Decimal)` would emit `1E-10`.
+
+### Trading hours
+
+`market_open` is a snapshot: it answers whether trading is possible right now, and for
+stocks, funds and commodities it comes from Twelve Data, which also sees halts and
+unscheduled closures. What it cannot answer is *when* the market opens or closes again,
+which is what an agent needs to decide whether an order is worth placing at all.
+
+`next_open` and `next_close` on every market, and the richer `GET /markets/hours`
+(`get_market_hours` over MCP), come from `exchange_calendars` via the
+`backend/app/services/market_calendar.py` facade: **XNYS** for stocks and funds, the
+built-in **24/5** calendar for commodities, and nothing at all for crypto, which reports
+`always_open: true` with null timestamps. Holidays, Good Friday and early closes
+(Thanksgiving, Christmas Eve) are included.
+
+```json
+{
+  "server_time_utc": "2026-08-15T20:00:00Z",
+  "hours": [{
+    "asset_class": "stock", "market": "AAPL-EUR", "calendar": "XNYS",
+    "always_open": false, "is_open": false, "timezone": "America/New_York",
+    "next_open": "2026-08-17T13:30:00Z", "next_close": "2026-08-17T20:00:00Z",
+    "current_session_end": null
+  }]
+}
+```
+
+The two sources are cross-checked: when the live feed and the calendar disagree the
+backend logs a throttled warning. That also catches a missing `is_market_open` field,
+which would otherwise silently read as closed.
+
+The calendar is what makes order expiry meaningful. `advance_sessions()` answers "the
+close of the *n*-th session ending after now", so `expires_in_sessions=2` on a Saturday
+NYSE order resolves to Tuesday's close rather than forty hours later; `sessions_between()`
+answers the mirror question, how much trading time passed since a given moment. A crypto
+session is simply a 24-hour day.
 
 ---
 
@@ -305,6 +359,13 @@ Base path: `/markets` (requires JWT except `/health`).
 | `GET` | `/markets/{market}/opus-analysis?range=&horizon=` | Opus recommendation, feature table, calibration provenance, walk-forward + live track record |
 | `GET` | `/markets/{market}/news?limit=` | News items |
 
+The four per-market analysis endpoints also take `verbose` (default `true`). With
+`verbose=false` the response drops the `candles` of the display window and empties every
+`strategies[*].series`, keeping the signals, reasons, values, explanations and the whole
+outlook block. The web app needs the chart payload and leaves the default alone; the MCP
+tools default to `verbose=false`. The trim lives in `backend/app/services/payload.py` and
+returns a copy, so the TTL caches keep the full response.
+
 **Track record** (KimiK3, Fable5, Opus): Hit rate of past directional outlooks vs 5-day forward return; needs ≥70 stored daily bars. Opus adds a **live** record: the graded hit rate of the recommendations it actually published (≥20 samples).
 
 ### GTP56Sol specifics
@@ -347,24 +408,33 @@ Base path: `/markets` (requires JWT except `/health`).
 
 | Tool | REST equivalent | Notes |
 |------|-----------------|-------|
-| `list_markets` | `GET /markets` | Filter: `asset_class`, `filter` substring |
+| `list_markets` | `GET /markets` | Filter: `asset_class`, `filter` substring; carries the order sizing rules and `next_open`/`next_close` |
+| `get_market_hours` | `GET /markets/hours` | Filter: `market` or `asset_class`; calendar timestamps plus the live open flag |
 | `get_candles` | `GET /markets/{market}/candles` | Ranges: `1h`–`365d` |
-| `analyze_market` | `GET /markets/{market}/analysis` | 5 TA strategies, no context |
-| `get_kimi_analysis` | `GET /markets/{market}/kimi-analysis` | Includes `context`, `track_record` |
-| `get_fable5_analysis` | `GET /markets/{market}/fable5-analysis` | Includes `context`, `track_record` |
+| `analyze_market` | `GET /markets/{market}/analysis` | 5 TA strategies, no context; `verbose=false` by default |
+| `get_kimi_analysis` | `GET /markets/{market}/kimi-analysis` | Includes `context`, `track_record`; `verbose=false` by default |
+| `get_fable5_analysis` | `GET /markets/{market}/fable5-analysis` | Includes `context`, `track_record`; `verbose=false` by default |
 | `get_gtp56sol_analysis` | `GET /markets/{market}/gtp56sol-analysis` | Horizons: `1d`, `1w`, `1m` |
 | `get_opus_rankings` | `GET /markets/opus-rankings` | Ranked buy or sell list + basket; horizons `1d`, `1w`, `4w` |
-| `get_opus_analysis` | `GET /markets/{market}/opus-analysis` | Feature table, calibration provenance, both track records |
+| `get_opus_analysis` | `GET /markets/{market}/opus-analysis` | Feature table, calibration provenance, both track records; `verbose=false` by default |
 | `get_opus_portfolio_advice` | Opus ranking joined to `GET /portfolio` | Exit opinion per holding + cash-sized buy candidates; read-only |
+| `get_outlooks` | The five bulk outlook endpoints | Verdicts only, filtered to `markets` or an `asset_class`; engines `technical`, `kimi`, `fable5`, `opus`, `gtp56sol` |
 | `get_news` | `GET /markets/{market}/news` | Limit 1–10 |
+
+`get_outlooks` is a projection of the bulk endpoints, not a new engine: it calls the same
+handlers and therefore hits the same 900s caches, costing no extra provider requests. Note
+that the bulk endpoints run on stored daily candles over the full history, while a
+per-market tool scores the range you ask for (4h bars for crypto on `30d`, for instance),
+so the two can differ slightly. Opus horizons (`1d`/`1w`/`4w`) are the tool's vocabulary;
+`4w` maps to GTP56Sol's `1m`.
 
 ### Not exposed via MCP
 
-Bulk outlook endpoints, admin candle import/export, RSS admin, raw supplementary context without analysis.
+Admin candle import/export, RSS admin, raw supplementary context without analysis.
 
 ### Account / trading tools
 
-`get_portfolio`, `get_portfolio_history`, `list_orders`, `list_trades`, `get_trade_history`, `get_leaderboard`, `place_order`, `cancel_order` — see `AGENTS.md`.
+`get_account_status`, `get_portfolio`, `get_portfolio_history`, `list_orders`, `list_trades`, `get_trade_history`, `get_leaderboard`, `get_leaderboard_history`, `place_order`, `cancel_order` — see `AGENTS.md`.
 
 ---
 

@@ -49,3 +49,5 @@ CORS_ORIGINS = os.environ.get(
 COINGLASS_API_KEY = os.environ.get("BEREBANK_COINGLASS_API_KEY", "")
 
 MIN_ORDER_EUR = 5  # Bitvavo minimum order size
+# Smallest base-asset step the engine works in, matching Bitvavo's 8 decimals.
+AMOUNT_QUANTUM = "0.00000001"

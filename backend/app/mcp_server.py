@@ -10,6 +10,7 @@ Tools reuse the REST layer's functions directly, so behaviour (validation,
 fees, limits, response shapes) is identical to the web app.
 """
 import logging
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -19,20 +20,28 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from .config import MIN_ORDER_EUR, PUBLIC_URL
 from .database import SessionLocal
 from .models import User
 from .oauth import oauth_provider
 from .routers.leaderboard import get_leaderboard as _get_leaderboard
+from .routers.leaderboard import get_leaderboard_history as _get_leaderboard_history
 from .routers.markets import get_analysis as _get_analysis
 from .routers.markets import get_candles as _get_candles
 from .routers.markets import get_fable5_analysis as _get_fable5_analysis
+from .routers.markets import get_fable5_outlooks as _get_fable5_outlooks
 from .routers.markets import get_gtp56sol_analysis as _get_gtp56sol_analysis
+from .routers.markets import get_gtp56sol_outlooks as _get_gtp56sol_outlooks
 from .routers.markets import get_kimi_analysis as _get_kimi_analysis
+from .routers.markets import get_kimi_outlooks as _get_kimi_outlooks
+from .routers.markets import get_market_hours as _get_market_hours
 from .routers.markets import get_news as _get_news
 from .routers.markets import get_opus_analysis as _get_opus_analysis
+from .routers.markets import get_opus_outlooks as _get_opus_outlooks
 from .routers.markets import get_opus_rankings as _get_opus_rankings
+from .routers.markets import get_technical_outlooks as _get_technical_outlooks
 from .routers.markets import list_markets as _list_markets
 from .routers.orders import list_orders as _list_orders
 from .routers.orders import list_trades as _list_trades
@@ -41,6 +50,8 @@ from .routers.portfolio import get_portfolio as _get_portfolio
 from .routers.portfolio import get_portfolio_history as _get_portfolio_history
 from .schemas import OrderOut, PortfolioSnapshotOut
 from .services import opus_calibration, trading
+from .services.fees import get_30d_volume, get_fee_rates
+from .services.market_data import market_data_service
 from .services.trading import TradingError, trade_lock
 
 logger = logging.getLogger("berebank.mcp")
@@ -56,7 +67,17 @@ mcp = FastMCP(
         "Besides market and limit orders, stop-loss "
         "sell orders are supported: they trigger when the price falls to the trigger "
         "price and then sell at the live bid. Placing or cancelling orders requires "
-        "the user to have enabled trading via MCP in their BereBank profile."
+        "the user to have enabled trading via MCP in their BereBank profile: call "
+        "get_account_status to check that (plus the fee tier and minimum order size) "
+        "before working out a trade plan, rather than discovering it on the first "
+        "order. place_order takes a client_order_id that makes retries safe, a "
+        "validate_only flag that prices an order without placing it, and an "
+        "expiry (time_in_force day/gtd with expires_at or expires_in_sessions) "
+        "counted in trading sessions from the exchange calendar rather than in "
+        "wall-clock hours; get_market_hours says when a closed market opens "
+        "again. To compare "
+        "markets or engines, get_outlooks answers for many at once; the per-market "
+        "analysis tools omit candles and indicator series unless verbose=true."
     ),
     auth_server_provider=oauth_provider,
     auth=AuthSettings(
@@ -184,6 +205,19 @@ def _parse_decimal(value: str | float | int | None, field: str) -> Decimal | Non
         raise ToolError(f"Invalid decimal value for {field}: {value!r}")
 
 
+def _parse_datetime(value: str | None, field: str) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise ToolError(
+            f"Invalid ISO 8601 timestamp for {field}: {value!r} "
+            '(expected something like "2026-08-20T16:00:00Z")'
+        )
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
 @mcp.tool()
 def list_markets(filter: str | None = None, asset_class: str | None = None) -> list[dict]:
     """List EUR markets with live prices (last/bid/ask), 24h change and volume.
@@ -194,6 +228,15 @@ def list_markets(filter: str | None = None, asset_class: str | None = None) -> l
     flag). Optionally filter by asset_class and/or by a case-insensitive
     substring of the market symbol, e.g. "BTC" matches BTC-EUR. Prices are
     EUR decimals as strings.
+
+    Every row also carries its order sizing rules, so an order never has to be
+    guessed at. `min_order_eur` is the smallest order value and
+    `amount_quantum` the smallest amount step, both enforced by this engine on
+    every market. `tick_size`, `amount_decimals` and `min_order_base` are
+    Bitvavo's own rules for that market and are null for stocks, funds and
+    commodities, which come from Twelve Data and carry no venue precision. To
+    check one specific order before committing to it, call `place_order` with
+    validate_only=true.
     """
     if asset_class is not None and asset_class not in ("crypto", "stock", "fund", "commodity"):
         raise ToolError('asset_class must be "crypto", "stock", "fund" or "commodity"')
@@ -207,6 +250,41 @@ def list_markets(filter: str | None = None, asset_class: str | None = None) -> l
         needle = filter.upper()
         rows = [m for m in rows if needle in m.market]
     return [m.model_dump(mode="json") for m in rows]
+
+
+@mcp.tool()
+def get_market_hours(market: str | None = None, asset_class: str | None = None) -> dict:
+    """When a market is open, and when it next opens or closes.
+
+    Trading hours as data rather than a snapshot, so waiting time can be
+    computed instead of guessed. Pass a `market` for one instrument, an
+    `asset_class` for a whole class, or neither to get all four at once.
+
+    Each entry has `is_open` (the answer to act on: the live feed where there
+    is one, since that also catches halts, and the trading calendar
+    otherwise), `next_open`, `next_close` and `current_session_end` as UTC
+    ISO 8601 timestamps, plus the calendar and its timezone. Crypto reports
+    `always_open` with null timestamps. `calendar_open` and `live_market_open`
+    are also given separately, so a halt or an unscheduled closure is visible
+    rather than hidden behind one flag.
+
+    Stock and fund hours come from the NYSE calendar and commodities from the
+    24/5 forex calendar, both including holidays and early closes — the day
+    after Thanksgiving really does close at 13:00 ET. Use this before placing a
+    market order on a closed exchange, or to decide how long a limit order will
+    have to rest.
+    """
+    if asset_class is not None and asset_class not in ("crypto", "stock", "fund", "commodity"):
+        raise ToolError('asset_class must be "crypto", "stock", "fund" or "commodity"')
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+    finally:
+        db.close()
+    try:
+        return _get_market_hours(user=user, market=market, asset_class=asset_class)
+    except Exception as exc:
+        raise ToolError(_http_detail(exc))
 
 
 @mcp.tool()
@@ -232,7 +310,7 @@ async def get_candles(market: str, range: str = "1d") -> list[list]:
 
 
 @mcp.tool()
-async def analyze_market(market: str, range: str = "30d") -> dict:
+async def analyze_market(market: str, range: str = "30d", verbose: bool = False) -> dict:
     """Run technical analysis on a market (e.g. BTC-EUR) over a past range.
 
     Range is one of "1d", "1w", "30d", "90d", "180d" or "365d" (default
@@ -248,9 +326,12 @@ async def analyze_market(market: str, range: str = "30d") -> dict:
 
     Each strategy returns a signal ("bullish", "bearish", "neutral", or
     "none" when there is not enough data), a structured reason, an
-    explanation of how the strategy works, key values (decimal strings) and
-    indicator series. The response also includes the candles of the display
-    window. Signals are educational indications from a paper-money
+    explanation of how the strategy works and key values (decimal strings).
+
+    Set `verbose` to true to also get the chart payload: the candles of the
+    display window plus an overlay series per indicator. It defaults to false
+    because those arrays dominate the response and are rarely needed to reach
+    a conclusion. Signals are educational indications from a paper-money
     simulation, not financial advice.
     """
     db = SessionLocal()
@@ -259,13 +340,13 @@ async def analyze_market(market: str, range: str = "30d") -> dict:
     finally:
         db.close()
     try:
-        return await _get_analysis(market, user=user, range_=range)
+        return await _get_analysis(market, user=user, range_=range, verbose=verbose)
     except Exception as exc:
         raise ToolError(_http_detail(exc))
 
 
 @mcp.tool()
-async def get_kimi_analysis(market: str, range: str = "30d") -> dict:
+async def get_kimi_analysis(market: str, range: str = "30d", verbose: bool = False) -> dict:
     """KimiK3 direction outlook for a market (e.g. BTC-EUR): a single
     bullish/bearish/neutral verdict blended from eight price strategies
     (trend, RSI, MACD, Bollinger volatility, support/resistance with
@@ -290,14 +371,22 @@ async def get_kimi_analysis(market: str, range: str = "30d") -> dict:
     enough daily history has been harvested, a track_record shows how
     often past outlooks on this market were followed by a move in the
     indicated direction within 5 days (hit_rate_pct, samples, average
-    forward returns). Educational indication from a paper-money
-    simulation, not financial advice.
+    forward returns).
+
+    Set `verbose` to true to also get the chart payload: the candles of the
+    display window plus an overlay series per indicator. It defaults to false
+    because those arrays dominate the response and are rarely needed to reach
+    a conclusion. To compare several markets or engines, use `get_outlooks`,
+    which returns just the verdicts in one call. Educational indication from a
+    paper-money simulation, not financial advice.
     """
     db = SessionLocal()
     try:
         user = _current_user(db)
         try:
-            return await _get_kimi_analysis(market, user=user, db=db, range_=range)
+            return await _get_kimi_analysis(
+                market, user=user, db=db, range_=range, verbose=verbose
+            )
         except Exception as exc:
             raise ToolError(_http_detail(exc))
     finally:
@@ -305,7 +394,7 @@ async def get_kimi_analysis(market: str, range: str = "30d") -> dict:
 
 
 @mcp.tool()
-async def get_fable5_analysis(market: str, range: str = "30d") -> dict:
+async def get_fable5_analysis(market: str, range: str = "30d", verbose: bool = False) -> dict:
     """Fable5 direction outlook for a market (e.g. BTC-EUR): a single
     bullish/bearish/neutral verdict blended from eight technical-analysis
     signals (trend, MACD, dual-horizon momentum, ADX trend strength, RSI,
@@ -332,14 +421,22 @@ async def get_fable5_analysis(market: str, range: str = "30d") -> dict:
     daily history has been harvested, a track_record shows how often past
     outlooks on this market were followed by a move in the indicated
     direction within 5 days (hit_rate_pct, samples, average forward
-    returns). Educational indication from a paper-money simulation, not
-    financial advice.
+    returns).
+
+    Set `verbose` to true to also get the chart payload: the candles of the
+    display window plus an overlay series per indicator. It defaults to false
+    because those arrays dominate the response and are rarely needed to reach
+    a conclusion. To compare several markets or engines, use `get_outlooks`,
+    which returns just the verdicts in one call. Educational indication from a
+    paper-money simulation, not financial advice.
     """
     db = SessionLocal()
     try:
         user = _current_user(db)
         try:
-            return await _get_fable5_analysis(market, user=user, db=db, range_=range)
+            return await _get_fable5_analysis(
+                market, user=user, db=db, range_=range, verbose=verbose
+            )
         except Exception as exc:
             raise ToolError(_http_detail(exc))
     finally:
@@ -370,6 +467,156 @@ async def get_gtp56sol_analysis(market: str, horizon: str = "1w") -> dict:
             raise ToolError(_http_detail(exc))
     finally:
         db.close()
+
+
+_OUTLOOK_ENGINES = ("technical", "kimi", "fable5", "opus", "gtp56sol")
+# GTP56Sol names the 21-bar window "1m" where Opus calls it "4w".
+_GTP56SOL_HORIZON = {"1d": "1d", "1w": "1w", "4w": "1m"}
+_OUTLOOKS_MAX_MARKETS = 500
+
+
+async def _engine_outlooks(engine: str, *, user: User, db: Session, horizon: str) -> dict:
+    """One engine's whole-universe outlook payload, from its shared TTL cache."""
+    if engine == "technical":
+        return await run_in_threadpool(_get_technical_outlooks, user=user, db=db)
+    if engine == "kimi":
+        return await _get_kimi_outlooks(user=user, db=db)
+    if engine == "fable5":
+        return await _get_fable5_outlooks(user=user, db=db)
+    if engine == "opus":
+        return await _get_opus_outlooks(user=user, db=db, horizon=horizon)
+    return await run_in_threadpool(
+        _get_gtp56sol_outlooks, user=user, db=db, horizon=_GTP56SOL_HORIZON[horizon]
+    )
+
+
+@mcp.tool()
+async def get_outlooks(
+    markets: list[str] | None = None,
+    engines: list[str] | None = None,
+    asset_class: str | None = None,
+    horizon: str = "1w",
+    limit: int = 100,
+) -> dict:
+    """Direction outlooks for many markets and engines in a single call.
+
+    This is the tool for screening and for consensus checks: instead of one
+    `get_kimi_analysis` plus one `get_fable5_analysis` per market, ask for the
+    markets and engines you care about at once. Only the verdict is returned —
+    direction, score, buy/sell scores, confidence, regime — with no candles and
+    no indicator series, so a four-market cross-engine check costs one small
+    response instead of a dozen large ones.
+
+    Arguments:
+        markets: Market symbols, e.g. ["BTC-EUR", "AAPL-EUR"]. When omitted,
+            `asset_class` is required and the whole class is returned.
+        engines: Any of "technical", "kimi", "fable5", "opus", "gtp56sol".
+            Defaults to all five.
+        asset_class: Narrow to "crypto", "stock", "fund" or "commodity".
+        horizon: "1d", "1w" (default) or "4w"; only affects opus and gtp56sol.
+        limit: Cap on the number of markets returned when `markets` is omitted
+            (1..500, default 100, alphabetical); ignored when `markets` is given.
+
+    Outlooks are computed from the stored daily candles that are harvested in
+    the background, so a market only appears once it has at least 60 days of
+    history, and the numbers are the daily-bar view of each engine. The
+    per-market tools (`get_kimi_analysis`, `get_fable5_analysis`,
+    `get_opus_analysis`, `get_gtp56sol_analysis`) score the range you ask for —
+    4-hour bars for crypto on "30d", for instance — so their scores can differ
+    slightly. Use this tool to pick a shortlist, then the per-market tool to
+    understand why. Each engine's pass is shared and cached for 15 minutes; the
+    first call after a cache miss scores every market and can take a while.
+
+    Markets you asked for that no engine could score are listed separately, so
+    an absent market is never silently dropped. Educational indications from a
+    paper-money simulation, not financial advice.
+    """
+    if asset_class is not None and asset_class not in ("crypto", "stock", "fund", "commodity"):
+        raise ToolError('asset_class must be "crypto", "stock", "fund" or "commodity"')
+    if horizon not in opus_calibration.HORIZONS:
+        raise ToolError(f'horizon must be one of {", ".join(opus_calibration.HORIZONS)}')
+    if limit < 1 or limit > _OUTLOOKS_MAX_MARKETS:
+        raise ToolError(f"limit must be between 1 and {_OUTLOOKS_MAX_MARKETS}")
+
+    selected: list[str] = []
+    for engine in engines if engines else _OUTLOOK_ENGINES:
+        if engine not in _OUTLOOK_ENGINES:
+            raise ToolError(
+                f"unknown engine {engine!r}; use one of {', '.join(_OUTLOOK_ENGINES)}"
+            )
+        if engine not in selected:
+            selected.append(engine)
+
+    wanted: set[str] | None = None
+    unknown: list[str] = []
+    if markets:
+        wanted = set()
+        for symbol in markets:
+            symbol = symbol.upper()
+            if market_data_service.get_market(symbol) is None:
+                unknown.append(symbol)
+            else:
+                wanted.add(symbol)
+        if not wanted:
+            raise ToolError(f"unknown market(s): {', '.join(unknown)}")
+    elif asset_class is None:
+        raise ToolError(
+            "pass markets, or an asset_class to cover a whole class; "
+            "use get_opus_rankings to screen every market at once"
+        )
+
+    def in_scope(market: str) -> bool:
+        if wanted is not None and market not in wanted:
+            return False
+        if asset_class:
+            info = market_data_service.get_market(market)
+            if info is None or info["asset_class"] != asset_class:
+                return False
+        return True
+
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        outlooks: dict[str, dict] = {}
+        meta: dict[str, dict] = {}
+        for engine in selected:
+            try:
+                payload = await _engine_outlooks(engine, user=user, db=db, horizon=horizon)
+            except Exception as exc:
+                raise ToolError(_http_detail(exc))
+            rows = payload.get("outlooks") or {}
+            meta[engine] = {
+                "generated_at": payload.get("generated_at"),
+                "scored_markets": len(rows),
+            }
+            for market, outlook in rows.items():
+                if in_scope(market):
+                    outlooks.setdefault(market, {})[engine] = outlook
+    finally:
+        db.close()
+
+    truncated = False
+    if wanted is None and len(outlooks) > limit:
+        truncated = True
+        outlooks = {market: outlooks[market] for market in sorted(outlooks)[:limit]}
+
+    result: dict = {
+        "horizon": horizon,
+        "engines": meta,
+        "outlooks": outlooks,
+        "truncated": truncated,
+    }
+    if unknown:
+        result["unknown_markets"] = unknown
+    if wanted is not None:
+        no_history = sorted(wanted - set(outlooks))
+        if no_history:
+            result["without_outlook"] = no_history
+            result["without_outlook_reason"] = (
+                "no engine has scored these markets yet; they need at least 60 "
+                "days of harvested daily candles"
+            )
+    return result
 
 
 @mcp.tool()
@@ -451,7 +698,9 @@ async def get_opus_rankings(
 
 
 @mcp.tool()
-async def get_opus_analysis(market: str, range: str = "30d", horizon: str = "1w") -> dict:
+async def get_opus_analysis(
+    market: str, range: str = "30d", horizon: str = "1w", verbose: bool = False
+) -> dict:
     """Opus recommendation for one market, with the full feature breakdown.
 
     Same engine as `get_opus_rankings`, zoomed in on a single market. Returns
@@ -476,8 +725,10 @@ async def get_opus_analysis(market: str, range: str = "30d", horizon: str = "1w"
 
     Range is "1d", "1w", "30d" (default), "90d", "180d" or "365d" and only
     affects the returned candles and display window. Horizon is "1d", "1w"
-    (default) or "4w" and selects the calibration. Educational indication from
-    a paper-money simulation, not financial advice.
+    (default) or "4w" and selects the calibration. Set `verbose` to true to
+    include the candles of the display window; it defaults to false because
+    the feature table, not the chart, carries the answer. Educational
+    indication from a paper-money simulation, not financial advice.
     """
     if horizon not in opus_calibration.HORIZONS:
         raise ToolError(f'horizon must be one of {", ".join(opus_calibration.HORIZONS)}')
@@ -486,7 +737,7 @@ async def get_opus_analysis(market: str, range: str = "30d", horizon: str = "1w"
         user = _current_user(db)
         try:
             return await _get_opus_analysis(
-                market, user=user, db=db, range_=range, horizon=horizon
+                market, user=user, db=db, range_=range, horizon=horizon, verbose=verbose
             )
         except Exception as exc:
             raise ToolError(_http_detail(exc))
@@ -553,6 +804,52 @@ async def get_news(market: str, limit: int = 10) -> list[dict]:
     return [r.model_dump(mode="json") if hasattr(r, "model_dump") else r for r in rows]
 
 
+_TRADING_TOOLS = ("place_order", "cancel_order")
+
+
+@mcp.tool()
+def get_account_status() -> dict:
+    """What this connection is allowed to do, before you plan around it.
+
+    Call this first when a session may end in trading. It reports whether the
+    user has enabled "Allow trading via MCP" in their BereBank profile, which
+    tools that unlocks, the granted OAuth scopes, the account's current
+    maker/taker fee tier with the 30-day volume behind it, the EUR 5 minimum
+    order value and the server's UTC time. When trading is disabled, every
+    read tool still works — say so before drawing up a trade plan that cannot
+    be executed. The setting is checked again on every order, so a user can
+    turn it on without reconnecting.
+    """
+    token = get_access_token()
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        volume = get_30d_volume(db, user.account.id)
+        maker, taker = get_fee_rates(volume)
+        return {
+            "display_name": user.display_name,
+            "email": user.email,
+            "role": user.role,
+            "is_active": user.is_active,
+            "trading_enabled": user.mcp_trading_enabled,
+            "trading_tools": list(_TRADING_TOOLS) if user.mcp_trading_enabled else [],
+            "trading_disabled_reason": None if user.mcp_trading_enabled else (
+                "The user has not enabled 'Allow trading via MCP' in their BereBank "
+                "profile (MCP access section). Read tools are unaffected."
+            ),
+            "scopes": list(token.scopes) if token is not None else [],
+            "fee_tier": {
+                "volume_30d_eur": str(volume),
+                "maker_pct": str(maker * 100),
+                "taker_pct": str(taker * 100),
+            },
+            "minimum_order_eur": str(MIN_ORDER_EUR),
+            "server_time_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+    finally:
+        db.close()
+
+
 @mcp.tool()
 def get_portfolio() -> dict:
     """Get the user's portfolio: EUR cash balance, reserved funds, crypto holdings
@@ -590,8 +887,14 @@ def get_portfolio_history() -> list[dict]:
 def list_orders(status: str | None = None) -> list[dict]:
     """List the user's orders, newest first (max 200).
 
-    Optionally filter by status: "open", "filled" or "cancelled".
+    Optionally filter by status: "open", "filled", "cancelled" or "expired"
+    (a resting order that reached its time_in_force; its reservation was
+    released just as a cancellation would). Each order carries the
+    `client_order_id` it was placed under, plus `time_in_force` and the
+    resolved `expires_at`, so state can be reconstructed after a restart.
     """
+    if status is not None and status not in ("open", "filled", "cancelled", "expired"):
+        raise ToolError('status must be "open", "filled", "cancelled" or "expired"')
     db = SessionLocal()
     try:
         user = _current_user(db)
@@ -657,6 +960,33 @@ def get_leaderboard() -> list[dict]:
 
 
 @mcp.tool()
+def get_leaderboard_history(days: int = 30, interval: str = "day") -> dict:
+    """How the user's rank moved over the past `days` (1-180, default 30).
+
+    Where `get_leaderboard` is a photograph, this is the film: one point per
+    `interval` ("day", default, or "hour"), each with the user's `rank` and
+    `total_eur`, the `leader_total_eur` to measure the gap, and how many
+    `traders` were ranked. Points come from the hourly account-value
+    snapshots, so a day is its last recorded value and history starts when
+    the account did. The snapshots hold only the total: for the cash/assets
+    split or trade counts, call `get_leaderboard`.
+    """
+    if days < 1 or days > 180:
+        raise ToolError("days must be between 1 and 180")
+    if interval not in ("hour", "day"):
+        raise ToolError('interval must be "hour" or "day"')
+    db = SessionLocal()
+    try:
+        user = _current_user(db)
+        history = _get_leaderboard_history(
+            days=days, interval=interval, user=user, db=db
+        )
+        return history.model_dump(mode="json")
+    finally:
+        db.close()
+
+
+@mcp.tool()
 async def place_order(
     market: str,
     side: str,
@@ -665,6 +995,11 @@ async def place_order(
     amount_quote: str | None = None,
     limit_price: str | None = None,
     trigger_price: str | None = None,
+    client_order_id: str | None = None,
+    validate_only: bool = False,
+    time_in_force: str | None = None,
+    expires_at: str | None = None,
+    expires_in_sessions: int | None = None,
 ) -> dict:
     """Place an order. Requires trading via MCP to be enabled in the user's profile.
 
@@ -685,6 +1020,34 @@ async def place_order(
             (together with amount) and must be below the current price. The
             asset amount is reserved while the stop-loss rests; cancel via
             cancel_order to release it.
+        client_order_id: Your own id for this order (max 64 characters), which
+            makes the call safe to retry. If the response to a placement is
+            lost, replaying the exact same call returns the order that was
+            already stored under this id, flagged with duplicate=true, instead
+            of placing a second one. Ids are unique per account and are
+            returned on every order, so `list_orders` can be used to recover
+            state after a crash.
+        validate_only: Run every check and report what the order would cost
+            without placing it. The response is a preview with the price,
+            amount, fee and resulting balance the engine would use, so order
+            size, decimal precision and affordability can be verified up front.
+        time_in_force: How long a resting order stays alive: "gtc" (default,
+            until filled or cancelled), "day" (until the end of the current or
+            next trading session) or "gtd" (until a moment you set). Not
+            applicable to market orders, which fill or fail immediately.
+        expires_at: UTC ISO 8601 moment for a "gtd" order, e.g.
+            "2026-08-20T16:00:00Z".
+        expires_in_sessions: Alternative to expires_at, counted in **trading
+            sessions** rather than hours — the only reading that survives a
+            weekend. A NYSE order placed on Saturday with 2 expires at
+            Tuesday's close, not forty hours later. For crypto, which never
+            closes, a session is a 24-hour day. Use `get_market_hours` to see
+            when sessions start and end.
+
+    Both `expires_at` and the resolved `time_in_force` come back on the order,
+    so you can see exactly what was agreed rather than having to infer it.
+    Expired orders get status "expired" and release their reservation, the same
+    way a cancellation does.
 
     Fees are charged in EUR. Minimum order value is EUR 5.
     """
@@ -696,24 +1059,46 @@ async def place_order(
     try:
         user = _current_user(db)
         _require_trading(user)
-        async with trade_lock:
+        args = (
+            db,
+            user.account,
+            market.upper(),
+            side,
+            order_type,
+            _parse_decimal(amount, "amount"),
+            _parse_decimal(amount_quote, "amount_quote"),
+            _parse_decimal(limit_price, "limit_price"),
+            _parse_decimal(trigger_price, "trigger_price"),
+        )
+        expiry = {
+            "time_in_force": time_in_force,
+            "expires_at": _parse_datetime(expires_at, "expires_at"),
+            "expires_in_sessions": expires_in_sessions,
+        }
+        if validate_only:
             try:
-                order = trading.place_order(
-                    db,
-                    user.account,
-                    market.upper(),
-                    side,
-                    order_type,
-                    _parse_decimal(amount, "amount"),
-                    _parse_decimal(amount_quote, "amount_quote"),
-                    _parse_decimal(limit_price, "limit_price"),
-                    _parse_decimal(trigger_price, "trigger_price"),
-                )
+                return trading.preview_order(*args, **expiry)
             except TradingError as exc:
                 db.rollback()
                 raise ToolError(exc.message)
-        logger.info("MCP order placed by %s: %s", user.email, order.id)
-        return OrderOut.model_validate(order).model_dump(mode="json")
+        async with trade_lock:
+            try:
+                key = trading.normalize_client_order_id(client_order_id)
+                duplicate = key is not None and trading.find_client_order(
+                    db, user.account, key
+                ) is not None
+                order = trading.place_order(*args, client_order_id=key, **expiry)
+            except TradingError as exc:
+                db.rollback()
+                raise ToolError(exc.message)
+        if duplicate:
+            logger.info("MCP order replay by %s: %s", user.email, order.id)
+        else:
+            logger.info("MCP order placed by %s: %s", user.email, order.id)
+        return {
+            **OrderOut.model_validate(order).model_dump(mode="json"),
+            "duplicate": duplicate,
+        }
     finally:
         db.close()
 

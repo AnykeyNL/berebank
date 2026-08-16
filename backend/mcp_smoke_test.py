@@ -8,7 +8,10 @@ MCP tool over Streamable HTTP. Requires the same test user as smoke_test.py
 import asyncio
 import base64
 import hashlib
+import json
 import secrets
+import time
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -151,6 +154,21 @@ def tool_text(result) -> str:
     return " ".join(b.text for b in result.content if b.type == "text")
 
 
+def tool_dict(result) -> dict:
+    return json.loads(tool_text(result))
+
+
+def tool_list(result) -> list:
+    """Tools returning a list emit one JSON block per item."""
+    items: list = []
+    for block in result.content:
+        if block.type != "text":
+            continue
+        parsed = json.loads(block.text)
+        items.extend(parsed if isinstance(parsed, list) else [parsed])
+    return items
+
+
 async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> None:
     headers = {"Authorization": f"Bearer {access_token}"}
     async with streamablehttp_client(f"{BASE}/mcp", headers=headers) as (read, write, _):
@@ -160,11 +178,12 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             expected = {
                 "list_markets", "get_candles", "analyze_market",
                 "get_kimi_analysis", "get_fable5_analysis",
-                "get_gtp56sol_analysis", "get_news",
+                "get_gtp56sol_analysis", "get_news", "get_outlooks",
                 "get_opus_rankings", "get_opus_analysis",
-                "get_opus_portfolio_advice",
+                "get_opus_portfolio_advice", "get_account_status",
                 "get_portfolio", "get_portfolio_history", "list_orders",
                 "list_trades", "get_trade_history", "get_leaderboard",
+                "get_market_hours", "get_leaderboard_history",
                 "place_order", "cancel_order",
             }
             assert expected <= tools, f"missing tools: {expected - tools}"
@@ -173,7 +192,32 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             r = await session.call_tool("list_markets", {"filter": "BTC-EUR"})
             assert not r.isError, tool_text(r)
             assert "BTC-EUR" in tool_text(r)
-            print("list_markets OK")
+            btc = tool_list(r)[0]
+            for field in ("tick_size", "amount_decimals", "min_order_base",
+                          "amount_quantum", "min_order_eur"):
+                assert field in btc, f"list_markets missing {field}"
+            assert "E" not in str(btc["tick_size"]), btc["tick_size"]
+            assert btc["next_open"] is None and btc["next_close"] is None, btc
+            print("list_markets OK, sizing rules:",
+                  {k: btc[k] for k in ("tick_size", "amount_decimals", "min_order_eur")})
+
+            r = await session.call_tool("list_markets", {"filter": "AAPL-EUR"})
+            aapl = tool_list(r)[0]
+            assert aapl["next_close"], "stocks need calendar timestamps"
+            print("list_markets carries exchange hours OK, AAPL next close",
+                  aapl["next_close"])
+
+            r = await session.call_tool("get_market_hours", {"asset_class": "stock"})
+            assert not r.isError, tool_text(r)
+            hours = tool_dict(r)["hours"][0]
+            assert hours["calendar"] == "XNYS" and hours["always_open"] is False, hours
+            assert hours["next_close"], hours
+            assert hours["is_open"] or hours["next_open"], hours
+            r = await session.call_tool("get_market_hours", {"market": "BTC-EUR"})
+            crypto_hours = tool_dict(r)["hours"][0]
+            assert crypto_hours["always_open"] is True, crypto_hours
+            assert crypto_hours["is_open"] is True, crypto_hours
+            print("get_market_hours OK, NYSE", "open" if hours["is_open"] else "closed")
 
             r = await session.call_tool("get_candles", {"market": "BTC-EUR"})
             assert not r.isError, tool_text(r)
@@ -189,6 +233,42 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
             r = await session.call_tool("get_news", {"market": "AAPL-EUR", "limit": 3})
             assert not r.isError, tool_text(r)
             print("get_news OK")
+
+            # Compact by default: the chart payload only on request.
+            r = await session.call_tool("analyze_market", {"market": "BTC-EUR"})
+            assert not r.isError, tool_text(r)
+            compact = tool_dict(r)
+            assert "candles" not in compact, "analyze_market leaked candles by default"
+            assert all(not s.get("series") for s in compact["strategies"].values())
+            assert compact["strategies"]["rsi"]["signal"], "signals must survive the trim"
+            compact_size = len(tool_text(r))
+
+            r = await session.call_tool("analyze_market", {"market": "BTC-EUR", "verbose": True})
+            assert not r.isError, tool_text(r)
+            verbose = tool_dict(r)
+            assert verbose["candles"], "verbose=true must return candles"
+            assert any(s.get("series") for s in verbose["strategies"].values())
+            print(f"analyze_market compact by default OK "
+                  f"({compact_size} vs {len(tool_text(r))} chars verbose)")
+
+            r = await session.call_tool("get_outlooks", {
+                "markets": ["BTC-EUR", "ETH-EUR"], "engines": ["technical", "kimi"],
+            })
+            assert not r.isError, tool_text(r)
+            batch = tool_dict(r)
+            assert set(batch["engines"]) == {"technical", "kimi"}, batch["engines"]
+            for market, per_engine in batch["outlooks"].items():
+                assert market in ("BTC-EUR", "ETH-EUR"), market
+                for outlook in per_engine.values():
+                    assert "direction" in outlook and "score" in outlook, outlook
+            assert "candles" not in tool_text(r)
+            print("get_outlooks OK,", len(batch["outlooks"]), "markets")
+
+            r = await session.call_tool("get_outlooks", {"markets": ["NOPE-EUR"]})
+            assert r.isError and "unknown market" in tool_text(r).lower(), tool_text(r)
+            r = await session.call_tool("get_outlooks", {})
+            assert r.isError and "asset_class" in tool_text(r), tool_text(r)
+            print("get_outlooks argument validation OK")
 
             r = await session.call_tool("get_opus_rankings", {"horizon": "1w", "limit": 5})
             assert not r.isError, tool_text(r)
@@ -217,43 +297,131 @@ async def exercise_tools(access_token: str, c: httpx.Client, web_token: str) -> 
 
             r = await session.call_tool("get_leaderboard", {})
             assert not r.isError, tool_text(r)
-            import json as _lb_json
-            entries = []
-            for block in r.content:
-                parsed = _lb_json.loads(block.text)
-                entries.extend(parsed if isinstance(parsed, list) else [parsed])
+            entries = tool_list(r)
             assert entries and entries[0]["rank"] == 1
             assert any(e.get("is_you") for e in entries), "connected user missing from leaderboard"
             assert "user_id" not in entries[0]
             print("get_leaderboard OK,", len(entries), "traders")
 
-            # Trading disabled -> clear error
+            r = await session.call_tool("get_leaderboard_history", {"days": 7})
+            assert not r.isError, tool_text(r)
+            history = tool_dict(r)
+            assert history["days"] == 7 and history["interval"] == "day", history
+            for point in history["points"]:
+                assert point["rank"] >= 1 and point["traders"] >= point["rank"], point
+                assert point["created_at"].endswith("Z"), point
+            r = await session.call_tool("get_leaderboard_history", {"interval": "week"})
+            assert r.isError and "interval" in tool_text(r), tool_text(r)
+            print("get_leaderboard_history OK,", len(history["points"]), "points")
+
+            # Trading disabled -> get_account_status says so before any order
             set_trading(c, web_token, False)
+            r = await session.call_tool("get_account_status", {})
+            assert not r.isError, tool_text(r)
+            status = tool_dict(r)
+            assert status["trading_enabled"] is False, status
+            assert status["trading_tools"] == [], status
+            assert status["trading_disabled_reason"], status
+            assert status["fee_tier"]["taker_pct"], status
+            assert status["minimum_order_eur"] == "5", status
+            print("get_account_status reports trading off OK")
+
             r = await session.call_tool("place_order", {
                 "market": "BTC-EUR", "side": "buy", "order_type": "market", "amount_quote": "10",
             })
             assert r.isError and "disabled" in tool_text(r), tool_text(r)
             print("trading blocked while toggle off OK")
 
-            # Enable trading -> place a far-below-market limit order, then cancel it
             set_trading(c, web_token, True)
-            r = await session.call_tool("list_markets", {"filter": "BTC-EUR"})
-            import json as _json
-            last = _json.loads(tool_text(r))
-            last_price = float((last[0] if isinstance(last, list) else last)["last"])
+            r = await session.call_tool("get_account_status", {})
+            status = tool_dict(r)
+            assert status["trading_enabled"] is True, status
+            assert "place_order" in status["trading_tools"], status
+            print("get_account_status reflects the toggle immediately OK")
+
+            # Dry run: priced, validated, but nothing stored
+            before = tool_list(await session.call_tool("list_orders", {}))
             r = await session.call_tool("place_order", {
-                "market": "BTC-EUR", "side": "buy", "order_type": "limit",
-                "amount": "0.001", "limit_price": str(round(last_price * 0.5)),
+                "market": "BTC-EUR", "side": "buy", "order_type": "market",
+                "amount_quote": "10", "validate_only": True,
             })
             assert not r.isError, tool_text(r)
-            order = _json.loads(tool_text(r))
+            preview = tool_dict(r)
+            assert preview["validated_only"] is True, preview
+            assert preview["fee_type"] == "taker" and preview["fee_eur"], preview
+            after = tool_list(await session.call_tool("list_orders", {}))
+            assert len(after) == len(before), "validate_only placed an order"
+            print("place_order validate_only OK, fee", preview["fee_eur"])
+
+            r = await session.call_tool("place_order", {
+                "market": "BTC-EUR", "side": "buy", "order_type": "market",
+                "amount_quote": "1", "validate_only": True,
+            })
+            assert r.isError and "Minimum order value" in tool_text(r), tool_text(r)
+            print("validate_only rejects like a real placement OK")
+
+            # Place a far-below-market limit order, then cancel it
+            r = await session.call_tool("list_markets", {"filter": "BTC-EUR"})
+            last_price = float(tool_list(r)[0]["last"])
+            client_id = f"smoke-{int(time.time())}"
+            args = {
+                "market": "BTC-EUR", "side": "buy", "order_type": "limit",
+                "amount": "0.001", "limit_price": str(round(last_price * 0.5)),
+                "client_order_id": client_id,
+            }
+            r = await session.call_tool("place_order", args)
+            assert not r.isError, tool_text(r)
+            order = tool_dict(r)
             assert order["status"] == "open"
+            assert order["client_order_id"] == client_id, order
+            assert order["duplicate"] is False, order
             print("place_order (limit) OK, id", order["id"])
+
+            # Replaying the identical call must not place a second order
+            r = await session.call_tool("place_order", args)
+            assert not r.isError, tool_text(r)
+            replay = tool_dict(r)
+            assert replay["id"] == order["id"], (replay, order)
+            assert replay["duplicate"] is True, replay
+            open_orders = tool_list(
+                await session.call_tool("list_orders", {"status": "open"})
+            )
+            assert sum(1 for o in open_orders if o["client_order_id"] == client_id) == 1
+            print("client_order_id replay returned the original order OK")
 
             r = await session.call_tool("cancel_order", {"order_id": order["id"]})
             assert not r.isError, tool_text(r)
-            assert _json.loads(tool_text(r))["status"] == "cancelled"
+            assert tool_dict(r)["status"] == "cancelled"
             print("cancel_order OK")
+
+            # Expiry is resolved to a concrete moment at placement
+            r = await session.call_tool("place_order", {
+                "market": "BTC-EUR", "side": "buy", "order_type": "limit",
+                "amount": "0.001", "limit_price": str(round(last_price * 0.5)),
+                "expires_in_sessions": 2,
+            })
+            assert not r.isError, tool_text(r)
+            expiring = tool_dict(r)
+            assert expiring["time_in_force"] == "gtd", expiring
+            assert expiring["expires_after_sessions"] == 2, expiring
+            resolved = datetime.fromisoformat(expiring["expires_at"].replace("Z", "+00:00"))
+            ahead = resolved - datetime.now(timezone.utc)
+            assert timedelta(days=1) < ahead < timedelta(days=3), ahead
+            print("place_order expiry resolved to", expiring["expires_at"])
+
+            listed = next(
+                o for o in tool_list(await session.call_tool("list_orders", {"status": "open"}))
+                if o["id"] == expiring["id"]
+            )
+            assert listed["expires_at"] == expiring["expires_at"], listed
+            await session.call_tool("cancel_order", {"order_id": expiring["id"]})
+
+            r = await session.call_tool("place_order", {
+                "market": "BTC-EUR", "side": "buy", "order_type": "market",
+                "amount_quote": "10", "time_in_force": "day", "validate_only": True,
+            })
+            assert r.isError and "resting orders only" in tool_text(r), tool_text(r)
+            print("expiry on a market order rejected OK")
 
             # Invalid order -> engine error passes through
             r = await session.call_tool("place_order", {

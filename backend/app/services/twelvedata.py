@@ -153,6 +153,11 @@ class TwelveDataService:
                 "base": inst.base,
                 "quote": "EUR",
                 "min_quote": None,
+                # Twelve Data quotes no venue sizing rules; only the engine's
+                # own 8-decimal amount quantum and EUR 5 minimum apply.
+                "min_base": None,
+                "tick_size": None,
+                "amount_decimals": None,
                 "asset_class": inst.asset_class,
                 "currency": inst.currency,
                 "listing": None,

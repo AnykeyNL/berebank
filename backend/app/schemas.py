@@ -1,7 +1,23 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer
+
+from .config import AMOUNT_QUANTUM, MIN_ORDER_EUR
+
+
+def utc_iso(moment: datetime | None) -> str | None:
+    """A timestamp with an explicit offset, whatever the database returned.
+
+    Everything is stored in UTC, but SQLite hands back naive datetimes where
+    PostgreSQL keeps the zone. A client should not have to know which one it
+    is talking to.
+    """
+    if moment is None:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ---- Auth ----
@@ -49,6 +65,10 @@ class MarketOut(BaseModel):
     listing: str | None = None  # venue, e.g. "Bitvavo", "NASDAQ", "NYSE"
     asset_class: str = "crypto"  # crypto | stock | fund | commodity
     market_open: bool | None = None  # None for crypto (always open)
+    # From the trading calendar, UTC ISO 8601; null for crypto. market_open
+    # stays the live truth (it sees halts); these are the schedule.
+    next_open: str | None = None
+    next_close: str | None = None
     last: Decimal | None = None
     bid: Decimal | None = None
     ask: Decimal | None = None
@@ -56,6 +76,15 @@ class MarketOut(BaseModel):
     change_24h_pct: Decimal | None = None
     volume_quote: Decimal | None = None
     has_news: bool = False
+    # Order sizing rules, so clients do not have to guess. tick_size,
+    # amount_decimals and min_order_base are the venue's own (Bitvavo; null for
+    # the Twelve Data instruments). amount_quantum and min_order_eur are what
+    # this engine enforces on every market.
+    tick_size: str | None = None
+    amount_decimals: int | None = None
+    min_order_base: str | None = None
+    amount_quantum: str = AMOUNT_QUANTUM
+    min_order_eur: Decimal = Decimal(MIN_ORDER_EUR)
 
 
 class NewsItemOut(BaseModel):
@@ -86,24 +115,38 @@ class OrderCreate(BaseModel):
     amount_quote: Decimal | None = Field(default=None, gt=0)  # EUR, market orders only
     limit_price: Decimal | None = Field(default=None, gt=0)
     trigger_price: Decimal | None = Field(default=None, gt=0)  # stop-loss orders only
+    client_order_id: str | None = Field(default=None, max_length=64)  # replay guard
+    # Resting orders only. expires_in_sessions counts trading sessions, which
+    # is the only reading that survives a weekend.
+    time_in_force: str | None = Field(default=None, pattern="^(gtc|day|gtd)$")
+    expires_at: datetime | None = None
+    expires_in_sessions: int | None = Field(default=None, ge=1)
 
 
 class OrderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    client_order_id: str | None = None
     market: str
     side: str
     order_type: str
-    status: str
+    status: str  # open | filled | cancelled | expired
     amount: Decimal | None
     amount_quote: Decimal | None
     limit_price: Decimal | None
     trigger_price: Decimal | None
     fee_paid: Decimal | None
     filled_price: Decimal | None
+    time_in_force: str = "gtc"
+    expires_at: datetime | None = None
+    expires_after_sessions: int | None = None
     created_at: datetime
     filled_at: datetime | None
+
+    @field_serializer("expires_at", "created_at", "filled_at")
+    def _as_utc(self, moment: datetime | None) -> str | None:
+        return utc_iso(moment)
 
 
 class TradeOut(BaseModel):
@@ -172,6 +215,26 @@ class LeaderboardEntry(BaseModel):
     cash_eur: Decimal  # balance + EUR reserved for open limit buys
     assets_eur: Decimal  # holdings valued at the live last price
     total_eur: Decimal
+
+
+class LeaderboardHistoryPoint(BaseModel):
+    """One moment in the competition, from the account-value snapshots."""
+
+    created_at: datetime
+    rank: int
+    total_eur: Decimal
+    leader_total_eur: Decimal
+    traders: int
+
+    @field_serializer("created_at")
+    def _as_utc(self, moment: datetime) -> str | None:
+        return utc_iso(moment)
+
+
+class LeaderboardHistoryOut(BaseModel):
+    days: int
+    interval: str
+    points: list[LeaderboardHistoryPoint]
 
 
 # ---- Admin ----

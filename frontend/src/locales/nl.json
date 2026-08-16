@@ -188,6 +188,9 @@
     "limitPrice": "Limietprijs",
     "priceCol": "Limiet- / triggerprijs",
     "placed": "Geplaatst",
+    "expires": "Verloopt",
+    "expiresAt": "verloopt {{moment}}",
+    "neverExpires": "—",
     "showNews": "Nieuws",
     "showChart": "Grafiek"
   },

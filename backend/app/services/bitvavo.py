@@ -29,6 +29,15 @@ def _dec(value) -> Decimal | None:
         return None
 
 
+def _int(value) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class BitvavoService:
     def __init__(self) -> None:
         # market -> {"base", "quote", "min_quote"}
@@ -100,7 +109,12 @@ class BitvavoService:
             markets_resp.raise_for_status()
             assets_resp = await client.get("/assets")
             assets_resp.raise_for_status()
-            names = {a["symbol"]: a["name"] for a in assets_resp.json()}
+            assets = assets_resp.json()
+            names = {a["symbol"]: a["name"] for a in assets}
+            # /markets carries the per-market sizing rules; the asset-level
+            # decimals on /assets are the fallback for the older markets that
+            # do not report quantityDecimals.
+            decimals = {a["symbol"]: _int(a.get("decimals")) for a in assets}
             markets = {}
             for m in markets_resp.json():
                 if m.get("quote") == "EUR" and m.get("status") == "trading":
@@ -108,6 +122,9 @@ class BitvavoService:
                         "base": m["base"],
                         "quote": m["quote"],
                         "min_quote": _dec(m.get("minOrderInQuoteAsset")),
+                        "min_base": _dec(m.get("minOrderInBaseAsset")),
+                        "tick_size": _dec(m.get("tickSize")),
+                        "amount_decimals": _int(m.get("quantityDecimals")) or decimals.get(m["base"]),
                         "name": names.get(m["base"]),
                         "listing": "Bitvavo",
                     }

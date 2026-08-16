@@ -97,19 +97,37 @@ assistants such as Claude or Cursor to their account.
   normal email/password and click *Allow access*. No API keys to manage; access can run for
   up to 30 days before re-login (refresh tokens), and disabling the account cuts access
   immediately.
-- **Read access** (always available to active users): `list_markets`, `get_candles`,
-  `analyze_market`, `get_kimi_analysis`, `get_gtp56sol_analysis`, `get_news`,
-  `get_portfolio`, `get_portfolio_history`, `list_orders`, `list_trades`,
-  `get_trade_history`, `get_leaderboard`. GTP56Sol independently forecasts
-  Up/Sideways/Down probabilities for `1d`, `1w`, or `1m` horizons (1, 5, or
-  21 trading-session bars) from completed stored daily candles and exposes
-  similar-history plus walk-forward evidence.
+- **Read access** (always available to active users): `get_account_status`, `list_markets`,
+  `get_market_hours`, `get_candles`, `analyze_market`, `get_kimi_analysis`, `get_fable5_analysis`,
+  `get_gtp56sol_analysis`, `get_opus_rankings`, `get_opus_analysis`,
+  `get_opus_portfolio_advice`, `get_outlooks`, `get_news`, `get_portfolio`,
+  `get_portfolio_history`, `list_orders`, `list_trades`, `get_trade_history`,
+  `get_leaderboard`, `get_leaderboard_history`. GTP56Sol independently forecasts Up/Sideways/Down
+  probabilities for `1d`, `1w`, or `1m` horizons (1, 5, or 21 trading-session
+  bars) from completed stored daily candles and exposes similar-history plus
+  walk-forward evidence.
 - **Trading** (`place_order`, `cancel_order`) is only allowed when the user enables
   **Allow trading via MCP** in the *MCP access* section of their profile page. The setting
   is off by default and is checked on every call, so turning it off applies immediately.
+  `get_account_status` reports it, so an assistant can plan around it instead of finding
+  out when an order is rejected.
 
 Orders placed via MCP go through exactly the same engine as the web app: same live prices,
-fees, EUR 5 minimum, and balance checks.
+fees, EUR 5 minimum, and balance checks. Three affordances exist mainly for programmatic
+callers: `place_order` accepts a `client_order_id`, so retrying after a lost response
+returns the original order rather than placing a second one; `validate_only` prices
+and validates an order without storing anything; and `time_in_force` with either
+`expires_at` or `expires_in_sessions` gives a resting order an expiry. Expiry is counted
+in trading sessions from the exchange calendar, not in wall-clock hours, so two sessions
+on an order placed over the weekend means Tuesday's close. A background sweeper marks
+lapsed orders `expired` and releases their reservation; a hook in the price matcher would
+miss exactly the case that matters, since a closed exchange sends no ticks.
+
+The analysis tools are tuned for context budgets rather than for charts. `get_outlooks`
+answers for many markets and engines in one call, and `analyze_market`,
+`get_kimi_analysis`, `get_fable5_analysis` and `get_opus_analysis` omit the candles and
+indicator series unless `verbose=true` — roughly a fortyfold reduction, with every signal,
+value and explanation kept.
 
 ## Production deployment (Ubuntu Linux 24.04)
 

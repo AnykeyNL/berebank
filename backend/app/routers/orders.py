@@ -26,6 +26,10 @@ async def create_order(
             order = trading.place_order(
                 db, user.account, body.market.upper(), body.side, body.order_type,
                 body.amount, body.amount_quote, body.limit_price, body.trigger_price,
+                client_order_id=body.client_order_id,
+                time_in_force=body.time_in_force,
+                expires_at=body.expires_at,
+                expires_in_sessions=body.expires_in_sessions,
             )
         except TradingError as exc:
             db.rollback()
@@ -35,7 +39,9 @@ async def create_order(
 
 @router.get("/orders", response_model=list[OrderOut])
 def list_orders(
-    status_filter: str | None = Query(default=None, alias="status"),
+    status_filter: str | None = Query(
+        default=None, alias="status", pattern="^(open|filled|cancelled|expired)$"
+    ),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

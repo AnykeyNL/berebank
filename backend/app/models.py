@@ -52,13 +52,23 @@ class Holding(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    # A client-supplied id makes retries safe: an agent that loses the response
+    # to a placement can replay the same call and get the original order back
+    # instead of a second one.
+    __table_args__ = (UniqueConstraint("account_id", "client_order_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), index=True)
+    client_order_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     market: Mapped[str] = mapped_column(String(20), index=True)  # e.g. BTC-EUR
     side: Mapped[str] = mapped_column(String(4))  # buy | sell
     order_type: Mapped[str] = mapped_column(String(10))  # market | limit | stop_loss
-    status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open | filled | cancelled
+    status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open | filled | cancelled | expired
+    time_in_force: Mapped[str] = mapped_column(String(4), default="gtc")  # gtc | day | gtd
+    # Resolved through the trading calendar at placement, so the agreed moment
+    # is visible rather than implied; expires_after_sessions keeps the intent.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_after_sessions: Mapped[int | None] = mapped_column(nullable=True)
     amount: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # base asset amount
     amount_quote: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # EUR amount (market orders)
     limit_price: Mapped[Decimal | None] = mapped_column(Money, nullable=True)

@@ -141,7 +141,10 @@ export default function PortfolioPage() {
                     <p className={`font-mono ${changeClassFor(info.change24hPct)}`}>{fmtPct(info.change24hPct)}</p>
                   </div>
                 </div>
-                <p className="mt-1.5 text-xs text-slate-500">{fmtDateTime(o.created_at)}</p>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  {fmtDateTime(o.created_at)}
+                  {o.expires_at && ` · ${t('trade.expiresAt', { moment: fmtDateTime(o.expires_at) })}`}
+                </p>
               </div>
               )
             })}
@@ -157,6 +160,7 @@ export default function PortfolioPage() {
                 <th className="px-4 py-2 text-right">{t('portfolio.currentPrice')}</th>
                 <th className="px-4 py-2 text-right">{t('common.change24h')}</th>
                 <th className="px-4 py-2">{t('trade.placed')}</th>
+                <th className="px-4 py-2">{t('trade.expires')}</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -185,6 +189,9 @@ export default function PortfolioPage() {
                     {fmtPct(info.change24hPct)}
                   </td>
                   <td className="px-4 py-2 text-slate-400">{fmtDateTime(o.created_at)}</td>
+                  <td className="px-4 py-2 text-slate-400">
+                    {o.expires_at ? fmtDateTime(o.expires_at) : t('trade.neverExpires')}
+                  </td>
                   <td className="px-4 py-2 text-right">
                     <button
                       type="button"

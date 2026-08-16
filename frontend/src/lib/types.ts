@@ -505,7 +505,7 @@ export interface Order {
   market: string
   side: 'buy' | 'sell'
   order_type: 'market' | 'limit' | 'stop_loss'
-  status: 'open' | 'filled' | 'cancelled'
+  status: 'open' | 'filled' | 'cancelled' | 'expired'
   amount: string | null
   amount_quote: string | null
   limit_price: string | null
@@ -514,6 +514,10 @@ export interface Order {
   filled_price: string | null
   created_at: string
   filled_at: string | null
+  client_order_id: string | null
+  time_in_force: 'gtc' | 'day' | 'gtd'
+  expires_at: string | null
+  expires_after_sessions: number | null
 }
 
 export interface Trade {

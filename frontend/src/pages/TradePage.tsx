@@ -446,7 +446,10 @@ export default function TradePage() {
                       </p>
                     </div>
                   </div>
-                  <p className="mt-1.5 text-xs text-slate-500">{fmtDateTime(o.created_at)}</p>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {fmtDateTime(o.created_at)}
+                    {o.expires_at && ` · ${t('trade.expiresAt', { moment: fmtDateTime(o.expires_at) })}`}
+                  </p>
                 </div>
               ))}
             </div>
@@ -459,6 +462,7 @@ export default function TradePage() {
                   <th className="px-4 py-2 text-right">{t('common.amount')}</th>
                   <th className="px-4 py-2 text-right">{t('trade.priceCol')}</th>
                   <th className="px-4 py-2">{t('trade.placed')}</th>
+                  <th className="px-4 py-2">{t('trade.expires')}</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -477,6 +481,9 @@ export default function TradePage() {
                       {fmtPrice(o.order_type === 'stop_loss' ? o.trigger_price : o.limit_price)}
                     </td>
                     <td className="px-4 py-2 text-slate-400">{fmtDateTime(o.created_at)}</td>
+                    <td className="px-4 py-2 text-slate-400">
+                      {o.expires_at ? fmtDateTime(o.expires_at) : t('trade.neverExpires')}
+                    </td>
                     <td className="px-4 py-2 text-right">
                       <button
                         onClick={() => cancelOrder(o.id)}

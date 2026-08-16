@@ -19,6 +19,7 @@ from .services.market_data import market_data_service
 from .services.candle_store import candle_harvest_service
 from .services.opus_store import opus_harvest_service
 from .services.rss_aggregator import rss_aggregator_service
+from .services.order_expiry import order_expiry_service
 from .services.snapshots import portfolio_snapshot_service
 from .services.trading import load_open_limit_markets, match_limit_orders
 from .services.twelvedata import twelvedata_service
@@ -49,6 +50,29 @@ def migrate_schema() -> None:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE orders ADD COLUMN trigger_price VARCHAR"))
         logger.info("Migrated: added orders.trigger_price")
+    if "client_order_id" not in order_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE orders ADD COLUMN client_order_id VARCHAR(64)"))
+            # create_all puts this uniqueness on the table itself; existing
+            # tables get the same guarantee from an index. NULLs stay distinct
+            # in both SQLite and PostgreSQL, so orders without an id are fine.
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_account_client_order_id "
+                "ON orders (account_id, client_order_id)"
+            ))
+        logger.info("Migrated: added orders.client_order_id")
+    if "time_in_force" not in order_columns:
+        # The model declares DateTime(timezone=True); SQLite ignores the
+        # qualifier, PostgreSQL needs it to match what create_all would build.
+        timestamp = "TIMESTAMP WITH TIME ZONE" if engine.dialect.name == "postgresql" else "TIMESTAMP"
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE orders ADD COLUMN time_in_force VARCHAR(4) DEFAULT 'gtc'"
+            ))
+            conn.execute(text("UPDATE orders SET time_in_force = 'gtc' WHERE time_in_force IS NULL"))
+            conn.execute(text(f"ALTER TABLE orders ADD COLUMN expires_at {timestamp}"))
+            conn.execute(text("ALTER TABLE orders ADD COLUMN expires_after_sessions INTEGER"))
+        logger.info("Migrated: added order expiry columns")
     if engine.dialect.name == "postgresql":
         # order_type was originally VARCHAR(6); PostgreSQL enforces the limit,
         # so "stop_loss" (9 chars) needs a wider column. SQLite ignores VARCHAR
@@ -107,6 +131,7 @@ async def lifespan(app: FastAPI):
     coinglass_service.set_api_key(cg_key)
     rss_aggregator_service.start()
     portfolio_snapshot_service.start()
+    order_expiry_service.start()
     candle_harvest_service.start()
     opus_harvest_service.start()
     # The MCP Streamable HTTP transport needs its session manager running.
@@ -116,6 +141,7 @@ async def lifespan(app: FastAPI):
     await twelvedata_service.stop()
     await rss_aggregator_service.stop()
     await portfolio_snapshot_service.stop()
+    await order_expiry_service.stop()
     await candle_harvest_service.stop()
     await opus_harvest_service.stop()
 

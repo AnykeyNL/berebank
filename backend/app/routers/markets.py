@@ -33,7 +33,9 @@ from ..services.candle_store import (
     load_recent_daily_candles,
 )
 from ..services.fees import get_30d_volume, get_fee_rates
+from ..services import market_calendar
 from ..services.market_data import market_data_service
+from ..services.payload import plain_decimal, shape_analysis
 from ..services.rss_aggregator import fetch_articles_for_market, get_markets_with_articles, merge_news_items
 from ..services.td_context import get_macro_context, get_market_context, serialize_context
 from ..services.twelvedata import twelvedata_service
@@ -128,6 +130,77 @@ def _change_pct(price: dict) -> Decimal | None:
     return ((last - open_) / open_ * 100).quantize(Decimal("0.01"))
 
 
+def _iso(moment: datetime | None) -> str | None:
+    return None if moment is None else moment.isoformat().replace("+00:00", "Z")
+
+
+def _session_states() -> dict[str, dict]:
+    """One calendar lookup per asset class, reused across every market."""
+    return {
+        name: market_calendar.session_state(name)
+        for name in ("crypto", "stock", "fund", "commodity")
+    }
+
+
+@router.get("/hours")
+def get_market_hours(
+    user: User = Depends(get_current_user),
+    market: str | None = None,
+    asset_class: Annotated[str | None, Query(pattern="^(crypto|stock|fund|commodity)$")] = None,
+):
+    """Trading hours per asset class: open now, and when that next changes.
+
+    `is_open` is the answer to act on: it follows the live feed where there is
+    one, since that also reflects halts, and the calendar otherwise.
+    `calendar_open` and `live_market_open` are reported separately so a
+    disagreement is visible rather than hidden. Timestamps are UTC ISO 8601 and
+    are null for crypto, which never closes.
+    """
+    wanted: list[tuple[str, str | None]] = []
+    if market:
+        market = market.upper()
+        info = market_data_service.get_market(market)
+        if info is None:
+            raise HTTPException(404, f"Unknown market: {market}")
+        wanted.append((info["asset_class"], market))
+    elif asset_class:
+        wanted.append((asset_class, None))
+    else:
+        wanted = [(name, None) for name in ("crypto", "stock", "fund", "commodity")]
+
+    states = _session_states()
+    hours = []
+    for name, symbol in wanted:
+        state = states[name]
+        live_open = None
+        if symbol is not None:
+            live_open = (market_data_service.get_price(symbol) or {}).get("market_open")
+        elif not state["always_open"]:
+            # Any market in the class carries the same flag; take the first.
+            for candidate, info in market_data_service.markets.items():
+                if info["asset_class"] == name:
+                    live_open = (market_data_service.get_price(candidate) or {}).get("market_open")
+                    break
+        market_calendar.note_disagreement(name, live_open)
+        hours.append({
+            "asset_class": name,
+            "market": symbol,
+            "calendar": state["calendar"],
+            "timezone": state["timezone"],
+            "always_open": state["always_open"],
+            "is_open": state["is_open"] if live_open is None else live_open,
+            "calendar_open": state["is_open"],
+            "live_market_open": live_open,
+            "next_open": _iso(state["next_open"]),
+            "next_close": _iso(state["next_close"]),
+            "current_session_end": _iso(state["current_session_end"]),
+        })
+    return {
+        "server_time_utc": _iso(datetime.now(timezone.utc)),
+        "hours": hours,
+    }
+
+
 @router.get("", response_model=list[MarketOut])
 def list_markets(
     user: User = Depends(get_current_user),
@@ -136,10 +209,12 @@ def list_markets(
 ):
     article_counts = get_markets_with_articles(db)
     td_configured = twelvedata_service.api_key is not None
+    states = _session_states()
     out = []
     for market, info in sorted(market_data_service.markets.items()):
         if asset_class and info["asset_class"] != asset_class:
             continue
+        state = states[info["asset_class"]]
         price = market_data_service.get_price(market) or {}
         rss_count = article_counts.get(market, 0)
         if info["asset_class"] in ("stock", "fund"):
@@ -162,6 +237,11 @@ def list_markets(
             volume_quote=price.get("volume_quote"),
             market_open=price.get("market_open"),
             has_news=has_news,
+            tick_size=plain_decimal(info.get("tick_size")),
+            amount_decimals=info.get("amount_decimals"),
+            min_order_base=plain_decimal(info.get("min_base")),
+            next_open=_iso(state["next_open"]),
+            next_close=_iso(state["next_close"]),
         ))
     return out
 
@@ -545,6 +625,7 @@ async def get_analysis(
     market: str,
     user: User = Depends(get_current_user),
     range_: Annotated[str, Query(alias="range")] = "30d",
+    verbose: bool = True,
 ):
     """Technical analysis for a market over the requested range.
 
@@ -553,6 +634,9 @@ async def get_analysis(
     candles. Each strategy returns a signal (bullish/bearish/neutral, or
     "none" when there is not enough data), a structured reason, key values
     and overlay series. Ranges: 1d, 1w, 30d, 90d, 180d, 365d.
+
+    ``verbose=false`` omits the chart payload (candles and indicator series)
+    and keeps the signals, values and explanations.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -565,7 +649,7 @@ async def get_analysis(
     cache_key = f"{market}:{range_}"
     cached = _analysis_cache.get(cache_key)
     if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
-        return cached[1]
+        return shape_analysis(cached[1], verbose)
 
     # Fetch the display window plus warm-up bars so indicators such as
     # SMA-50 are defined from the first visible bar.
@@ -589,7 +673,7 @@ async def get_analysis(
         **analysis_service.analyze(candles, display_count),
     }
     _analysis_cache[cache_key] = (time.monotonic(), result)
-    return result
+    return shape_analysis(result, verbose)
 
 
 def _kimi_track_record(db: Session, market: str) -> dict | None:
@@ -901,6 +985,7 @@ async def get_kimi_analysis(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     range_: Annotated[str, Query(alias="range")] = "30d",
+    verbose: bool = True,
 ):
     """KimiK3 direction outlook for a market over the requested range.
 
@@ -918,6 +1003,9 @@ async def get_kimi_analysis(
     a track record (hit rate of past outlooks on this market, computed from
     stored daily candles) once enough history has been harvested. Ranges:
     1d, 1w, 30d, 90d, 180d, 365d.
+
+    ``verbose=false`` omits the chart payload (candles and indicator series)
+    and keeps the outlook, signals, values and explanations.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -930,7 +1018,7 @@ async def get_kimi_analysis(
     cache_key = f"{market}:{range_}"
     cached = _kimi_cache.get(cache_key)
     if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
-        return cached[1]
+        return shape_analysis(cached[1], verbose)
 
     # Same candle fetch as the analysis endpoint: display window plus
     # warm-up bars so indicators are defined from the first visible bar.
@@ -958,7 +1046,7 @@ async def get_kimi_analysis(
         "track_record": _kimi_track_record(db, market),
     }
     _kimi_cache[cache_key] = (time.monotonic(), result)
-    return result
+    return shape_analysis(result, verbose)
 
 
 @router.get("/{market}/fable5-analysis")
@@ -967,6 +1055,7 @@ async def get_fable5_analysis(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     range_: Annotated[str, Query(alias="range")] = "30d",
+    verbose: bool = True,
 ):
     """Fable5 direction outlook for a market over the requested range.
 
@@ -981,6 +1070,9 @@ async def get_fable5_analysis(
     contributions. Includes a track record (hit rate of past outlooks on this
     market, computed from stored daily candles) once enough history has been
     harvested. Ranges: 1d, 1w, 30d, 90d, 180d, 365d.
+
+    ``verbose=false`` omits the chart payload (candles and indicator series)
+    and keeps the outlook, signals, values and explanations.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -993,7 +1085,7 @@ async def get_fable5_analysis(
     cache_key = f"{market}:{range_}"
     cached = _fable5_cache.get(cache_key)
     if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
-        return cached[1]
+        return shape_analysis(cached[1], verbose)
 
     # Same candle fetch as the analysis endpoint: display window plus
     # warm-up bars so indicators are defined from the first visible bar.
@@ -1029,7 +1121,7 @@ async def get_fable5_analysis(
         "track_record": _fable5_track_record(db, market),
     }
     _fable5_cache[cache_key] = (time.monotonic(), result)
-    return result
+    return shape_analysis(result, verbose)
 
 
 def _opus_track_record(db: Session, market: str) -> dict | None:
@@ -1051,6 +1143,7 @@ async def get_opus_analysis(
     db: Session = Depends(get_db),
     range_: Annotated[str, Query(alias="range")] = "30d",
     horizon: str = opus_calibration_service.DEFAULT_HORIZON,
+    verbose: bool = True,
 ):
     """Opus recommendation for one market, with the full feature breakdown.
 
@@ -1063,6 +1156,9 @@ async def get_opus_analysis(
     itself. Includes both a walk-forward track record (replaying this market's
     own history) and the live track record of the recommendations Opus actually
     published. Ranges: 1d, 1w, 30d, 90d, 180d, 365d. Horizons: 1d, 1w, 4w.
+
+    ``verbose=false`` omits the candles of the display window and keeps the
+    full feature table, recommendation and track records.
     """
     market = market.upper()
     market_info = market_data_service.get_market(market)
@@ -1077,7 +1173,7 @@ async def get_opus_analysis(
     cache_key = f"{market}:{range_}:{horizon}:{user.id}"
     cached = _opus_cache.get(cache_key)
     if cached and time.monotonic() - cached[0] < _CANDLE_TTL:
-        return cached[1]
+        return shape_analysis(cached[1], verbose)
 
     # Same candle fetch as the analysis endpoint: display window plus
     # warm-up bars so indicators are defined from the first visible bar.
@@ -1162,7 +1258,7 @@ async def get_opus_analysis(
         ),
     }
     _opus_cache[cache_key] = (time.monotonic(), result)
-    return result
+    return shape_analysis(result, verbose)
 
 
 @router.get("/{market}/news", response_model=list[NewsItemOut])
