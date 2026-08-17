@@ -5,6 +5,7 @@ export interface User {
   role: 'user' | 'bank_manager'
   is_active: boolean
   preferred_language: 'en' | 'nl' | null
+  whatsapp_number: string | null
   mcp_trading_enabled: boolean
 }
 
@@ -580,6 +581,14 @@ export interface LeaderboardEntry {
 
 export interface AdminUser extends User {
   balance_eur: string
+  created_at: string
+}
+
+export interface RegistrationRequest {
+  id: number
+  display_name: string
+  email: string
+  whatsapp_number: string
   created_at: string
 }
 

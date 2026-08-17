@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from './lib/auth'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import PortfolioPage from './pages/PortfolioPage'
 import TradePage from './pages/TradePage'
 import AnalyzePage from './pages/AnalyzePage'
@@ -33,6 +34,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )

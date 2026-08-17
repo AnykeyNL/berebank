@@ -131,7 +131,24 @@
     "signIn": "Inloggen",
     "signingIn": "Inloggen…",
     "failed": "Inloggen mislukt",
-    "noAccount": "Geen account? Vraag je bankmanager om er een aan te maken."
+    "noAccount": "Geen account?",
+    "registerLink": "Registreer hier"
+  },
+  "register": {
+    "title": "Registreren",
+    "intro": "Vraag een account aan. De bankmanager beoordeelt elke registratie voordat je kunt inloggen.",
+    "displayName": "Weergavenaam",
+    "whatsapp": "WhatsApp-nummer",
+    "whatsappNote": "Internationaal formaat, bijv. +31612345678",
+    "whatsappInvalid": "Voer een WhatsApp-nummer in internationaal formaat in, bijv. +31612345678",
+    "submit": "Registratie versturen",
+    "submitting": "Versturen…",
+    "failed": "Registratie mislukt",
+    "submittedTitle": "Registratie verstuurd",
+    "submittedNote": "De bankmanager beoordeelt je aanvraag. Je kunt inloggen zodra deze is goedgekeurd.",
+    "backToLogin": "Terug naar inloggen",
+    "haveAccount": "Heb je al een account?",
+    "signInLink": "Inloggen"
   },
   "portfolio": {
     "loading": "Portfolio laden…",
@@ -1208,6 +1225,12 @@
     "fifoNote": "Winst/verlies wordt per verkoop berekend via FIFO: de oudste aankopen (inclusief kosten) worden eerst gematcht. \"Aangehouden\" is de naar aantal gewogen leeftijd van die aankopen op het moment van verkoop."
   },
   "admin": {
+    "registrationRequests": "Registratieverzoeken",
+    "regApprove": "Goedkeuren",
+    "regReject": "Afwijzen",
+    "regApproveFailed": "Goedkeuren van registratie mislukt",
+    "regRejectFailed": "Afwijzen van registratie mislukt",
+    "regRejectConfirm": "De registratie van {{name}} afwijzen? Diegene kan zich later opnieuw registreren.",
     "userManagement": "Gebruikersbeheer",
     "accounts": "Accounts",
     "user": "Gebruiker",

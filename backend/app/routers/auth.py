@@ -3,8 +3,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User
-from ..schemas import ChangePasswordRequest, LoginRequest, ProfileUpdate, TokenResponse, UserOut
+from ..models import RegistrationRequest, User
+from ..schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    ProfileUpdate,
+    RegisterRequest,
+    RegisterResponse,
+    TokenResponse,
+    UserOut,
+)
 from ..security import create_token, get_current_user, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -14,10 +22,42 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == body.email.lower()))
     if user is None or not verify_password(body.password, user.password_hash):
+        # A pending applicant deserves a clearer answer than "wrong password".
+        if user is None and db.scalar(
+            select(RegistrationRequest).where(RegistrationRequest.email == body.email.lower())
+        ):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Your registration is awaiting approval by the bank manager",
+            )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is deactivated")
     return TokenResponse(access_token=create_token(user))
+
+
+@router.post("/register", response_model=RegisterResponse)
+def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    email = body.email.lower()
+    if db.scalar(select(User).where(User.email == email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "A user with this email already exists")
+    if db.scalar(select(RegistrationRequest).where(RegistrationRequest.email == email)):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "A registration for this email is already awaiting approval",
+        )
+    db.add(
+        RegistrationRequest(
+            display_name=body.display_name.strip(),
+            email=email,
+            whatsapp_number=body.whatsapp_number,
+            password_hash=hash_password(body.password),
+        )
+    )
+    db.commit()
+    return RegisterResponse(
+        message="Registration submitted. The bank manager will review your request."
+    )
 
 
 @router.get("/me", response_model=UserOut)
@@ -38,6 +78,8 @@ def update_profile(
         user.display_name = name
     if body.preferred_language is not None:
         user.preferred_language = body.preferred_language
+    if body.whatsapp_number is not None:
+        user.whatsapp_number = body.whatsapp_number
     if body.mcp_trading_enabled is not None:
         user.mcp_trading_enabled = body.mcp_trading_enabled
     db.commit()

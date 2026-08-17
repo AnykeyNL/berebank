@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import LanguageSwitcher from '../components/LanguageSwitcher'
@@ -73,7 +73,12 @@ export default function LoginPage() {
           >
             {busy ? t('login.signingIn') : t('login.signIn')}
           </button>
-          <p className="text-center text-xs text-slate-500">{t('login.noAccount')}</p>
+          <p className="text-center text-xs text-slate-500">
+            {t('login.noAccount')}{' '}
+            <Link to="/register" className="font-medium text-amber-400 hover:underline">
+              {t('login.registerLink')}
+            </Link>
+          </p>
         </form>
       </div>
     </div>

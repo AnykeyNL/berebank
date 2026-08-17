@@ -131,7 +131,24 @@
     "signIn": "Sign in",
     "signingIn": "Signing in…",
     "failed": "Login failed",
-    "noAccount": "No account? Ask your bank manager to create one."
+    "noAccount": "No account?",
+    "registerLink": "Register here"
+  },
+  "register": {
+    "title": "Register",
+    "intro": "Request an account. The bank manager reviews every registration before you can sign in.",
+    "displayName": "Display name",
+    "whatsapp": "WhatsApp number",
+    "whatsappNote": "International format, e.g. +31612345678",
+    "whatsappInvalid": "Enter a WhatsApp number in international format, e.g. +31612345678",
+    "submit": "Submit registration",
+    "submitting": "Submitting…",
+    "failed": "Registration failed",
+    "submittedTitle": "Registration submitted",
+    "submittedNote": "The bank manager will review your request. You can sign in once it has been approved.",
+    "backToLogin": "Back to sign in",
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in"
   },
   "portfolio": {
     "loading": "Loading portfolio…",
@@ -1208,6 +1225,12 @@
     "fifoNote": "Profit/loss is calculated per sell using FIFO: the oldest purchases (including their fees) are matched first. \"Held\" is the amount-weighted age of those purchases at the moment of sale."
   },
   "admin": {
+    "registrationRequests": "Registration requests",
+    "regApprove": "Approve",
+    "regReject": "Reject",
+    "regApproveFailed": "Failed to approve registration",
+    "regRejectFailed": "Failed to reject registration",
+    "regRejectConfirm": "Reject the registration of {{name}}? They can register again later.",
     "userManagement": "User management",
     "accounts": "Accounts",
     "user": "User",

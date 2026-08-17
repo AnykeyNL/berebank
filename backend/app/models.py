@@ -21,10 +21,29 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), default="user")  # user | bank_manager
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     preferred_language: Mapped[str | None] = mapped_column(String(5), nullable=True)  # en | nl
+    whatsapp_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
     mcp_trading_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     account: Mapped["Account"] = relationship(back_populates="user", uselist=False)
+
+
+class RegistrationRequest(Base):
+    """A self-registration awaiting BankManager approval.
+
+    Deliberately not a User: approval creates the real User + Account (with the
+    starting balance the manager chooses) and deletes this row, so pending
+    people never show up in the leaderboard, snapshots or admin user list.
+    """
+
+    __tablename__ = "registration_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(100))
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    whatsapp_number: Mapped[str] = mapped_column(String(32))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Account(Base):

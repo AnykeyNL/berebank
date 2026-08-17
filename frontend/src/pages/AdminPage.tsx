@@ -11,14 +11,19 @@ import type {
   OpusDatasetImportResult,
   OpusDatasetStatus,
   OpusRecalibrateResult,
+  RegistrationRequest,
   RssFeedStatus,
   Settings,
 } from '../lib/types'
 
 export default function AdminPage() {
+  // Approving a registration adds a user, so the user list must reload too.
+  const [userListVersion, setUserListVersion] = useState(0)
+
   return (
     <div className="space-y-8">
-      <UserManagement />
+      <RegistrationRequests onApproved={() => setUserListVersion((v) => v + 1)} />
+      <UserManagement reloadKey={userListVersion} />
       <BitvavoSettings />
       <TwelveDataSettings />
       <CoinglassSettings />
@@ -29,7 +34,111 @@ export default function AdminPage() {
   )
 }
 
-function UserManagement() {
+function RegistrationRequests({ onApproved }: { onApproved: () => void }) {
+  const { t } = useTranslation()
+  const [requests, setRequests] = useState<RegistrationRequest[]>([])
+  const [balances, setBalances] = useState<Record<number, string>>({})
+  const [busy, setBusy] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    api<RegistrationRequest[]>('/admin/registration-requests')
+      .then(setRequests)
+      .catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function approve(request: RegistrationRequest) {
+    setBusy(request.id)
+    setError(null)
+    try {
+      await api(`/admin/registration-requests/${request.id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ initial_balance_eur: balances[request.id] ?? '10000' }),
+      })
+      load()
+      onApproved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.regApproveFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function reject(request: RegistrationRequest) {
+    if (!window.confirm(t('admin.regRejectConfirm', { name: request.display_name }))) return
+    setBusy(request.id)
+    setError(null)
+    try {
+      await api(`/admin/registration-requests/${request.id}`, { method: 'DELETE' })
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.regRejectFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (requests.length === 0 && !error) return null
+
+  return (
+    <section>
+      <h2 className="mb-4 text-xl font-bold">
+        {t('admin.registrationRequests')}
+        {requests.length > 0 && (
+          <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-sm font-semibold text-amber-400">
+            {requests.length}
+          </span>
+        )}
+      </h2>
+      <div className="rounded-xl border border-amber-500/30 bg-slate-900/60">
+        {error && <p className="px-4 py-3 text-sm text-red-400">{error}</p>}
+        <div className="divide-y divide-slate-800/60">
+          {requests.map((request) => (
+            <div key={request.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <span className="min-w-0 flex-1 basis-52">
+                <span className="block font-medium">{request.display_name}</span>
+                <span className="block break-all text-xs text-slate-500">{request.email}</span>
+                <span className="block font-mono text-xs text-slate-400">{request.whatsapp_number}</span>
+                <span className="block text-xs text-slate-500">{fmtDateTime(request.created_at)}</span>
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                <label className="text-xs uppercase tracking-wide text-slate-500">
+                  {t('admin.initialBalance')}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={balances[request.id] ?? '10000'}
+                  onChange={(e) => setBalances({ ...balances, [request.id]: e.target.value })}
+                  className="w-28 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-right text-sm outline-none focus:border-amber-500"
+                />
+                <button
+                  onClick={() => approve(request)}
+                  disabled={busy === request.id}
+                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {t('admin.regApprove')}
+                </button>
+                <button
+                  onClick={() => reject(request)}
+                  disabled={busy === request.id}
+                  className="rounded-md border border-red-900/60 px-3 py-1.5 text-xs text-red-400 hover:bg-red-950/40 disabled:opacity-50"
+                >
+                  {t('admin.regReject')}
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function UserManagement({ reloadKey }: { reloadKey: number }) {
   const { t } = useTranslation()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +147,7 @@ function UserManagement() {
     api<AdminUser[]>('/admin/users').then(setUsers).catch((e) => setError(e.message))
   }, [])
 
-  useEffect(load, [load])
+  useEffect(load, [load, reloadKey])
 
   return (
     <section>
@@ -138,6 +247,9 @@ function UserCard({ user, onChanged }: { user: AdminUser; onChanged: () => void 
             )}
           </span>
           <span className="mt-0.5 block break-all text-xs text-slate-500">{user.email}</span>
+          {user.whatsapp_number && (
+            <span className="block font-mono text-xs text-slate-400">{user.whatsapp_number}</span>
+          )}
         </span>
         {editing ? (
           <span className="flex shrink-0 items-center gap-1">
@@ -199,6 +311,9 @@ function UserRow({ user, onChanged }: { user: AdminUser; onChanged: () => void }
       <td className="px-4 py-2.5">
         <span className="font-medium">{user.display_name}</span>
         <span className="block text-xs text-slate-500">{user.email}</span>
+        {user.whatsapp_number && (
+          <span className="block font-mono text-xs text-slate-400">{user.whatsapp_number}</span>
+        )}
       </td>
       <td className="px-4 py-2.5">
         {user.role === 'bank_manager' ? (

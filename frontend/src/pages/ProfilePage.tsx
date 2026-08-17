@@ -27,6 +27,7 @@ function ProfileForm() {
   const { user, updateUser } = useAuth()
   const { t, i18n } = useTranslation()
   const [displayName, setDisplayName] = useState(user?.display_name ?? '')
+  const [whatsapp, setWhatsapp] = useState(user?.whatsapp_number ?? '')
   const [language, setLanguage] = useState<'en' | 'nl'>(
     user?.preferred_language ?? (i18n.language.startsWith('nl') ? 'nl' : 'en'),
   )
@@ -40,7 +41,15 @@ function ProfileForm() {
     try {
       const updated = await api<User>('/auth/profile', {
         method: 'PUT',
-        body: JSON.stringify({ display_name: displayName.trim(), preferred_language: language }),
+        body: JSON.stringify({
+          display_name: displayName.trim(),
+          preferred_language: language,
+          // Only send the number when the user actually changed it, so an
+          // account without one is not forced to add it just to save.
+          ...(whatsapp.trim() !== (user?.whatsapp_number ?? '')
+            ? { whatsapp_number: whatsapp.trim() }
+            : {}),
+        }),
       })
       updateUser(updated)
       if (!i18n.language.startsWith(language)) void i18n.changeLanguage(language)
@@ -72,6 +81,16 @@ function ProfileForm() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>{t('register.whatsapp')}</label>
+          <input
+            type="tel"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            className={inputClass}
+            placeholder="+31612345678"
           />
         </div>
         <div>

@@ -1,9 +1,22 @@
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_serializer, field_validator
 
 from .config import AMOUNT_QUANTUM, MIN_ORDER_EUR
+
+_WHATSAPP_PATTERN = re.compile(r"^\+[1-9][0-9]{7,14}$")
+
+
+def normalize_whatsapp(value: str) -> str:
+    """Accept human formatting (spaces, dashes, 00-prefix) but store one shape."""
+    cleaned = re.sub(r"[\s\-().]", "", value.strip())
+    if cleaned.startswith("00"):
+        cleaned = "+" + cleaned[2:]
+    if not _WHATSAPP_PATTERN.match(cleaned):
+        raise ValueError("WhatsApp number must be in international format, e.g. +31612345678")
+    return cleaned
 
 
 def utc_iso(moment: datetime | None) -> str | None:
@@ -40,7 +53,13 @@ class ChangePasswordRequest(BaseModel):
 class ProfileUpdate(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=100)
     preferred_language: str | None = Field(default=None, pattern="^(en|nl)$")
+    whatsapp_number: str | None = None
     mcp_trading_enabled: bool | None = None
+
+    @field_validator("whatsapp_number")
+    @classmethod
+    def _valid_whatsapp(cls, value: str | None) -> str | None:
+        return None if value is None else normalize_whatsapp(value)
 
 
 class UserOut(BaseModel):
@@ -52,7 +71,24 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     preferred_language: str | None = None
+    whatsapp_number: str | None = None
     mcp_trading_enabled: bool = False
+
+
+class RegisterRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    whatsapp_number: str
+    password: str = Field(min_length=6)
+
+    @field_validator("whatsapp_number")
+    @classmethod
+    def _valid_whatsapp(cls, value: str) -> str:
+        return normalize_whatsapp(value)
+
+
+class RegisterResponse(BaseModel):
+    message: str
 
 
 # ---- Markets ----
@@ -253,11 +289,35 @@ class AdminUserUpdate(BaseModel):
     role: str | None = Field(default=None, pattern="^(user|bank_manager)$")
     is_active: bool | None = None
     balance_eur: Decimal | None = Field(default=None, ge=0)
+    whatsapp_number: str | None = None
+
+    @field_validator("whatsapp_number")
+    @classmethod
+    def _valid_whatsapp(cls, value: str | None) -> str | None:
+        return None if value is None else normalize_whatsapp(value)
 
 
 class AdminUserOut(UserOut):
     balance_eur: Decimal
     created_at: datetime
+
+
+class RegistrationRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    display_name: str
+    email: str
+    whatsapp_number: str
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def _as_utc(self, moment: datetime) -> str | None:
+        return utc_iso(moment)
+
+
+class RegistrationApprove(BaseModel):
+    initial_balance_eur: Decimal = Field(ge=0)
 
 
 class SettingsOut(BaseModel):

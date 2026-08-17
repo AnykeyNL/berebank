@@ -45,6 +45,10 @@ def migrate_schema() -> None:
                 f"ALTER TABLE users ADD COLUMN mcp_trading_enabled BOOLEAN NOT NULL DEFAULT {default}"
             ))
         logger.info("Migrated: added users.mcp_trading_enabled")
+    if "whatsapp_number" not in user_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN whatsapp_number VARCHAR(32)"))
+        logger.info("Migrated: added users.whatsapp_number")
     order_columns = {col["name"] for col in inspector.get_columns("orders")}
     if "trigger_price" not in order_columns:
         with engine.begin() as conn:

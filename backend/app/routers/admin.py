@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from ..database import get_db
-from ..models import Account, AppSetting, Holding, Order, RssFeed, Trade, User
+from ..models import Account, AppSetting, Holding, Order, RegistrationRequest, RssFeed, Trade, User
 from ..schemas import (
     AdminUserCreate,
     AdminUserOut,
@@ -18,6 +18,8 @@ from ..schemas import (
     OpusDatasetImportOut,
     OpusDatasetStatusOut,
     OpusRecalibrateOut,
+    RegistrationApprove,
+    RegistrationRequestOut,
     RssFeedCreate,
     RssFeedOut,
     RssFeedStatusOut,
@@ -45,9 +47,54 @@ def _user_out(user: User) -> AdminUserOut:
         display_name=user.display_name,
         role=user.role,
         is_active=user.is_active,
+        whatsapp_number=user.whatsapp_number,
         balance_eur=user.account.balance_eur,
         created_at=user.created_at,
     )
+
+
+@router.get("/registration-requests", response_model=list[RegistrationRequestOut])
+def list_registration_requests(db: Session = Depends(get_db)):
+    requests = db.scalars(
+        select(RegistrationRequest).order_by(RegistrationRequest.created_at.desc())
+    ).all()
+    return [RegistrationRequestOut.model_validate(r) for r in requests]
+
+
+@router.post("/registration-requests/{request_id}/approve", response_model=AdminUserOut)
+def approve_registration_request(
+    request_id: int, body: RegistrationApprove, db: Session = Depends(get_db)
+):
+    request = db.get(RegistrationRequest, request_id)
+    if request is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Registration request not found")
+    if db.scalar(select(User).where(User.email == request.email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "A user with this email already exists")
+    user = User(
+        email=request.email,
+        password_hash=request.password_hash,
+        display_name=request.display_name,
+        whatsapp_number=request.whatsapp_number,
+        role="user",
+    )
+    db.add(user)
+    db.flush()
+    db.add(Account(user_id=user.id, balance_eur=body.initial_balance_eur))
+    db.delete(request)
+    db.commit()
+    db.refresh(user)
+    return _user_out(user)
+
+
+@router.delete("/registration-requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+def reject_registration_request(request_id: int, db: Session = Depends(get_db)):
+    """Reject: the request disappears and the person may register again later."""
+    request = db.get(RegistrationRequest, request_id)
+    if request is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Registration request not found")
+    db.delete(request)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/users", response_model=list[AdminUserOut])
@@ -90,6 +137,8 @@ def update_user(user_id: int, body: AdminUserUpdate, db: Session = Depends(get_d
         user.is_active = body.is_active
     if body.balance_eur is not None:
         user.account.balance_eur = body.balance_eur
+    if body.whatsapp_number is not None:
+        user.whatsapp_number = body.whatsapp_number
     db.commit()
     db.refresh(user)
     return _user_out(user)
